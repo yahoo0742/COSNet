@@ -103,21 +103,21 @@ def configure_dataset_init_model(args):
         args.resume = './snapshots/voc12/psp_voc12_3.pth' #checkpoint log file, helping recovering training
         
     elif args.dataset == 'davis': 
-        args.batch_size = user_config["train"]["davis"]["batch_size"]# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
-        args.maxEpoches = user_config["train"]["davis"]["max_epoches"] # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
-        args.data_dir = user_config["train"]["davis"]["data_path"]   # 37572 image pairs
+        args.batch_size = user_config["train"]["dataset"]["davis"]["batch_size"]# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        args.maxEpoches = user_config["train"]["dataset"]["davis"]["max_epoches"] # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
+        args.data_dir = user_config["train"]["dataset"]["davis"]["data_path"]   # 37572 image pairs
         args.img_dir = user_config["train"]["saliency_dataset"] #'/vol/graphics-solar/fengwenb/vos/saliency_dataset'
         args.data_list = './dataset/list/VOC2012/train_aug.txt'  # Path to the file listing the images in the dataset
-        args.ignore_label = user_config["train"]["davis"]["ignore_label"]     #The index of the label to ignore during the training
-        args.input_size = user_config["train"]["davis"]["input_size"] #'854,480' #Comma-separated string with height and width of images
-        args.num_classes = user_config["train"]["davis"]["num_classes"]      #Number of classes to predict (including background)
-        args.img_mean = np.array(user_config["train"]["davis"]["img_mean"], dtype=np.float32)       # saving model file and log record during the process of training
+        args.ignore_label = user_config["train"]["dataset"]["davis"]["ignore_label"]     #The index of the label to ignore during the training
+        args.input_size = user_config["train"]["dataset"]["davis"]["input_size"] #'854,480' #Comma-separated string with height and width of images
+        args.num_classes = user_config["train"]["dataset"]["davis"]["num_classes"]      #Number of classes to predict (including background)
+        args.img_mean = np.array(user_config["train"]["dataset"]["davis"]["img_mean"], dtype=np.float32)       # saving model file and log record during the process of training
         #Where restore model pretrained on other dataset, such as COCO.")
-        pretrained_model_name = user_config["train"]["davis"]["pretrained_model"]
+        pretrained_model_name = user_config["train"]["dataset"]["davis"]["pretrained_model"]
         args.restore_from = user_config["train"]["pretrained_models"][pretrained_model_name]["file"]
         #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-        args.snapshot_dir = user_config["train"]["davis"]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
-        args.resume = user_config["train"]["davis"]["checkpoint_file"] #'./snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
+        args.snapshot_dir = user_config["train"]["dataset"]["davis"]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
+        args.resume = user_config["train"]["dataset"]["davis"]["checkpoint_file"] #'./snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
 		
     elif args.dataset == 'cityscapes':
         args.batch_size = 8   #Number of images sent to the network in one step, batch_size/num_GPU=2
