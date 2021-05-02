@@ -46,7 +46,7 @@ def my_crop(img,gt):
 class PairwiseImg(Dataset):
     """DAVIS 2016 dataset constructed using the PyTorch built-in functionalities"""
 
-    def __init__(self, dataset_config, train=True,
+    def __init__(self, dataset_config, saliency_dataset_config, train=True,
                  inputRes=None,
                  db_root_dir='/DAVIS-2016',
                  img_root_dir = None,
@@ -66,6 +66,7 @@ class PairwiseImg(Dataset):
         self.seq_name = seq_name
 
         self.dataset_config = dataset_config
+        self.saliency_dataset_config = saliency_dataset_config
 
         if self.train:
             fname = 'train_seqs'
@@ -79,7 +80,7 @@ class PairwiseImg(Dataset):
                 video_list = []
                 labels = []
                 Index = {}
-                image_list = []
+                image_list = [] #DUTS-TR/Imgs/0001.jpg
                 im_label = []
                 for seq in seqs:
                     print("seq: ",seq) #wbf
@@ -95,19 +96,21 @@ class PairwiseImg(Dataset):
                     lab_path = list(map(lambda x: os.path.join('Annotations/480p/', seq.strip(), x), lab))
                     labels.extend(lab_path)
                     
-                with open('saliency_datasets.txt') as f:
-                    seqs = f.readlines()
+                saliency_datasets = dataset_config["saliency_datasets"]
                 #data_list = np.sort(os.listdir(db_root_dir))
-                    for seq in seqs: #所有数据集
-                        seq = seq.strip('\n') 
-                        print(" saliency seq: ",seq) #wbf
-                        images = np.sort(os.listdir(os.path.join(img_root_dir,seq.strip(), 'Imgs')))#针对某个数据集，比如DUT			
-            # Initialize the original DAVIS splits for training the parent network
-                        images_path = list(map(lambda x: os.path.join(seq ,'Imgs', x), images))         
-                        image_list.extend(images_path)
-                        lab = np.sort(os.listdir(os.path.join(img_root_dir,seq.strip(), 'Masks')))
-                        lab_path = list(map(lambda x: os.path.join(seq ,'Masks',x), lab))
-                        im_label.extend(lab_path)
+                for seq in seqs: #所有数据集
+                    seq = seq.strip('\n') 
+                    print(" saliency seq: ",seq) #wbf
+                    img_fullpath = os.path.join(saliency_dataset_config["root_path"], saliency_dataset_config["datasets"][seq]["images"])
+                    images = np.sort(os.listdir(img_fullpath))#针对某个数据集，比如DUT			
+        # Initialize the original DAVIS splits for training the parent network
+                    images_path = list(map(lambda x: os.path.join(saliency_dataset_config["datasets"][seq]["images"], x), images))         
+                    image_list.extend(images_path)
+
+                    lab_fullpath = os.path.join(saliency_dataset_config["root_path"], saliency_dataset_config["datasets"][seq]["masks"])
+                    lab = np.sort(os.listdir(lab_fullpath))
+                    lab_path = list(map(lambda x: os.path.join(saliency_dataset_config["datasets"][seq]["masks"],x), lab))
+                    im_label.extend(lab_path)
 
         else: #针对所有的训练样本， video_list存放的是图片的路径
 
@@ -125,19 +128,19 @@ class PairwiseImg(Dataset):
 
         self.video_list = video_list
         self.labels = labels
-        self.image_list = image_list
-        self.img_labels = im_label
+        self.saliency_images = image_list
+        self.saliency_labels = im_label
         self.Index = Index
         #img_files = open('all_im.txt','w+')
 
     def __len__(self):
-        print(len(self.video_list), len(self.image_list))
+        print(len(self.video_list), len(self.saliency_images))
         return len(self.video_list)
     
     def __getitem__(self, idx):
         target, target_gt = self.make_video_gt_pair(idx)
         target_id = idx
-        img_idx = np.random.randint(1,len(self.image_list)-1)
+        img_idx = np.random.randint(1,len(self.saliency_images)-1)
         seq_name1 = self.video_list[idx].split('/')[0] #获取物体名称
         if self.train:
             my_index = self.Index[seq_name1]
@@ -221,10 +224,10 @@ class PairwiseImg(Dataset):
         """
         Make the image-ground-truth pair
         """
-        img = cv2.imread(os.path.join(self.img_root_dir, self.image_list[idx]),cv2.IMREAD_COLOR)
+        img = cv2.imread(os.path.join(self.saliency_dataset_config["root_path"], self.saliency_images[idx]),cv2.IMREAD_COLOR)
         #print(os.path.join(self.db_root_dir, self.img_list[idx]))
         if self.img_labels[idx] is not None and self.train:
-            label = cv2.imread(os.path.join(self.img_root_dir, self.img_labels[idx]),cv2.IMREAD_GRAYSCALE)
+            label = cv2.imread(os.path.join(self.img_root_dir, self.saliency_labels[idx]),cv2.IMREAD_GRAYSCALE)
             #print(os.path.join(self.db_root_dir, self.labels[idx]))
         else:
             gt = np.zeros(img.shape[:-1], dtype=np.uint8)

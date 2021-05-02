@@ -25,22 +25,21 @@
             "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
             "snapshot_output_path": "./snapshots/davis_iteration_conf/"          #Where to save snapshots of the model
             "checkpoint_file": "./snapshots/davis/co_attention_davis_124.pth" #checkpoint log file helping recovering training
+            "saliency_datasets":
+                - "DUTS-TR"
+                - "MSRA10K_Imgs_GT"
 
 
     "saliency_dataset":
-        - "name": "DUTS-TR"
-          "images":
-              "path": "/vol/graphics-solar/fengwenb/vos/saliency_dataset/DUTS-TR/Imgs"
+        "root_path": "/vol/graphics-solar/fengwenb/vos/saliency_dataset/"
+        "datasets":
+            "DUTS-TR":
+                "images": "./DUTS-TR/Imgs/"
+                "masks": "./DUTS-TR/Masks/"
             
-          "masks":
-              "path": "/vol/graphics-solar/fengwenb/vos/saliency_dataset/DUTS-TR/Masks"
-        
-        - "name": "MSRA10K_Imgs_GT"
-          "images":
-              "path": "/vol/graphics-solar/fengwenb/vos/saliency_dataset/MSRA10K_Imgs_GT/Imgs"
-            
-          "masks":
-              "path": "/vol/graphics-solar/fengwenb/vos/saliency_dataset/MSRA10K_Imgs_GT/Masks"
+            "MSRA10K_Imgs_GT":
+                "images": "./MSRA10K_Imgs_GT/Imgs/"
+                "masks": "./MSRA10K_Imgs_GT/Masks/"
 
 
 "test":
