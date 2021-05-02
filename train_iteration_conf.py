@@ -6,11 +6,16 @@ Created on Sat Sep 15 10:52:26 2018
 """
 #区别于deeplab_co_attention_concat在于采用了新的model（siamese_model_concat_new）来train
 
+# Editing this file is too tricky. Load configurations from the yaml file, so that when we need to customize something, we do not need to edit this file
+import yaml
+with open("config.yaml") as config_file:
+    user_config = yaml.load(config_file)
+
+import numpy as np
 import argparse
 import torch
 import torch.nn as nn
 from torch.utils import data
-import numpy as np
 import pickle
 import cv2
 from torch.autograd import Variable
@@ -31,6 +36,9 @@ import timeit
 from deeplab.siamese_model_conf import CoattentionNet #siame_model 是直接将attend的model之后的结果输出
 #from deeplab.utils import get_1x_lr_params, get_10x_lr_params#, adjust_learning_rate #, loss_calc
 start = timeit.default_timer()
+
+
+
 
 def get_arguments():
     """Parse all the arguments provided from the CLI.
@@ -95,19 +103,21 @@ def configure_dataset_init_model(args):
         args.resume = './snapshots/voc12/psp_voc12_3.pth' #checkpoint log file, helping recovering training
         
     elif args.dataset == 'davis': 
-        args.batch_size = 16# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
-        args.maxEpoches = 60 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
-        args.data_dir = '/home/ubuntu/xiankai/dataset/DAVIS-2016'   # 37572 image pairs
-        args.img_dir = '/home/ubuntu/xiankai/dataset/images'
+        args.batch_size = user_config["train"]["dataset"]["davis"]["batch_size"]# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        args.maxEpoches = user_config["train"]["dataset"]["davis"]["max_epoches"] # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
+        args.data_dir = user_config["train"]["dataset"]["davis"]["data_path"]   # 37572 image pairs
+        args.img_dir = user_config["train"]["saliency_dataset"] #'/vol/graphics-solar/fengwenb/vos/saliency_dataset'
         args.data_list = './dataset/list/VOC2012/train_aug.txt'  # Path to the file listing the images in the dataset
-        args.ignore_label = 255     #The index of the label to ignore during the training
-        args.input_size = '473,473' #Comma-separated string with height and width of images
-        args.num_classes = 2      #Number of classes to predict (including background)
-        args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
+        args.ignore_label = user_config["train"]["dataset"]["davis"]["ignore_label"]     #The index of the label to ignore during the training
+        args.input_size = user_config["train"]["dataset"]["davis"]["input_size"] #'854,480' #Comma-separated string with height and width of images
+        args.num_classes = user_config["train"]["dataset"]["davis"]["num_classes"]      #Number of classes to predict (including background)
+        args.img_mean = np.array(user_config["train"]["dataset"]["davis"]["img_mean"], dtype=np.float32)       # saving model file and log record during the process of training
         #Where restore model pretrained on other dataset, such as COCO.")
-        args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-        args.snapshot_dir = './snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
-        args.resume = './snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
+        pretrained_model_name = user_config["train"]["dataset"]["davis"]["pretrained_model"]
+        args.restore_from = user_config["train"]["pretrained_models"][pretrained_model_name]["file"]
+        #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.snapshot_dir = user_config["train"]["dataset"]["davis"]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
+        args.resume = user_config["train"]["dataset"]["davis"]["checkpoint_file"] #'./snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
 		
     elif args.dataset == 'cityscapes':
         args.batch_size = 8   #Number of images sent to the network in one step, batch_size/num_GPU=2
@@ -270,7 +280,7 @@ def netParams(model):
 def main():
     
     
-    print("=====> Configure dataset and pretrained model")
+    print("=====> Configure dataset and pretrained model:",args)
     configure_dataset_init_model(args)
     print(args)
 
@@ -356,7 +366,7 @@ def main():
                                                  scale=args.random_scale, mirror=args.random_mirror, mean=args.img_mean), 
                                       batch_size = args.batch_size, shuffle=True, num_workers=0, pin_memory=True, drop_last=True)
     elif args.dataset == 'davis':  #for davis 2016
-        db_train = db.PairwiseImg(train=True, inputRes=input_size, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        db_train = db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, inputRes=input_size, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")

@@ -1,0 +1,51 @@
+"train":
+    "pretrained_models":
+        "deep_labv3_davis":
+            "model": "deep_labv3"
+            "dataset": "davis"
+            "file": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
+        
+        "resnet101_cityscapes":
+            "model": "resnet101"
+            "dataset": "cityscapes"
+            "path": ""
+
+    "dataset":
+        "davis":
+            "img_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/JPEGImages/480p/"
+            "annotation_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/Annotations/480p/"
+            "subset_file": "./train_seqs.txt"
+            "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/"
+            "batch_size": 10 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
+            "max_epoches": 15 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
+            "ignore_label": 255 #The index of the label to ignore during the training
+            "input_size": '477,240' #'854480' #Comma-separated string with height and width of images
+            "num_classes": 2      #Number of classes to predict (including background)
+            "img_mean": [104.00698793, 116.66876762, 122.67891434] ## saving model file and log record during the process of training
+            "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
+            "snapshot_output_path": "./snapshots/davis_iteration_conf/"          #Where to save snapshots of the model
+            "checkpoint_file": "./snapshots/davis/co_attention_davis_124.pth" #checkpoint log file helping recovering training
+            "saliency_datasets":
+                - "DUTS-TR"
+                - "MSRA10K_Imgs_GT"
+
+
+    "saliency_dataset":
+        "root_path": "/vol/graphics-solar/fengwenb/vos/saliency_dataset/"
+        "datasets":
+            "DUTS-TR":
+                "images": "./DUTS-TR/Imgs/"
+                "masks": "./DUTS-TR/Masks/"
+            
+            "MSRA10K_Imgs_GT":
+                "images": "./MSRA10K_Imgs_GT/Imgs/"
+                "masks": "./MSRA10K_Imgs_GT/Masks/"
+
+
+"test":
+    "dataset":
+        "davis":
+            "subset_file": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/val.txt"
+            "path": ""
+    
+

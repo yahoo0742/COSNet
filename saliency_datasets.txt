@@ -1,0 +1,2 @@
+DUTS-TR
+MSRA10K_Imgs_GT
