@@ -14,7 +14,7 @@ from scipy.misc import imresize
 import scipy.misc 
 import random
 
-from dataloaders.helpers import *
+#from dataloaders.helpers import *
 from torch.utils.data import Dataset
 
 def flip(I,flip_p):
@@ -46,7 +46,7 @@ def my_crop(img,gt):
 class PairwiseImg(Dataset):
     """DAVIS 2016 dataset constructed using the PyTorch built-in functionalities"""
 
-    def __init__(self, train=True,
+    def __init__(self, dataset_config, train=True,
                  inputRes=None,
                  db_root_dir='/DAVIS-2016',
                  img_root_dir = None,
@@ -65,22 +65,28 @@ class PairwiseImg(Dataset):
         self.meanval = meanval
         self.seq_name = seq_name
 
+        self.dataset_config = dataset_config
+
         if self.train:
             fname = 'train_seqs'
         else:
             fname = 'val_seqs'
 
         if self.seq_name is None: #所有的数据集都参与训练
-            with open(os.path.join(db_root_dir, fname + '.txt')) as f:
+            with open(dataset_config["subset_file"]) as f:
+	    #with open(os.path.join(db_root_dir, fname + '.txt')) as f: #wbf
                 seqs = f.readlines()
                 video_list = []
                 labels = []
                 Index = {}
                 image_list = []
                 im_label = []
-                for seq in seqs:                    
-                    images = np.sort(os.listdir(os.path.join(db_root_dir, 'JPEGImages/480p/', seq.strip('\n'))))
-                    images_path = list(map(lambda x: os.path.join('JPEGImages/480p/', seq.strip(), x), images))
+                for seq in seqs:
+                    print("seq: ",seq) #wbf
+                    path_to_category = os.path.join(dataset_config["img_path"], seq.strip('\n'))
+                    images = np.sort(os.listdir(path_to_category))
+                    images_path = list(map(lambda x: os.path.join(seq.strip(), x), images))
+                    print("images_path",images_path) #wbf
                     start_num = len(video_list)
                     video_list.extend(images_path)
                     end_num = len(video_list)
@@ -89,18 +95,20 @@ class PairwiseImg(Dataset):
                     lab_path = list(map(lambda x: os.path.join('Annotations/480p/', seq.strip(), x), lab))
                     labels.extend(lab_path)
                     
-                with open('/home/ubuntu/xiankai/saliency_data.txt') as f:
+                with open('saliency_datasets.txt') as f:
                     seqs = f.readlines()
                 #data_list = np.sort(os.listdir(db_root_dir))
                     for seq in seqs: #所有数据集
                         seq = seq.strip('\n') 
-                        images = np.sort(os.listdir(os.path.join(img_root_dir,seq.strip())+'/images/'))#针对某个数据集，比如DUT			
+                        print(" saliency seq: ",seq) #wbf
+                        images = np.sort(os.listdir(os.path.join(img_root_dir,seq.strip(), 'Imgs')))#针对某个数据集，比如DUT			
             # Initialize the original DAVIS splits for training the parent network
-                        images_path = list(map(lambda x: os.path.join((seq +'/images'), x), images))         
+                        images_path = list(map(lambda x: os.path.join(seq ,'Imgs', x), images))         
                         image_list.extend(images_path)
-                        lab = np.sort(os.listdir(os.path.join(img_root_dir,seq.strip())+'/saliencymaps'))
-                        lab_path = list(map(lambda x: os.path.join((seq +'/saliencymaps'),x), lab))
+                        lab = np.sort(os.listdir(os.path.join(img_root_dir,seq.strip(), 'Masks')))
+                        lab_path = list(map(lambda x: os.path.join(seq ,'Masks',x), lab))
                         im_label.extend(lab_path)
+
         else: #针对所有的训练样本， video_list存放的是图片的路径
 
             # Initialize the per sequence images for online training
@@ -130,7 +138,7 @@ class PairwiseImg(Dataset):
         target, target_gt = self.make_video_gt_pair(idx)
         target_id = idx
         img_idx = np.random.randint(1,len(self.image_list)-1)
-        seq_name1 = self.video_list[idx].split('/')[-2] #获取视频名称
+        seq_name1 = self.video_list[idx].split('/')[0] #获取物体名称
         if self.train:
             my_index = self.Index[seq_name1]
             search_id = np.random.randint(my_index[0], my_index[1])#min(len(self.video_list)-1, target_id+np.random.randint(1,self.range+1))
@@ -164,7 +172,7 @@ class PairwiseImg(Dataset):
         """
         Make the image-ground-truth pair
         """
-        img = cv2.imread(os.path.join(self.db_root_dir, self.video_list[idx]), cv2.IMREAD_COLOR)
+        img = cv2.imread(os.path.join(self.dataset_config["img_path"], self.video_list[idx]), cv2.IMREAD_COLOR)
         if self.labels[idx] is not None and self.train:
             label = cv2.imread(os.path.join(self.db_root_dir, self.labels[idx]), cv2.IMREAD_GRAYSCALE)
             #print(os.path.join(self.db_root_dir, self.labels[idx]))
@@ -205,7 +213,7 @@ class PairwiseImg(Dataset):
         return img, gt
 
     def get_img_size(self):
-        img = cv2.imread(os.path.join(self.db_root_dir, self.video_list[0]))
+        img = cv2.imread(os.path.join(self.dataset_config["img_path"], self.video_list[0]))
         
         return list(img.shape[:2])
 
