@@ -14,7 +14,7 @@
         "davis":
             "img_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/JPEGImages/480p/"
             "annotation_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/Annotations/480p/"
-            "subset_file": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/train.txt"
+            "subset_file": "./train_seqs.txt"
             "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/"
             "batch_size": 10 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
             "max_epoches": 15 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
