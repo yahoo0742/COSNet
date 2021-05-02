@@ -226,7 +226,7 @@ class PairwiseImg(Dataset):
         """
         img = cv2.imread(os.path.join(self.saliency_dataset_config["root_path"], self.saliency_images[idx]),cv2.IMREAD_COLOR)
         #print(os.path.join(self.db_root_dir, self.img_list[idx]))
-        if self.img_labels[idx] is not None and self.train:
+        if self.saliency_labels[idx] is not None and self.train:
             label = cv2.imread(os.path.join(self.img_root_dir, self.saliency_labels[idx]),cv2.IMREAD_GRAYSCALE)
             #print(os.path.join(self.db_root_dir, self.labels[idx]))
         else:
@@ -234,7 +234,7 @@ class PairwiseImg(Dataset):
             
         if self.inputRes is not None:            
             img = imresize(img, self.inputRes)
-            if self.img_labels[idx] is not None and self.train:
+            if self.saliency_labels[idx] is not None and self.train:
                 label = imresize(label, self.inputRes, interp='nearest')
 
         img = np.array(img, dtype=np.float32)
@@ -242,7 +242,7 @@ class PairwiseImg(Dataset):
         img = np.subtract(img, np.array(self.meanval, dtype=np.float32))        
         img = img.transpose((2, 0, 1))  # NHWC -> NCHW
         
-        if self.img_labels[idx] is not None and self.train:
+        if self.saliency_labels[idx] is not None and self.train:
                 gt = np.array(label, dtype=np.int32)
                 gt[gt!=0]=1
                 #gt = gt/np.max([gt.max(), 1e-8])
