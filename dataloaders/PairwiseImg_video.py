@@ -227,7 +227,7 @@ class PairwiseImg(Dataset):
         img = cv2.imread(os.path.join(self.saliency_dataset_config["root_path"], self.saliency_images[idx]),cv2.IMREAD_COLOR)
         #print(os.path.join(self.db_root_dir, self.img_list[idx]))
         if self.saliency_labels[idx] is not None and self.train:
-            label = cv2.imread(os.path.join(self.img_root_dir, self.saliency_labels[idx]),cv2.IMREAD_GRAYSCALE)
+            label = cv2.imread(os.path.join(self.saliency_dataset_config["root_path"], self.saliency_labels[idx]),cv2.IMREAD_GRAYSCALE)
             #print(os.path.join(self.db_root_dir, self.labels[idx]))
         else:
             gt = np.zeros(img.shape[:-1], dtype=np.uint8)
