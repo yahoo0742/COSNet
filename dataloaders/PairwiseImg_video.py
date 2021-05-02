@@ -98,7 +98,7 @@ class PairwiseImg(Dataset):
                     
                 saliency_datasets = dataset_config["saliency_datasets"]
                 #data_list = np.sort(os.listdir(db_root_dir))
-                for seq in seqs: #所有数据集
+                for seq in saliency_datasets: #所有数据集
                     seq = seq.strip('\n') 
                     print(" saliency seq: ",seq) #wbf
                     img_fullpath = os.path.join(saliency_dataset_config["root_path"], saliency_dataset_config["datasets"][seq]["images"])
