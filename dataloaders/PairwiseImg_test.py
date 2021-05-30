@@ -68,7 +68,7 @@ class PairwiseImg(Dataset):
         else:
             fname = 'val'
 
-	print("seq name: ",self.seq_name, " root: ",db_root_dir, " fname: ",fname)
+	    print("seq name: ",self.seq_name, " root: ",db_root_dir, " fname: ",fname)
 
         if self.seq_name is None: #所有的数据集都参与训练
             with open(os.path.join(db_root_dir, 'ImageSets', '480p', fname + '.txt')) as f:
@@ -87,25 +87,25 @@ class PairwiseImg(Dataset):
 
                     #images = np.sort(os.listdir(os.path.join(db_root_dir, subfolder[1], subfolder[2], subfolder[3]))) #seq.strip('\n'))))
                     #print("images: ",images)
-		    images_path = os.path.join(db_root_dir, parts[0]) #subfolder[1], subfolder[2]) #list(map(lambda x: os.path.join(db_root_dir), images))
-		    #print("imag path: ",images_path)
+                    images_path = os.path.join(db_root_dir, parts[0]) #subfolder[1], subfolder[2]) #list(map(lambda x: os.path.join(db_root_dir), images))
+                    #print("imag path: ",images_path)
                     print(" subfold ",subfolder)
-		    if subfolder[2] not in Index:
-		    	start_num = len(img_list)
-                    	img_list.append(images_path)
-                    	end_num = len(img_list)
-                    	Index[subfolder[2]]= np.array([start_num, end_num])
-		    else:
-			img_list.append(images_path)
-			end_num = len(img_list)
-			Index[subfolder[2]][1] = end_num
-		
-		    lab_path = os.path.join(db_root_dir, parts[1])	
+                    if subfolder[2] not in Index:
+                        start_num = len(img_list)
+                        img_list.append(images_path)
+                        end_num = len(img_list)
+                        Index[subfolder[2]]= np.array([start_num, end_num])
+                    else:
+                        img_list.append(images_path)
+                        end_num = len(img_list)
+                        Index[subfolder[2]][1] = end_num
+                
+                    lab_path = os.path.join(db_root_dir, parts[1])	
                     #lab = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', seq.strip('\n'))))
                     #lab_path = list(map(lambda x: os.path.join('Annotations/480p/', seq.strip(), x), lab))
                     print("label path: ",lab_path)
-		    labels.append(lab_path)
-	            #print("labels: ",labels)
+                    labels.append(lab_path)
+                        #print("labels: ",labels)
         else: #针对所有的训练样本， img_list存放的是图片的路径
 
             # Initialize the per sequence images for online training
@@ -118,12 +118,12 @@ class PairwiseImg(Dataset):
                 img_list = [img_list[0]]
                 labels = [labels[0]]
 
-	print(labels)
-	print("======")
-	print(img_list)
+        print(labels)
+        print("======")
+        print(img_list)
 
         assert (len(labels) == len(img_list))
-	print(img_list)
+        print(img_list)
 
         self.img_list = img_list
         self.labels = labels
@@ -137,7 +137,7 @@ class PairwiseImg(Dataset):
         target, target_gt,sequence_name = self.make_img_gt_pair(idx) #测试时候要分割的帧
         target_id = idx
         seq_name1 = self.img_list[target_id].split('/')[-2] #获取视频名称
-	print("seq name1: ",seq_name1)
+        print("seq name1: ",seq_name1)
         sample = {'target': target, 'target_gt': target_gt, 'seq_name': sequence_name, 'search_0': None}
         if self.range>=1:
             my_index = self.Index[seq_name1]
