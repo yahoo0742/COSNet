@@ -4,7 +4,12 @@ Created on Mon Sep 17 17:53:20 2018
 
 @author: carri
 """
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+#sys.path.append('/vol/graphics-solar/fengwenb/vos/cosnet/COSNet')
+#print(sys.path)
 import argparse
 import torch
 import torch.nn as nn
@@ -68,20 +73,20 @@ def configure_dataset_model(args):
         args.corp_size =(505, 505)
         
     elif args.dataset == 'davis': 
-        args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        args.batch_size = 10# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
-        args.data_dir = 'your_path/DAVIS-2016'   # 37572 image pairs
-        args.data_list = 'your_path/DAVIS-2016/test_seqs.txt'  # Path to the file listing the images in the dataset
+        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/DAVIS'  #/DAVIS-2016'   # 37572 image pairs
+        args.data_list = '/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/val.txt' #'your_path/DAVIS-2016/test_seqs.txt'  # Path to the file listing the images in the dataset
         args.ignore_label = 255     #The index of the label to ignore during the training
-        args.input_size = '473,473' #Comma-separated string with height and width of images
+        args.input_size = '854,480' #'1920,1080' #Comma-separated string with height and width of images
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
-        args.restore_from = './your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
         args.snapshot_dir = './snapshots/davis_iteration/'          #Where to save snapshots of the model
         args.save_segimage = True
         args.seg_save_dir = "./result/test/davis_iteration_conf"
         args.vis_save_dir = "./result/test/davis_vis"
-        args.corp_size =(473, 473)
+        args.corp_size =(473, 473) #didn't see reference
         
     else:
         print("dataset error")
@@ -129,8 +134,8 @@ def main():
         voc_colorize = VOCColorize()
         
     elif args.dataset == 'davis':  #for davis 2016
-        db_test = db.PairwiseImg(train=False, inputRes=(473,473), db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
-        testloader = data.DataLoader(db_test, batch_size= 1, shuffle=False, num_workers=0)
+        db_test = db.PairwiseImg(train=False, inputRes=(854,480), db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
         #voc_colorize = VOCColorize()
     else:
         print("dataset error")
@@ -160,11 +165,12 @@ def main():
             search = batch['search'+'_'+str(i)]
             search_im = search
             #print(search_im.size())
-            output = model(Variable(target, volatile=True).cuda(),Variable(search_im, volatile=True).cuda())
-            #print(output[0]) # output有两个
-            output_sum = output_sum + output[0].data[0,0].cpu().numpy() #分割那个分支的结果
-            #np.save('infer'+str(i)+'.npy',output1)
-            #output2 = output[1].data[0, 0].cpu().numpy() #interp'
+            with torch.no_grad():
+	        output = model(Variable(target).cuda(),Variable(search_im, volatile=True).cuda())
+                #print(output[0]) # output有两个
+            	output_sum = output_sum + output[0].data[0,0].cpu().numpy() #分割那个分支的结果
+            	#np.save('infer'+str(i)+'.npy',output1)
+            	#output2 = output[1].data[0, 0].cpu().numpy() #interp'
         
         output1 = output_sum/args.sample_range
      
