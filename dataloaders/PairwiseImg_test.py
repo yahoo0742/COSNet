@@ -77,13 +77,13 @@ class PairwiseImg(Dataset):
                 labels = []
                 Index = {}
                 for seq in seqs:
-		    #print("crt seq: ", seq)
-		    parts = seq.strip('\n').split()
-		    parts[0] = parts[0][1:] # remove /
-		    parts[1] = parts[1][1:] # remove /
-		    part_img_path = parts[0]
-		    subfolder = part_img_path.split('/')
-		    #print(subfolder)
+                    #print("crt seq: ", seq)
+                    parts = seq.strip('\n').split()
+                    parts[0] = parts[0][1:] # remove /
+                    parts[1] = parts[1][1:] # remove /
+                    part_img_path = parts[0]
+                    subfolder = part_img_path.split('/')
+                    #print(subfolder)
 
                     #images = np.sort(os.listdir(os.path.join(db_root_dir, subfolder[1], subfolder[2], subfolder[3]))) #seq.strip('\n'))))
                     #print("images: ",images)
