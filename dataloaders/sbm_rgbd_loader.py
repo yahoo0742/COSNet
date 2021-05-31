@@ -64,37 +64,31 @@ class sbm_rgbd(Dataset):
         self.train = train
         self._split = "train" if self.train else "test"
 
-        self.filepaths_rgb = [[[]]]
-        self.filepaths_
-
         if os.path.exists(self.path_to_config):
             with open(self.path_to_config) as config_file:
                 self.config = yaml.load(config_file)
-                self._check_exists()
-
-
-
-
-        # rgb folder as ground truth
-        self._files = os.listdir(os.path.join(root, f"{self._split}_rgb"))
+                self.filepaths_rgb, self.filepaths_depth, self.filepaths_groundtruth = self._collect_file_list()
 
 
     def _collect_file_list(self):
-
+        rgbs = {}
+        depths = {}
+        groundtruths = {}
         for vname in self.config[self._split]['dataset']['sbm_rgbd']['names_of_videos']:
             for type_ in ["input", "depth", "groundtruth"]:
                 path = os.path.join(self.root, vname, type_)
                 if not os.path.exists(path):
                     raise FileNotFoundError("Cannot find folder ", path)
-                
+            for frame in self.config[self._split]['dataset']['sbm_rgbd'][vname]["frames"]:
+                path_to_frame_rgb = os.path.join(self.root, vname, "input", frame)
+                path_to_frame_depth = os.path.join(self.root, vname, "depth", frame)
+                path_to_frame_groundtruth = os.path.join(self.root, vname, "groundtruth", frame)
+                rgbs_of_video = rgbs[vname] or [path_to_frame_rgb]
+                depths_of_video = depths[vname] or [path_to_frame_depth]
+                groundtruths_of_video = groundtruths[vname] or [path_to_frame_groundtruth]
 
+                rgbs.update({vname: rgbs_of_video})
+                depths.update({vname, depths_of_video})
+                groundtruths.update({vname, groundtruths_of_video})
 
-    def _check_exists(self) -> bool:
-        """
-        Only checking for folder existence
-        """
-        for vname in self.config[self._split]['dataset']['sbm_rgbd']['names_of_videos']:
-            for type_ in ["input", "depth", "groundtruth"]:
-                path = os.path.join(self.root, vname, type_)
-                if not os.path.exists(path):
-                    raise FileNotFoundError("Cannot find folder ", path)
+        return rgbs, depths, groundtruths
