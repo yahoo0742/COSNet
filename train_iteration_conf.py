@@ -305,11 +305,17 @@ def main():
 
     cudnn.enabled = True
 
-    print("=====> Building network")
+    print("=====> Loading state saved")
+
     saved_state_dict = torch.load(args.restore_from)
+
+    print("=====> Building network")
+
     model = CoattentionNet(num_classes=args.num_classes)
     #print(model)
     new_params = model.state_dict().copy()
+
+    print("=====> Restoring initial state")
     for i in saved_state_dict["model"]:
         #Scale.layer5.conv2d_list.3.weight
         i_parts = i.split('.') # 针对多GPU的情况
