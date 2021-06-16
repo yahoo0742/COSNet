@@ -58,7 +58,7 @@ class PairwiseImg(Dataset):
         """
         self.train = train
         self.range = sample_range
-        self.inputRes = inputRes
+        self.desired_input_size = inputRes
         self.img_root_dir = img_root_dir
         self.db_root_dir = db_root_dir
         self.transform = transform
@@ -126,11 +126,11 @@ class PairwiseImg(Dataset):
 
         assert (len(labels) == len(video_list))
 
-        self.video_list = video_list
-        self.labels = labels
-        self.saliency_images = image_list
-        self.saliency_labels = im_label
-        self.Index = Index
+        self.video_list = video_list # like ['bear/0000.jpg', 'bear/0001.jpg',... 'bear/0081.jpg', 'boat/00000.jpg',... 'boat/00074.jpg', ...]
+        self.labels = labels # like ['Annotations/480p/bear/0000.png', ... 'Annotations/480p/bear/0081.jpg', ...]
+        self.saliency_images = image_list # like ['./DUTS-TR/Imgs/ILSVRC2012_test_00000004.jpg', './DUTS-TR/Imgs/ILSVRC2012_test_00000018.jpg', './DUTS-TR/Imgs/ILSVRC2012_test_00000019.jpg', ...]
+        self.saliency_labels = im_label # like ['./DUTS-TR/Masks/ILSVRC2012_test_00000004.png', './DUTS-TR/Masks/ILSVRC2012_test_00000018.png', './DUTS-TR/Masks/ILSVRC2012_test_00000019.png', ...]
+        self.index_range_of_objects = Index # like {'boat': array([ 82, 157]), 'bear': array([ 0, 82]), 'camel': array([157, 247])} index of video_list
         #img_files = open('all_im.txt','w+')
 
     def __len__(self):
@@ -142,8 +142,9 @@ class PairwiseImg(Dataset):
         target_id = idx
         img_idx = np.random.randint(1,len(self.saliency_images)-1)
         seq_name1 = self.video_list[idx].split('/')[0] #获取物体名称
+        
         if self.train:
-            my_index = self.Index[seq_name1]
+            my_index = self.index_range_of_objects[seq_name1]
             search_id = np.random.randint(my_index[0], my_index[1])#min(len(self.video_list)-1, target_id+np.random.randint(1,self.range+1))
             if search_id == target_id:
                 search_id = np.random.randint(my_index[0], my_index[1])
@@ -171,7 +172,7 @@ class PairwiseImg(Dataset):
         
         return sample  #这个类最后的输出
 
-    def make_video_gt_pair(self, idx): #这个函数存在的意义是为了getitem函数服务的
+    def make_video_gt_pair(self, idx): # get an image pair consisting of a video frame and the annotation of the frame with the index of 'idx'
         """
         Make the image-ground-truth pair
         """
@@ -195,17 +196,17 @@ class PairwiseImg(Dataset):
              img = img_temp
              label = gt_temp
              
-        if self.inputRes is not None:
-            img = imresize(img, self.inputRes)
+        if self.desired_input_size is not None:
+            img = imresize(img, self.desired_input_size)
             #print('ok1')
             #scipy.misc.imsave('label.png',label)
             #scipy.misc.imsave('img.png',img)
             if self.labels[idx] is not None and self.train:
-                label = imresize(label, self.inputRes, interp='nearest')
+                label = imresize(label, self.desired_input_size, interp='nearest')
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
-        img = np.subtract(img, np.array(self.meanval, dtype=np.float32))        
+        img = np.subtract(img, np.array(self.meanval, dtype=np.float32)) # normalize
         img = img.transpose((2, 0, 1))  # NHWC -> NCHW
         
         if self.labels[idx] is not None and self.train:
@@ -220,7 +221,7 @@ class PairwiseImg(Dataset):
         
         return list(img.shape[:2])
 
-    def make_img_gt_pair(self, idx): #这个函数存在的意义是为了getitem函数服务的
+    def make_img_gt_pair(self, idx): # get an image pair consisting of a saliency image and the annotation of the image with the index of 'idx'
         """
         Make the image-ground-truth pair
         """
@@ -232,10 +233,10 @@ class PairwiseImg(Dataset):
         else:
             gt = np.zeros(img.shape[:-1], dtype=np.uint8)
             
-        if self.inputRes is not None:            
-            img = imresize(img, self.inputRes)
+        if self.desired_input_size is not None:            
+            img = imresize(img, self.desired_input_size)
             if self.saliency_labels[idx] is not None and self.train:
-                label = imresize(label, self.inputRes, interp='nearest')
+                label = imresize(label, self.desired_input_size, interp='nearest')
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
