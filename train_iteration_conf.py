@@ -154,31 +154,33 @@ def adjust_learning_rate(optimizer, i_iter, epoch, max_iter):
         
     return lr
 
-def loss_calc1(pred, label):
+def calc_loss_BCE(pred, label):
     """
     This function returns cross entropy loss for semantic segmentation
     """
     labels = torch.ge(label, 0.5).float()
 #    
-    batch_size = label.size()
+    label_size = label.size() # N x C x H x W
     #print(batch_size)
-    num_labels_pos = torch.sum(labels) 
+    num_labels_pos = torch.sum(labels) # how many entries are labeled GE than 0.5
 #    
-    batch_1 =  batch_size[0]* batch_size[2]
-    batch_1 = batch_1* batch_size[3]
-    weight_1 = torch.div(num_labels_pos, batch_1) # pos ratio
-    weight_1 = torch.reciprocal(weight_1)
-    #print(num_labels_pos, batch_1)
-    weight_2 = torch.div(batch_1-num_labels_pos, batch_1)
-    #print('postive ratio', weight_2, weight_1)
-    weight_22 = torch.mul(weight_1,  torch.ones(batch_size[0], batch_size[1], batch_size[2], batch_size[3]).cuda())
+    total_label_entries =  label_size[0]* label_size[2] * label_size[3]
+    positive_ratio = torch.div(total_label_entries, num_labels_pos)
+    # positive_ratio = torch.div(num_labels_pos, total_label_entries) # pos ratio
+    # positive_ratio = torch.reciprocal(positive_ratio)
+
+    #print(num_labels_pos, total_label_entries)
+    #negative_ratio = torch.div(total_label_entries-num_labels_pos, total_label_entries)
+    #print('postive ratio', negative_ratio, positive_ratio)
+    positive_label_impact = torch.mul(positive_ratio,  torch.ones(label_size[0], label_size[1], label_size[2], label_size[3]).cuda())
     #weight_11 = torch.mul(weight_1,  torch.ones(batch_size[0], batch_size[1], batch_size[2]).cuda())
-    criterion = torch.nn.BCELoss(weight = weight_22)#weight = torch.Tensor([0,1]) .cuda() #torch.nn.CrossEntropyLoss(ignore_index=args.ignore_label).cuda()
+    # binary cross entropy, weight indicates that the less the positive label entries, the more impact the difference between the prediction and the label can have
+    criterion = torch.nn.BCELoss(weight = positive_label_impact)#weight = torch.Tensor([0,1]) .cuda() #torch.nn.CrossEntropyLoss(ignore_index=args.ignore_label).cuda()
     #loss = class_balanced_cross_entropy_loss(pred, label).cuda()
         
     return criterion(pred, label)
 
-def loss_calc2(pred, label):
+def calc_loss_L1(pred, label):
     """
     This function returns cross entropy loss for semantic segmentation
     """
@@ -427,13 +429,13 @@ def main():
             if i_iter%3 ==0: #对于静态图片的训练
                 
                 pred1, pred2, pred3 = model(images, images)
-                loss = 0.1*(loss_calc1(pred3, labels) + 0.8* loss_calc2(pred3, labels) )
+                loss = 0.1*(calc_loss_BCE(pred3, labels) + 0.8* calc_loss_L1(pred3, labels) )
                 loss.backward()
                 
             else:
                     
                 pred1, pred2, pred3 = model(target, search)
-                loss = loss_calc1(pred1, target_gt) + 0.8* loss_calc2(pred1, target_gt) + loss_calc1(pred2, search_gt) + 0.8* loss_calc2(pred2, search_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
+                loss = calc_loss_BCE(pred1, target_gt) + 0.8* calc_loss_L1(pred1, target_gt) + calc_loss_BCE(pred2, search_gt) + 0.8* calc_loss_L1(pred2, search_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
                 loss.backward()
             
             optimizer.step()
