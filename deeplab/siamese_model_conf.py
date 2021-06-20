@@ -172,11 +172,12 @@ class ASPP(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, res_block, num_blocks_of_layers, num_classes):
+    def __init__(self, input_channels, res_block, num_blocks_of_layers, num_classes):
         self.inner_channels = 64
+        self.input_channels = input_channels
         super(ResNet, self).__init__()
 
-        self.conv1 = nn.Conv2d(3, self.inner_channels, kernel_size=7, stride=2, padding=3, bias=False) # conv7x7, 64
+        self.conv1 = nn.Conv2d(self.input_channels, self.inner_channels, kernel_size=7, stride=2, padding=3, bias=False) # conv7x7, 64
         self.bn1 = nn.BatchNorm2d(self.inner_channels, affine=k_learnable_affine_parameters) # BN,64
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)  # change ceil_mode=True
@@ -248,7 +249,8 @@ class ResNet(nn.Module):
 class CoattentionModel(nn.Module):
     def  __init__(self, block, num_blocks_of_resnet_layers, num_classes, all_channel=256, all_dim=60*60):	#473./8=60	
         super(CoattentionModel, self).__init__()
-        self.encoder = ResNet(block, num_blocks_of_resnet_layers, num_classes)
+        self.rgb_encoder = ResNet(block, 3, num_blocks_of_resnet_layers, num_classes)
+        #self.depth_encoder = ResNet(block, 1, num_blocks_of_resnet_layers, num_classes)
 
         self.linear_e = nn.Linear(all_channel, all_channel,bias = False)
         self.channel = all_channel
@@ -280,8 +282,9 @@ class CoattentionModel(nn.Module):
         
         #input1_att, input2_att = self.coattention(input1, input2) 
         input_size = rgbs_a.size()[2:] # H, W
-        V_a, category = self.encoder(rgbs_a)
-        V_b, category = self.encoder(rgbs_b) # N, C, H, W
+        V_a, category = self.rgb_encoder(rgbs_a)
+        V_b, category = self.rgb_encoder(rgbs_b) # N, C, H, W
+
         fea_size = V_b.size()[2:]	# H, W
         all_dim = fea_size[0]*fea_size[1] #H*W
         V_a_flat = V_a.view(-1, V_b.size()[1], all_dim) #N,C,H*W

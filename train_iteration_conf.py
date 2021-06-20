@@ -202,22 +202,22 @@ def get_1x_lr_params(model):
     """
     b = []
     if torch.cuda.device_count() == 1:
-        #b.append(model.encoder.conv1)
-        #b.append(model.encoder.bn1)
-        #b.append(model.encoder.layer1)
-        #b.append(model.encoder.layer2)
-        #b.append(model.encoder.layer3)
-        #b.append(model.encoder.layer4)
-        b.append(model.encoder.layer5)
+        #b.append(model.rgb_encoder.conv1)
+        #b.append(model.rgb_encoder.bn1)
+        #b.append(model.rgb_encoder.layer1)
+        #b.append(model.rgb_encoder.layer2)
+        #b.append(model.rgb_encoder.layer3)
+        #b.append(model.rgb_encoder.layer4)
+        b.append(model.rgb_encoder.layer5)
     else:
-        b.append(model.module.encoder.conv1)
-        b.append(model.module.encoder.bn1)
-        b.append(model.module.encoder.layer1)
-        b.append(model.module.encoder.layer2)
-        b.append(model.module.encoder.layer3)
-        b.append(model.module.encoder.layer4)
-        b.append(model.module.encoder.layer5)
-        b.append(model.module.encoder.main_classifier)
+        b.append(model.module.rgb_encoder.conv1)
+        b.append(model.module.rgb_encoder.bn1)
+        b.append(model.module.rgb_encoder.layer1)
+        b.append(model.module.rgb_encoder.layer2)
+        b.append(model.module.rgb_encoder.layer3)
+        b.append(model.module.rgb_encoder.layer4)
+        b.append(model.module.rgb_encoder.layer5)
+        b.append(model.module.rgb_encoder.main_classifier)
     for i in range(len(b)):
         for j in b[i].modules():
             jj = 0
@@ -237,7 +237,7 @@ def get_10x_lr_params(model):
         b.append(model.linear_e.parameters())
         b.append(model.main_classifier.parameters())
     else:
-        #b.append(model.module.encoder.layer5.parameters())
+        #b.append(model.module.rgb_encoder.layer5.parameters())
         b.append(model.module.linear_e.parameters())
         b.append(model.module.conv1.parameters())
         b.append(model.module.conv2.parameters())
