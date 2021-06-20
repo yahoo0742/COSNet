@@ -406,20 +406,20 @@ def main():
         np.random.seed(args.random_seed + epoch)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
             #print("i_iter=", i_iter, "epoch=", epoch)
-            target, target_gt, search, search_gt = batch['target'], batch['target_gt'], batch['search'], batch['search_gt']
-            images, labels = batch['img'], batch['img_gt']
+            targets, targets_gts, searches, searches_gts = batch['target'], batch['target_gt'], batch['search'], batch['search_gt']
+            saliency_images, saliency_gts = batch['img'], batch['img_gt']
             #print(labels.size())
-            images.requires_grad_()
-            images = Variable(images).cuda()
-            labels = Variable(labels.float().unsqueeze(1)).cuda()
+            saliency_images.requires_grad_()
+            saliency_images = Variable(saliency_images).cuda()
+            saliency_gts = Variable(saliency_gts.float().unsqueeze(1)).cuda()
             
-            target.requires_grad_()
-            target = Variable(target).cuda()
-            target_gt = Variable(target_gt.float().unsqueeze(1)).cuda()
+            targets.requires_grad_()
+            targets = Variable(targets).cuda()
+            targets_gts = Variable(targets_gts.float().unsqueeze(1)).cuda()
             
-            search.requires_grad_()
-            search = Variable(search).cuda()
-            search_gt = Variable(search_gt.float().unsqueeze(1)).cuda()
+            searches.requires_grad_()
+            searches = Variable(searches).cuda()
+            searches_gts = Variable(searches_gts.float().unsqueeze(1)).cuda()
             
             optimizer.zero_grad()
             
@@ -428,14 +428,14 @@ def main():
             #print(images.size())
             if i_iter%3 ==0: #对于静态图片的训练
                 
-                pred1, pred2, pred3 = model(images, images)
-                loss = 0.1*(calc_loss_BCE(pred3, labels) + 0.8* calc_loss_L1(pred3, labels) )
+                pred1, pred2, pred3 = model(saliency_images, saliency_images)
+                loss = 0.1*(calc_loss_BCE(pred3, saliency_gts) + 0.8* calc_loss_L1(pred3, saliency_gts) )
                 loss.backward()
                 
             else:
                     
-                pred1, pred2, pred3 = model(target, search)
-                loss = calc_loss_BCE(pred1, target_gt) + 0.8* calc_loss_L1(pred1, target_gt) + calc_loss_BCE(pred2, search_gt) + 0.8* calc_loss_L1(pred2, search_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
+                pred1, pred2, pred3 = model(targets, searches)
+                loss = calc_loss_BCE(pred1, targets_gts) + 0.8* calc_loss_L1(pred1, targets_gts) + calc_loss_BCE(pred2, searches_gts) + 0.8* calc_loss_L1(pred2, searches_gts)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
                 loss.backward()
             
             optimizer.step()
