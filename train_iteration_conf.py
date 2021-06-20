@@ -324,7 +324,7 @@ def main():
         #i_parts.pop(1)
         #print('i_parts:  ', '.'.join(i_parts[1:-1]))
         #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
-        new_params['encoder'+'.'+'.'.join(i_parts[1:])] = saved_state_dict["model"][i]
+        new_params['rgb_encoder'+'.'+'.'.join(i_parts[1:])] = saved_state_dict["model"][i]
             #print('copy {}'.format('.'.join(i_parts[1:])))
     
    
