@@ -249,8 +249,8 @@ class ResNet(nn.Module):
 class CoattentionModel(nn.Module):
     def  __init__(self, block, num_blocks_of_resnet_layers, num_classes, all_channel=256, all_dim=60*60):	#473./8=60	
         super(CoattentionModel, self).__init__()
-        self.rgb_encoder = ResNet(block, 3, num_blocks_of_resnet_layers, num_classes)
-        #self.depth_encoder = ResNet(block, 1, num_blocks_of_resnet_layers, num_classes)
+        self.rgb_encoder = ResNet(3, block, num_blocks_of_resnet_layers, num_classes)
+        #self.depth_encoder = ResNet(1, block, num_blocks_of_resnet_layers, num_classes)
 
         self.linear_e = nn.Linear(all_channel, all_channel,bias = False)
         self.channel = all_channel
