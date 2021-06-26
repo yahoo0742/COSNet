@@ -142,7 +142,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        z = self.conv1(z)
+        z = self.conv1(x)
         z = self.bn1(z)
         z = self.relu(z)
         z = self.maxpool(z)
