@@ -330,12 +330,11 @@ def main():
         #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
         
         if i_parts[1].startswith('layer5'):
-            key = 'encoder.aspp.'
+            key = 'encoder.aspp.' + '.'.join(i_parts[2:])
         elif i_parts[1].startswith('main_classifier'):
-            key = 'encoder.'
+            key = 'encoder.' + '.'.join(i_parts[1:])
         else:
-            key = 'encoder.backbone.'
-        key = key + '.'.join(i_parts[1:])
+            key = 'encoder.backbone.' + '.'.join(i_parts[1:])
         new_params[key] = saved_state_dict["model"][i]
             #print('copy {}'.format('.'.join(i_parts[1:])))
     
