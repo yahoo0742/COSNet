@@ -205,22 +205,16 @@ def get_1x_lr_params(model):
     """
     b = []
     if torch.cuda.device_count() == 1:
-        #b.append(model.rgb_encoder.conv1)
-        #b.append(model.rgb_encoder.bn1)
-        #b.append(model.rgb_encoder.layer1)
-        #b.append(model.rgb_encoder.layer2)
-        #b.append(model.rgb_encoder.layer3)
-        #b.append(model.rgb_encoder.layer4)
-        b.append(model.rgb_encoder.layer5)
+        b.append(model.encoder.aspp)
     else:
-        b.append(model.module.rgb_encoder.conv1)
-        b.append(model.module.rgb_encoder.bn1)
-        b.append(model.module.rgb_encoder.layer1)
-        b.append(model.module.rgb_encoder.layer2)
-        b.append(model.module.rgb_encoder.layer3)
-        b.append(model.module.rgb_encoder.layer4)
-        b.append(model.module.rgb_encoder.layer5)
-        b.append(model.module.rgb_encoder.main_classifier)
+        b.append(model.module.encoder.backbone.conv1)
+        b.append(model.module.encoder.backbone.bn1)
+        b.append(model.module.encoder.backbone.layer1)
+        b.append(model.module.encoder.backbone.layer2)
+        b.append(model.module.encoder.backbone.layer3)
+        b.append(model.module.encoder.backbone.layer4)
+        b.append(model.module.encoder.aspp)
+        b.append(model.module.encoder.main_classifier)
     for i in range(len(b)):
         for j in b[i].modules():
             jj = 0
