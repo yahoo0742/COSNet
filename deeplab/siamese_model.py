@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from deeplab.deeplabv3_encoder import Encoder
 
-class CoattentionSiameseNet(nn.Model):
+class CoattentionSiameseNet(nn.Module):
     def  __init__(self, block, input_channels, num_blocks_of_resnet_layers, num_classes, all_channel=256, all_dim=60*60):	#473./8=60	
         super(CoattentionSiameseNet, self).__init__()
         self.encoder = Encoder(input_channels, block, num_blocks_of_resnet_layers, num_classes)
