@@ -328,7 +328,15 @@ def main():
         #i_parts.pop(1)
         #print('i_parts:  ', '.'.join(i_parts[1:-1]))
         #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
-        new_params['rgb_encoder'+'.'+'.'.join(i_parts[1:])] = saved_state_dict["model"][i]
+        
+        if i_parts[1].startswith('layer5'):
+            key = 'encoder.aspp.'
+        elif i_parts[1].startswith('main_classifier'):
+            key = 'encoder.'
+        else:
+            key = 'encoder.backbone.'
+        key = key + '.'.join(i_parts[1:])
+        new_params[key] = saved_state_dict["model"][i]
             #print('copy {}'.format('.'.join(i_parts[1:])))
     
    
