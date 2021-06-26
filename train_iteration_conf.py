@@ -316,7 +316,7 @@ def main():
 
     print("=====> Building network")
 
-    model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes)
+    model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
     #model = CoattentionNet(num_classes=args.num_classes)
     #print(model)
     new_params = model.state_dict().copy()
