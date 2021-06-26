@@ -4,12 +4,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import deeplab.deeplabv3_encoder as deeplabv3_encoder
+from deeplab.deeplabv3_encoder import Encoder
 
 class CoattentionSiameseNet(nn.Model):
     def  __init__(self, block, input_channels, num_blocks_of_resnet_layers, num_classes, all_channel=256, all_dim=60*60):	#473./8=60	
         super(CoattentionSiameseNet, self).__init__()
-        self.encoder = deeplabv3_encoder.Encoder(input_channels, block, num_blocks_of_resnet_layers, num_classes)
+        self.encoder = Encoder(input_channels, block, num_blocks_of_resnet_layers, num_classes)
 
         self.linear_e = nn.Linear(all_channel, all_channel,bias = False)
         self.channel = all_channel
