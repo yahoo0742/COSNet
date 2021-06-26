@@ -35,6 +35,9 @@ import timeit
 #from psp.model1 import CoattentionNet  #基于pspnet搭建的co-attention 模型
 from deeplab.siamese_model_conf import CoattentionNet #siame_model 是直接将attend的model之后的结果输出
 #from deeplab.utils import get_1x_lr_params, get_10x_lr_params#, adjust_learning_rate #, loss_calc
+from deeplab.residual_net import Bottleneck
+from deeplab.siamese_model import CoattentionSiameseNet
+
 start = timeit.default_timer()
 
 
@@ -313,7 +316,8 @@ def main():
 
     print("=====> Building network")
 
-    model = CoattentionNet(num_classes=args.num_classes)
+    model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes)
+    #model = CoattentionNet(num_classes=args.num_classes)
     #print(model)
     new_params = model.state_dict().copy()
 
