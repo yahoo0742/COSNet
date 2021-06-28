@@ -41,7 +41,10 @@
 
 import os
 import random
+import cv2
+import scipy.io as sio
 from torch.utils.data import Dataset
+import dataloaders.utils as utils 
 
 
 k_sub_set_percentage = {
@@ -80,16 +83,19 @@ class HzFuRGBDVideos(Dataset):
                 'names_of_sequences': [],
                 'offset_of_sequences': {},
                 'all_frames': [],
+                'frame_to_sequence': []
             },
             'validate': {
                 'names_of_sequences': [],
                 'offset_of_sequences': {},
                 'all_frames': [],
+                'frame_to_sequence': []
             },
             'test': {
                 'names_of_sequences': [],
                 'offset_of_sequences': {},
                 'all_frames': [],
+                'frame_to_sequence': []
             }
         }
 
@@ -124,6 +130,17 @@ class HzFuRGBDVideos(Dataset):
         if seq_offset:
             return self.entire_set['all_frames'][seq_offset['start']: seq_offset['end']]
         return None
+
+    def _get_sequence_from_index(self, frame_index_in_train_set):
+        if frame_index_in_train_set >= len(self.subsets['train']['frame_to_sequence']):
+            return None
+        seq_index = self.subsets['train']['frame_to_sequence'][frame_index_in_train_set]
+        return self.subsets['train']['names_of_sequences'][seq_index]
+
+    def _get_framename_from_index(self, frame_index_in_train_set):
+        if frame_index_in_train_set >= len(self.subsets['train']['all_frames']):
+            return None
+        return self.subsets['train']['all_frames'][frame_index_in_train_set]
 
     def _load_meta_data(self):
         rgb_data_path = self._get_path_of_rgb_data()
@@ -165,19 +182,78 @@ class HzFuRGBDVideos(Dataset):
                 # test
                 to_be_in_subset = 'test'
 
+            seq_index = len(self.subsets[to_be_in_subset]['names_of_sequences'])
             self.subsets[to_be_in_subset]['names_of_sequences'].append(seq)
             start_idx = len(self.subsets[to_be_in_subset]['all_frames'])
-            end_idx = len(frames_of_seq) + start_idx
+            num_frames = len(frames_of_seq)
+            end_idx = num_frames + start_idx
             self.subsets[to_be_in_subset]['offset_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
             self.subsets[to_be_in_subset]['all_frames'].extend(frames_of_seq)
+            self.subsets[to_be_in_subset]['frame_to_sequence'].extend([seq_index]*num_frames)
 
     # implementation
     def __len__(self):
         print("HzFuRGBDVideos length: " + len(self.subsets['train']['all_frames']))
         return len(len(self.subsets['train']['all_frames']))
 
-    def __getitem__(self, idx):
-        
+    def __getitem__(self, frame_index_in_train_set):
+        seq = self._get_sequence_from_index(frame_index_in_train_set)
+        if seq != None:
+            current_img, current_img_gt = self._load_rgbd_and_gt(frame_index_in_train_set)
+            range = self.subsets['train']['offset_of_sequences'][seq]
+            idx_to_match = frame_index_in_train_set
+            if range['start'] < range['end'] -1:
+                count = 0
+                while idx_to_match == frame_index_in_train_set:
+                    count += 1
+                    if count > 3:
+                        idx_to_match = frame_index_in_train_set + 1
+                        break
+                    idx_to_match = random.randint(range['start'], range['end']-1)
+            if idx_to_match == frame_index_in_train_set:
+                # TODO deep copy is required
+                match_img = current_img
+                match_img_gt = current_img_gt
+            else:
+                match_img, match_img_gt = self._load_rgbd_and_gt(idx_to_match)
+            return current_img, current_img_gt, match_img, match_img_gt
+        else:
+            raise Exception('Cannot find the sequence from frame index '+frame_index_in_train_set)
+
+    def _load_rgbd_and_gt(self, frame_index_in_train_set):
+        seq = self._get_sequence_from_index(frame_index_in_train_set)
+        if seq != None:
+            framename = self._get_framename_from_index(frame_index_in_train_set)
+            rgb_path = self._get_path_of_rgb_data(seq, framename)
+            rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
+            depth_path = self._get_path_of_depth_data(seq, framename)
+            depth_dict = sio.loadmat(depth_path)
+            depth_img = None # TODO
+            gt_path = self._get_path_of_groundtruth_data(seq, framename)
+            gt = cv2.imread(gt_path, cv2.IMREAD_COLOR)
+
+            rgbd = None # TODO
+            rgbd, gt = self._augmente_image(rgbd, gt)
+            return rgbd, gt
+
+    def _augmente_image(self, img, gt):
+        new_img, new_gt = utils.crop(img, gt)
+        scale = random.uniform(0.7, 1.3)
+        flip_p = random.uniform(0, 1)
+        new_img = utils.scale(new_img, scale)
+        new_gt = utils.scale(new_gt, scale, cv2.INTER_NEAREST)
+        img = utils.flip(new_img, flip_p)
+        gt = utils.flip(new_gt, flip_p)
+        return img, gt
+
+
+
+
+
+
+
+
+
 
 
 
