@@ -40,9 +40,10 @@
 # | |...
 
 import os
+import numpy as np
 import random
 import cv2
-import scipy.io as sio
+import h5py
 from torch.utils.data import Dataset
 import dataloaders.utils as utils 
 
@@ -221,14 +222,21 @@ class HzFuRGBDVideos(Dataset):
             raise Exception('Cannot find the sequence from frame index '+frame_index_in_train_set)
 
     def _load_rgbd_and_gt(self, frame_index_in_train_set):
+        def __load_mat(path):
+            # the return value is in [0, 255]
+            f = h5py.File(path, 'r')
+            result = np.array(f['depth'])
+            result = (result - result.min()) * 255 / (result.max() - result.min())
+            result = result.transpose() 
+            return result
+
         seq = self._get_sequence_from_index(frame_index_in_train_set)
         if seq != None:
             framename = self._get_framename_from_index(frame_index_in_train_set)
             rgb_path = self._get_path_of_rgb_data(seq, framename)
             rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
             depth_path = self._get_path_of_depth_data(seq, framename)
-            depth_dict = sio.loadmat(depth_path)
-            depth_img = None # TODO
+            depth_img = __load_mat(depth_path)
             gt_path = self._get_path_of_groundtruth_data(seq, framename)
             gt = cv2.imread(gt_path, cv2.IMREAD_COLOR)
 
