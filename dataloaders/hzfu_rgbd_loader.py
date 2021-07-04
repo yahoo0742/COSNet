@@ -45,7 +45,7 @@ import random
 import cv2
 import h5py
 from torch.utils.data import Dataset
-
+from dataloaders import utils
 
 k_sub_set_percentage = {
     'train': 0.8,
@@ -57,7 +57,7 @@ class Folder:
         self.folder_name = folder_name
         self.extension_name = None
 
-    def set_extension_name(extension_name):
+    def set_extension_name(self, extension_name):
         self.extension_name = extension_name
 
 class EContentInfo:
@@ -84,6 +84,7 @@ class HzFuRGBDVideos(Dataset):
         self.transform = transform
         self.meanval = meanval
         self.stage = 'train'
+        self.flip_seq_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
 
         self.sets = {
             'entire': {
@@ -115,13 +116,16 @@ class HzFuRGBDVideos(Dataset):
         self._load_meta_data()
         self._split_dataset()
 
-    def set_for_test():
+    def set_for_test(self):
         self.stage = 'test'
     
-    def set_for_train():
+    def set_for_train(self):
         self.stage = 'train'
 
-    def _get_path(self, content_type:Folder, seq_name=None, frame_name=None):
+    def new_training_epoch(self):
+        self.flip_seq_for_augmentation.clear()
+
+    def _get_path(self, content_type, seq_name=None, frame_name=None): #(self, content_type:Folder, seq_name=None, frame_name=None):
         if seq_name == None:
             return os.path.join(self.dataset_root, content_type.folder_name)
         if seq_name not in self.sets['entire']['names_of_sequences']:
@@ -161,24 +165,24 @@ class HzFuRGBDVideos(Dataset):
         rgb_data_path = self._get_path_of_rgb_data()
         self.sets['entire']['names_of_sequences'] = os.listdir(rgb_data_path)
 
-        def __remove_extension_name(fullname:str):
+        def __remove_extension_name(fullname): #(fullname:str):
             ext_starts = fullname.rindex('.')
             if ext_starts > 0:
                 ext = fullname[ext_starts+1:]
                 return (fullname[:ext_starts], ext)
             raise Exception(fullname + ' does not have an extension name.')
   
-        def __get_extension_name(fullname:str):
+        def __get_extension_name(fullname): #(fullname:str):
             ext_starts = fullname.rindex('.')
             if ext_starts > 0:
                 return fullname[ext_starts+1:]
             return None
 
-        def __is_extension_name(fullname:str, ext_name:str):
+        def __is_extension_name(fullname, ext_name): #(fullname:str, ext_name:str):
             my_ext = __get_extension_name(fullname)
             return my_ext == ext_name
 
-        def __check_framenames_of_sequence(folder:Folder, seq):
+        def __check_framenames_of_sequence(folder, seq): #(folder:Folder, seq):
             seq_path = self._get_path(folder, seq)
             framenames_of_seq = os.listdir(seq_path)
             if False and len(framenames_of_seq) > 0:
@@ -197,7 +201,7 @@ class HzFuRGBDVideos(Dataset):
                     else:
                         folder.set_extension_name(None)
                 else:
-                    foler.set_extension_name(None)
+                    folder.set_extension_name(None)
             return framenames_of_seq
 
         for seq in self.sets['entire']['names_of_sequences']:
@@ -321,7 +325,7 @@ class HzFuRGBDVideos(Dataset):
 
     def _load_rgbd_and_gt(self, frame_info):
     #def _load_rgbd_and_gt(self, frame_index_in_train_set):
-        def __load_mat(path)->np.array:
+        def __load_mat(path): #->np.array:
             # in the shape of (H, W) with values in [0, 255]
             f = h5py.File(path, 'r')
             result = np.array(f['depth'])
@@ -345,26 +349,29 @@ class HzFuRGBDVideos(Dataset):
             gt[gt!=0]=1 # H, W with values in {0, 1}
             gt = np.array(gt)
 
-            rgb, depth, gt = self._augmente_image(rgb_img, depth_img, gt)
-            return rgb, depth, gt
+            rgb_img, depth_img, gt = self._augmente_image(rgb_img, depth_img, gt, frame_info.seq_name)
+            return rgb_img, depth_img, gt
 
-    def _augmente_image(self, rgb, depth, gt):
-        scale = random.uniform(0.7, 1.3)
-        flip_p = random.uniform(0, 1)
+    def _augmente_image(self, rgb, depth, gt, seq):
+        scale_ratio = random.uniform(0.7, 1.3)
+        crop_ratio = random.uniform(0.8, 1)
 
-        new_img, offset = utils.crop3d(rgb, 0.9)
-        new_depth,_ = utils.crop3d(depth, 0.9, offset)
-        new_gt,_ = utils.crop2d(gt, 0.9, offset)
+        rgb, offset = utils.crop3d(rgb, crop_ratio)
+        depth,_ = utils.crop3d(depth, crop_ratio, offset)
+        gt,_ = utils.crop2d(gt, crop_ratio, offset)
 
-        new_img = utils.scale3d(new_img, scale)
-        new_depth = utils.scale3d(new_depth, scale)
-        new_gt = utils.scale2d(new_gt, scale, cv2.INTER_NEAREST)
+        rgb = utils.scale3d(rgb, scale_ratio)
+        depth = utils.scale3d(depth, scale_ratio)
+        gt = utils.scale2d(gt, scale_ratio, cv2.INTER_NEAREST)
 
-        rgb = utils.flip(new_img, flip_p)
-        depth = utils.flip(new_depth, flip_p)
-        gt = utils.flip(new_gt, flip_p)
+        if seq not in self.flip_seq_for_augmentation:
+            flip_p = random.uniform(0, 1)
+            self.flip_seq_for_augmentation[seq] = flip_p
+        else:
+            flip_p = self.flip_seq_for_augmentation[seq]
+        print("before flip ",flip_p)
+        rgb = utils.flip3d(rgb, flip_p)
+        depth = utils.flip3d(depth, flip_p)
+        gt = utils.flip2d(gt, flip_p)
 
         return rgb, depth, gt
-
-# root_path = '/content/drive/MyDrive/VideoObjectSegmentation/rgbd/HzFu'
-# dataset = HzFuRGBDVideos(root_path)

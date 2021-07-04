@@ -1,15 +1,25 @@
 import numpy as np
 import cv2
 import random
-def flip(I,flip_p):
+
+def flip2d(I, flip_p):
     if flip_p>0.5:
         return np.fliplr(I)
     else:
         return I
 
+def flip3d(I, flip_p):
+    result_img = []
+    for img2d in I:
+        new_img = flip2d(img2d, flip_p)
+        result_img.append(new_img)
+    return np.array(result_img)
+
 def scale2d(img, scale, interpolation = cv2.INTER_LINEAR):
-    new_dims = (int(img.shape[0]*scale),  int(img.shape[1]*scale))
-    return cv2.resize(img,new_dims, interpolation).astype(float)
+    new_height = int(img.shape[0]*scale)
+    new_width = int(img.shape[1]*scale)
+    new_dims = (new_width, new_height)
+    return cv2.resize(img,new_dims, interpolation)
 
 def scale3d(img, scale, interpolation = cv2.INTER_LINEAR):
     result_img = []
@@ -34,7 +44,7 @@ def crop2d(img, size_scale, offset=None):
 
     return img, offset
 
-def crop3d(img, size_scale, offset=None)-> np.array:
+def crop3d(img, size_scale, offset=None): #-> np.array:
     # img should be in the shape of [C, H, W]
     result_img = []
     for img2d in img:
