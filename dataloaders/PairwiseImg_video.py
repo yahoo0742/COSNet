@@ -207,7 +207,7 @@ class PairwiseImg(Dataset):
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
         img = np.subtract(img, np.array(self.meanval, dtype=np.float32)) # normalize
-        img = img.transpose((2, 0, 1))  # NHWC -> NCHW
+        img = img.transpose((2, 0, 1))  # HWC -> CHW
         
         if self.labels[idx] is not None and self.train:
                 gt = np.array(label, dtype=np.int32)

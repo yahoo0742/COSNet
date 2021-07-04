@@ -45,7 +45,6 @@ import random
 import cv2
 import h5py
 from torch.utils.data import Dataset
-import dataloaders.utils as utils 
 
 
 k_sub_set_percentage = {
@@ -54,16 +53,27 @@ k_sub_set_percentage = {
 }
 
 class Folder:
-    def __init__(self, folder_name, extension_name):
+    def __init__(self, folder_name):
         self.folder_name = folder_name
+        self.extension_name = None
+
+    def set_extension_name(extension_name):
         self.extension_name = extension_name
 
 class EContentInfo:
-    rgb = Folder('RGB_data', 'png')
-    depth = Folder('Depth_data', 'mat')
-    groundtruth = Folder('Label', 'png')
+    rgb = Folder('RGB_data') #, 'png')
+    depth = Folder('Depth_data') #, 'mat')
+    groundtruth = Folder('Label') #, 'png')
     all_folders = [rgb, depth, groundtruth]
 
+class VideoFrameInfo:
+    def __init__(self, seq_name, id, name_rgb_frame, name_depth_frame, name_gt_frame):
+        self.id = id
+        self.name_of_rgb_frame = name_rgb_frame
+        self.name_of_depth_frame = name_depth_frame
+        self.name_of_groundtruth_frame = name_gt_frame
+        self.seq_name = seq_name
+  
 class HzFuRGBDVideos(Dataset):
     def __init__(self, dataset_root, 
                  desired_input_size=None,
@@ -73,29 +83,31 @@ class HzFuRGBDVideos(Dataset):
         self.desired_input_size = desired_input_size
         self.transform = transform
         self.meanval = meanval
-        self.entire_set = {
-            'names_of_sequences': [],
-            'offset_of_sequences': {},
-            'all_frames': [],
-        }
+        self.stage = 'train'
 
-        self.subsets = {
+        self.sets = {
+            'entire': {
+                'names_of_sequences': [],
+                'offset4_frames_of_sequences': {},
+                'names_of_frames': [],
+                'frame_to_sequence': []
+            },
             'train': {
                 'names_of_sequences': [],
-                'offset_of_sequences': {},
-                'all_frames': [],
+                'offset4_frames_of_sequences': {},
+                'names_of_frames': [], # it is more convenient for iterating frames by organizing all frames of all sequence together 
                 'frame_to_sequence': []
             },
             'validate': {
                 'names_of_sequences': [],
-                'offset_of_sequences': {},
-                'all_frames': [],
+                'offset4_frames_of_sequences': {},
+                'names_of_frames': [],
                 'frame_to_sequence': []
             },
             'test': {
                 'names_of_sequences': [],
-                'offset_of_sequences': {},
-                'all_frames': [],
+                'offset4_frames_of_sequences': {},
+                'names_of_frames': [],
                 'frame_to_sequence': []
             }
         }
@@ -103,19 +115,27 @@ class HzFuRGBDVideos(Dataset):
         self._load_meta_data()
         self._split_dataset()
 
+    def set_for_test():
+        self.stage = 'test'
+    
+    def set_for_train():
+        self.stage = 'train'
+
     def _get_path(self, content_type:Folder, seq_name=None, frame_name=None):
         if seq_name == None:
             return os.path.join(self.dataset_root, content_type.folder_name)
-        if seq_name not in self.entire_set['names_of_sequences']:
+        if seq_name not in self.sets['entire']['names_of_sequences']:
             raise Exception('Cannot find sequence ' + seq_name)
         if frame_name == None:
             return os.path.join(self.dataset_root, content_type.folder_name, seq_name)
-        frames_of_seq = self._get_frames_of_seq(seq_name)
-        if frames_of_seq == None:
-            raise Exception('Cannot find any frame for ' + seq_name)
-        if frame_name not in frames_of_seq:
-            raise Exception('Frame ' + frame_name + ' is not present in sequence ' + seq_name)
-        return os.path.join(self.dataset_root, content_type.folder_name, seq_name, frame_name, content_type.extension_name)
+
+        # frames_of_seq = self._get_frames_of_seq(seq_name)
+        # if frames_of_seq == None:
+        #     raise Exception('Cannot find any frame for ' + seq_name)
+        # if frame_name not in frames_of_seq:
+        #     raise Exception('Frame ' + frame_name + ' is not present in sequence ' + seq_name)
+
+        return os.path.join(self.dataset_root, content_type.folder_name, seq_name, frame_name)
 
     def _get_path_of_rgb_data(self, seq_name=None, frame_name=None):
         return self._get_path(EContentInfo.rgb, seq_name, frame_name)
@@ -126,144 +146,222 @@ class HzFuRGBDVideos(Dataset):
     def _get_path_of_groundtruth_data(self, seq_name=None, frame_name=None):
         return self._get_path(EContentInfo.groundtruth, seq_name, frame_name)
 
-    def _get_frames_of_seq(self, seq_name):
-        seq_offset = self.entire_set['offset_of_sequences'][seq_name]
+    def _get_frames_of_seq(self, set_name, seq_name):
+        seq_offset = self.sets[set_name]['offset4_frames_of_sequences'][seq_name]
         if seq_offset:
-            return self.entire_set['all_frames'][seq_offset['start']: seq_offset['end']]
+            return self.sets[set_name]['names_of_frames'][seq_offset['start']:seq_offset['end']]
         return None
 
-    def _get_sequence_from_index(self, frame_index_in_train_set):
-        if frame_index_in_train_set >= len(self.subsets['train']['frame_to_sequence']):
+    def _get_framename_by_index(self, set_name, frame_index):
+        if frame_index >= len(self.sets[set_name]['names_of_frames']):
             return None
-        seq_index = self.subsets['train']['frame_to_sequence'][frame_index_in_train_set]
-        return self.subsets['train']['names_of_sequences'][seq_index]
-
-    def _get_framename_from_index(self, frame_index_in_train_set):
-        if frame_index_in_train_set >= len(self.subsets['train']['all_frames']):
-            return None
-        return self.subsets['train']['all_frames'][frame_index_in_train_set]
+        return self.sets[set_name]['names_of_frames'][frame_index]
 
     def _load_meta_data(self):
         rgb_data_path = self._get_path_of_rgb_data()
-        self.entire_set['names_of_sequences'] = os.listdir(rgb_data_path)
+        self.sets['entire']['names_of_sequences'] = os.listdir(rgb_data_path)
 
-        def __remove_extension_name(fullname:str, known_ext):
+        def __remove_extension_name(fullname:str):
             ext_starts = fullname.rindex('.')
             if ext_starts > 0:
                 ext = fullname[ext_starts+1:]
-                if known_ext and ext != known_ext:
-                    raise Exception('Encounter a different extension name '+ ext + ' from ' + fullname)
-                return fullname[:ext_starts]
-            raise Exception(fullname, ' does not have an extension name.')
+                return (fullname[:ext_starts], ext)
+            raise Exception(fullname + ' does not have an extension name.')
+  
+        def __get_extension_name(fullname:str):
+            ext_starts = fullname.rindex('.')
+            if ext_starts > 0:
+                return fullname[ext_starts+1:]
+            return None
 
-        for seq in self.entire_set['names_of_sequences']:
-            folder = EContentInfo.rgb
+        def __is_extension_name(fullname:str, ext_name:str):
+            my_ext = __get_extension_name(fullname)
+            return my_ext == ext_name
+
+        def __check_framenames_of_sequence(folder:Folder, seq):
             seq_path = self._get_path(folder, seq)
-            names_of_frames_of_seq = os.listdir(seq_path).sort()
-            if names_of_frames_of_seq and len(names_of_frames_of_seq) > 0:
-                start_idx = len(self.entire_set.all_frames)
-                end_idx = start_idx + len(names_of_frames_of_seq)
-                self.entire_set['offset_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
-                names_of_frames_of_seq = [__remove_extension_name(itm, folder.extension_name) for itm in names_of_frames_of_seq]
-                self.entire_set['all_frames'].extend(names_of_frames_of_seq)
+            framenames_of_seq = os.listdir(seq_path)
+            if False and len(framenames_of_seq) > 0:
+                '''
+                check whether all frames have the same extension name, if they have the same extension name, remove the extension name from
+                the frame names.
+                '''
+                test_ext = __get_extension_name(framenames_of_seq[0])
+                same_ext_name_for_all = all([__is_extension_name(name, test_ext) for name in framenames_of_seq])
+                if same_ext_name_for_all:
+                    if folder.extension_name == None or test_ext == folder.extension_name:
+                        # all frames have the same extension name, remove the extension name from the frame names
+                        framenames_of_seq = [__remove_extension_name(fullname, test_ext) for fullname in framenames_of_seq]
+                        # save the extension name
+                        folder.set_extension_name(test_ext)
+                    else:
+                        folder.set_extension_name(None)
+                else:
+                    foler.set_extension_name(None)
+            return framenames_of_seq
+
+        for seq in self.sets['entire']['names_of_sequences']:
+            '''
+            because not every rgb frame has been labelled in the dataset and I only consider the labelled frames as valid frames for training and test,
+            I need to collect rgb frames that have corresponding grountruth frame
+            '''
+            names_of_rgb_frames_of_seq = __check_framenames_of_sequence(EContentInfo.rgb, seq)
+            names_of_depth_frames_of_seq = __check_framenames_of_sequence(EContentInfo.depth, seq)
+            names_of_gt_frames_of_seq = __check_framenames_of_sequence(EContentInfo.groundtruth, seq)
+
+            names_of_rgb_frames_of_seq.sort()
+            names_of_depth_frames_of_seq.sort()
+            # assume every rgb frame has a corresponding unique depth frame
+            assert(len(names_of_depth_frames_of_seq) == len(names_of_rgb_frames_of_seq), 'RGB frames of '+seq+" are different from depth frames.")
+
+            labelled_frames_of_seq = []
+            ids_collected = []
+            # the name of a ground truth frame is like XX_obj_Y.png, XX is the id of the gt frame, and it is also the id of a corresponding frame under RGB_data, Y is the index of the salient object of the frame
+            ids_of_gt_frames = [frame[:2] for frame in names_of_gt_frames_of_seq] # We know there are duplicate frames (XX is present more than once)
+            ids_of_gt_frames = set(ids_of_gt_frames) # unique, ignore the value of Y, only focus on one salient object
+
+            for gt_frame_id in ids_of_gt_frames:
+                if gt_frame_id not in ids_collected: # this is a naive rule of choosing the first salient object of the frame as the target
+                    # this labelled frame hasn't been collected, collect it
+                    ids_collected.append(gt_frame_id)
+
+                    rgb_framename = None
+                    depth_framename = None
+                    gt_framename = None
+
+                    # find the full rgb frame name and the full depth frame name that have this id
+                    for i in range(len(names_of_rgb_frames_of_seq)):
+                        if names_of_rgb_frames_of_seq[i].startswith(gt_frame_id):
+                            # found the rgb frame
+                            rgb_framename = names_of_rgb_frames_of_seq[i]
+                            depth_framename = names_of_depth_frames_of_seq[i]
+                            assert(depth_framename.startswith(gt_frame_id), 'RGB frame ' + rgb_framename + ' of '+seq+' does not have a corresponding from depth frame.')
+                            names_of_rgb_frames_of_seq.pop(i) # delete the frame that has been collected, so that for matching next frame id, we can speed up
+                            names_of_depth_frames_of_seq.pop(i) # delete the frame that has been collected, so that for matching next frame id, we can speed up
+                            break
+
+                    # find the full name of a gt frame that has the id
+                    for i in range(len(names_of_gt_frames_of_seq)):
+                        if names_of_gt_frames_of_seq[i].startswith(gt_frame_id):
+                            gt_framename = names_of_gt_frames_of_seq[i]
+                            names_of_gt_frames_of_seq.pop(i) # delete the frame that has been collected, so that for matching next frame id, we can speed up
+                            break
+                    
+                    assert(rgb_framename!= None and depth_framename != None and gt_framename != None, 'Cannot find the frame for id '+gt_frame_id)
+                    videoFrameInfo = VideoFrameInfo(seq, gt_frame_id, rgb_framename, depth_framename, gt_framename)
+                    labelled_frames_of_seq.append(videoFrameInfo)
+
+            # now all valid frames (labelled frames) of this sequence have been collected in labelled_frames_of_seq
+
+            if len(labelled_frames_of_seq) > 0:
+                start_idx = len(self.sets['entire']['names_of_frames'])
+                end_idx = start_idx + len(labelled_frames_of_seq)
+                self.sets['entire']['offset4_frames_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
+                self.sets['entire']['names_of_frames'].extend(labelled_frames_of_seq)
 
     def _split_dataset(self):
-        # sequence based
-        seq_num = len(self.entire_set['names_of_sequences'])
-        for seq in self.entire_set['names_of_sequences']:
+        # sequence based -- all frames of a sequence is randomly chosen for training, or for test
+        for seq in self.sets['entire']['names_of_sequences']:
             rand = random.random()
-            frames_of_seq = self._get_frames_of_seq(seq)
+            frames_of_seq = self._get_frames_of_seq('entire', seq)
             if not frames_of_seq:
                 raise Exception('Cannot find any frame for '+seq)
 
-            if rand < k_sub_set_percentage.train:
+            if rand < k_sub_set_percentage['train']:
                 # train
                 to_be_in_subset = 'train'
             else:
                 # test
                 to_be_in_subset = 'test'
 
-            seq_index = len(self.subsets[to_be_in_subset]['names_of_sequences'])
-            self.subsets[to_be_in_subset]['names_of_sequences'].append(seq)
-            start_idx = len(self.subsets[to_be_in_subset]['all_frames'])
+            seq_index = len(self.sets[to_be_in_subset]['names_of_sequences'])
+            self.sets[to_be_in_subset]['names_of_sequences'].append(seq) # add this sequence to this set
+  
+            start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
             num_frames = len(frames_of_seq)
             end_idx = num_frames + start_idx
-            self.subsets[to_be_in_subset]['offset_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
-            self.subsets[to_be_in_subset]['all_frames'].extend(frames_of_seq)
-            self.subsets[to_be_in_subset]['frame_to_sequence'].extend([seq_index]*num_frames)
+            self.sets[to_be_in_subset]['offset4_frames_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
+            self.sets[to_be_in_subset]['names_of_frames'].extend(frames_of_seq)
+            #self.sets[to_be_in_subset]['frame_to_sequence'].extend([seq_index]*num_frames)
 
     # implementation
     def __len__(self):
-        print("HzFuRGBDVideos length: " + len(self.subsets['train']['all_frames']))
-        return len(len(self.subsets['train']['all_frames']))
+        print("HzFuRGBDVideos length: " + len(self.sets['train']['labelled_frames']))
+        return len(len(self.sets['train']['labelled_frames']))
 
-    def __getitem__(self, frame_index_in_train_set):
-        seq = self._get_sequence_from_index(frame_index_in_train_set)
-        if seq != None:
-            current_img, current_img_gt = self._load_rgbd_and_gt(frame_index_in_train_set)
-            range = self.subsets['train']['offset_of_sequences'][seq]
-            idx_to_match = frame_index_in_train_set
+    def __getitem__(self, frame_index):
+        set_name = self.stage
+        frame_info = self._get_framename_by_index(set_name, frame_index)
+        if frame_info:  
+            current_img, current_img_gt = self._load_rgbd_and_gt(frame_info)
+
+            range = self.sets[set_name]['offset4_frames_of_sequences'][frame_info.seq_name]
+            idx_to_match = frame_index
             if range['start'] < range['end'] -1:
                 count = 0
-                while idx_to_match == frame_index_in_train_set:
+                while idx_to_match == frame_index:
                     count += 1
                     if count > 3:
-                        idx_to_match = frame_index_in_train_set + 1
+                        idx_to_match = frame_index + 1
                         break
                     idx_to_match = random.randint(range['start'], range['end']-1)
-            if idx_to_match == frame_index_in_train_set:
+            if idx_to_match == frame_index:
+                print("Got a pair of frames with the same index "+frame_index+". The frame is about "+frame_info)
                 # TODO deep copy is required
                 match_img = current_img
                 match_img_gt = current_img_gt
             else:
-                match_img, match_img_gt = self._load_rgbd_and_gt(idx_to_match)
-            return current_img, current_img_gt, match_img, match_img_gt
-        else:
-            raise Exception('Cannot find the sequence from frame index '+frame_index_in_train_set)
+                frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
+                match_img, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
 
-    def _load_rgbd_and_gt(self, frame_index_in_train_set):
-        def __load_mat(path):
-            # the return value is in [0, 255]
+            return current_img, current_img_gt, match_img, match_img_gt
+
+        else:
+            raise Exception('Cannot find the sequence from frame index ', frame_index)
+
+    def _load_rgbd_and_gt(self, frame_info):
+    #def _load_rgbd_and_gt(self, frame_index_in_train_set):
+        def __load_mat(path)->np.array:
+            # in the shape of (H, W) with values in [0, 255]
             f = h5py.File(path, 'r')
             result = np.array(f['depth'])
             result = (result - result.min()) * 255 / (result.max() - result.min())
             result = result.transpose() 
             return result
 
-        seq = self._get_sequence_from_index(frame_index_in_train_set)
-        if seq != None:
-            framename = self._get_framename_from_index(frame_index_in_train_set)
-            rgb_path = self._get_path_of_rgb_data(seq, framename)
+        rgb_path = self._get_path_of_rgb_data(frame_info.seq_name, frame_info.name_of_rgb_frame)
+        depth_path = self._get_path_of_depth_data(frame_info.seq_name, frame_info.name_of_depth_frame)
+        gt_path = self._get_path_of_groundtruth_data(frame_info.seq_name, frame_info.name_of_groundtruth_frame)
+
+        if rgb_path and depth_path and gt_path:
             rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
-            depth_path = self._get_path_of_depth_data(seq, framename)
+            rgb_img = rgb_img.transpose((2, 0, 1)) # 3, H, W
+            rgb_img = np.array(rgb_img)
+
             depth_img = __load_mat(depth_path)
-            gt_path = self._get_path_of_groundtruth_data(seq, framename)
-            gt = cv2.imread(gt_path, cv2.IMREAD_COLOR)
+            depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
 
-            rgbd = None # TODO
-            rgbd, gt = self._augmente_image(rgbd, gt)
-            return rgbd, gt
+            gt = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
+            gt[gt!=0]=1 # H, W with values in {0, 1}
+            gt = np.array(gt)
 
-    def _augmente_image(self, img, gt):
-        new_img, new_gt = utils.crop(img, gt)
+            rgb, depth, gt = self._augmente_image(rgb_img, depth_img, gt)
+            return rgb, depth, gt
+
+    def _augmente_image(self, rgb, depth, gt):
         scale = random.uniform(0.7, 1.3)
         flip_p = random.uniform(0, 1)
+
+        new_img, offset = utils.crop(rgb, 0.9)
+        new_depth,_ = utils.crop(depth, 0.9, offset)
+        new_gt,_ = utils.crop(gt, 0.9, offset)
+
         new_img = utils.scale(new_img, scale)
+        new_depth = utils.scale(new_depth, scale)
         new_gt = utils.scale(new_gt, scale, cv2.INTER_NEAREST)
-        img = utils.flip(new_img, flip_p)
+
+        rgb = utils.flip(new_img, flip_p)
+        depth = utils.flip(new_depth, flip_p)
         gt = utils.flip(new_gt, flip_p)
-        return img, gt
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+        return rgb, depth, gt
