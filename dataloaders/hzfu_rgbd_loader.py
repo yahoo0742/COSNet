@@ -293,7 +293,7 @@ class HzFuRGBDVideos(Dataset):
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
         if frame_info:  
-            current_img, current_img_gt = self._load_rgbd_and_gt(frame_info)
+            current_img, current_depth, current_img_gt = self._load_rgbd_and_gt(frame_info)
 
             range = self.sets[set_name]['offset4_frames_of_sequences'][frame_info.seq_name]
             idx_to_match = frame_index
@@ -312,9 +312,9 @@ class HzFuRGBDVideos(Dataset):
                 match_img_gt = current_img_gt
             else:
                 frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
-                match_img, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
+                match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
 
-            return current_img, current_img_gt, match_img, match_img_gt
+            return current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
 
         else:
             raise Exception('Cannot find the sequence from frame index ', frame_index)
@@ -352,16 +352,19 @@ class HzFuRGBDVideos(Dataset):
         scale = random.uniform(0.7, 1.3)
         flip_p = random.uniform(0, 1)
 
-        new_img, offset = utils.crop(rgb, 0.9)
-        new_depth,_ = utils.crop(depth, 0.9, offset)
-        new_gt,_ = utils.crop(gt, 0.9, offset)
+        new_img, offset = utils.crop3d(rgb, 0.9)
+        new_depth,_ = utils.crop3d(depth, 0.9, offset)
+        new_gt,_ = utils.crop2d(gt, 0.9, offset)
 
-        new_img = utils.scale(new_img, scale)
-        new_depth = utils.scale(new_depth, scale)
-        new_gt = utils.scale(new_gt, scale, cv2.INTER_NEAREST)
+        new_img = utils.scale3d(new_img, scale)
+        new_depth = utils.scale3d(new_depth, scale)
+        new_gt = utils.scale2d(new_gt, scale, cv2.INTER_NEAREST)
 
         rgb = utils.flip(new_img, flip_p)
         depth = utils.flip(new_depth, flip_p)
         gt = utils.flip(new_gt, flip_p)
 
         return rgb, depth, gt
+
+# root_path = '/content/drive/MyDrive/VideoObjectSegmentation/rgbd/HzFu'
+# dataset = HzFuRGBDVideos(root_path)
