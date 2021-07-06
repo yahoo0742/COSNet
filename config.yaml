@@ -30,7 +30,7 @@
                 - "MSRA10K_Imgs_GT"
         "hzfurgbd":
             "subset_file": "./train_seqs.txt"
-            "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/"
+            "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset/"
             "batch_size": 16 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
             "max_epoches": 30 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
