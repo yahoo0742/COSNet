@@ -25,8 +25,8 @@ from dataloaders import hzfu_rgbd_loader as rgbddb
 import matplotlib.pyplot as plt
 import random
 import timeit
-#from psp.model1 import CoattentionNet  #基于pspnet搭建的co-attention 模型
-# from deeplab.siamese_model_conf import CoattentionNet #siame_model 是直接将attend的model之后的结果输出
+#from psp.model1 import CoattentionNet  #based on pspnet
+# from deeplab.siamese_model_conf import CoattentionNet #siame_model 
 #from deeplab.utils import get_1x_lr_params, get_10x_lr_params#, adjust_learning_rate #, loss_calc
 from deeplab.residual_net import Bottleneck
 # from deeplab.siamese_model import CoattentionSiameseNet
@@ -72,7 +72,7 @@ def get_arguments():
                         help='File that stores the training and validation logs')
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
-    parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") #使用3号GPU
+    parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") 
 
 
     return parser.parse_args()
@@ -300,7 +300,7 @@ def main():
 
     for i in saved_state_dict["model"]:
         #Scale.layer5.conv2d_list.3.weight
-        i_parts = i.split('.') # 针对多GPU的情况
+        i_parts = i.split('.') # multiple cpu
         #i_parts.pop(1)
         #print('i_parts:  ', '.'.join(i_parts[1:-1]))
         #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
@@ -318,7 +318,7 @@ def main():
     print("=====> Loading init weights,  pretrained COCO for VOC2012, and pretrained Coarse cityscapes for cityscapes")
  
             
-    model.load_state_dict(new_params) #只用到resnet的第5个卷积层的参数
+    model.load_state_dict(new_params) #only resnet的first 5 conv layers params
     #print(model.keys())
     if args.cuda:
         #model.to(device)
@@ -358,7 +358,7 @@ def main():
     else:
         print("dataset error")
 
-    optimizer = optim.SGD([{'params': get_1x_lr_params(model), 'lr': 1*args.learning_rate },  #针对特定层进行学习，有些层不学习
+    optimizer = optim.SGD([{'params': get_1x_lr_params(model), 'lr': 1*args.learning_rate }, 
                 {'params': get_10x_lr_params(model), 'lr': 10*args.learning_rate}], 
                 lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
     optimizer.zero_grad()
