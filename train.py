@@ -353,7 +353,7 @@ def main():
  
     print("=====> Preparing training data")
     if args.dataset == 'hzfurgbd':
-        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], inputRes=input_size, transform=None)
+        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], desired_input_size=input_size, transform=None)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
