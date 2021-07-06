@@ -318,7 +318,7 @@ def main():
     print("=====> Loading init weights,  pretrained COCO for VOC2012, and pretrained Coarse cityscapes for cityscapes")
  
             
-    model.load_state_dict(new_params) #only resnet的first 5 conv layers params
+    model.load_state_dict(new_params) #only resnet first 5 conv layers params
     #print(model.keys())
     if args.cuda:
         #model.to(device)
