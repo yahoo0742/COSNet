@@ -37,7 +37,7 @@ class RGBDSegmentationModel(nn.Module):
                 m.bias.data.zero_()
 
     
-    def forward(self, rgbs_a, rgbs_b, depths_a, depths_b): #注意input2 可以是多帧图像
+    def forward(self, rgbs_a, rgbs_b, depths_a, depths_b):
         
         input_size = rgbs_a.size()[2:] # H, W
         V_a, labels = self.encoder(rgbs_a)
@@ -64,7 +64,7 @@ class RGBDSegmentationModel(nn.Module):
         S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
         S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
 
-        Z_b = torch.bmm(V_a_flat, S_row).contiguous() #注意我们这个地方要不要用交互以及Residual的结构 Z_b = V_a_flat prod S_row
+        Z_b = torch.bmm(V_a_flat, S_row).contiguous() #Z_b = V_a_flat prod S_row
         Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column
         
         input1_att = Z_a.view(-1, V_b.size()[1], fea_size[0], fea_size[1]) # [N, C*2, H, W]
