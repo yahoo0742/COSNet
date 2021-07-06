@@ -3,7 +3,7 @@
 
 # Please cite the following publications if you used this work:
 
-# [1] Huazhu Fu, Dong Xu, Stephen Lin, and Jiang Liu, "Object-based RGBD Image Co-segmentation with Mutex Constraint," in CVPR, 2015, pp. 4428–4436.
+# [1] Huazhu Fu, Dong Xu, Stephen Lin, and Jiang Liu, "Object-based RGBD Image Co-segmentation with Mutex Constraint," in CVPR, 2015, pp. 4428-4436.
 # [2] Huazhu Fu, Dong Xu, Stephen Lin, "Object-based Multiple Foreground Segmentation in RGBD Video", Submitted to IEEE Transactions on Image Processing, 2016.
 
 # ====================================================================
