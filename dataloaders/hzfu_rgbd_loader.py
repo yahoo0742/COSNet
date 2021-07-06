@@ -290,8 +290,8 @@ class HzFuRGBDVideos(Dataset):
 
     # implementation
     def __len__(self):
-        print("HzFuRGBDVideos length: " + len(self.sets['train']['labelled_frames']))
-        return len(len(self.sets['train']['labelled_frames']))
+        print("HzFuRGBDVideos length: " + len(self.sets['train']['names_of_frames']))
+        return len(len(self.sets['train']['names_of_frames']))
 
     def __getitem__(self, frame_index):
         set_name = self.stage
