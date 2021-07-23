@@ -40,17 +40,17 @@ class RGBDSegmentationModel(nn.Module):
     def forward(self, rgbs_a, rgbs_b, depths_a, depths_b):
         
         input_size = rgbs_a.size()[2:] # H, W
-        print("Before encoder size: ",input_size)
+        print("***Before encoder size: ",input_size)
 
         V_a, labels = self.encoder(rgbs_a)
-        print("After RGB encoder target")
+        print("****After RGB encoder target")
         V_b, labels = self.encoder(rgbs_b) # N, C, H, W
-        print("After RGB encoder match")
+        print("*****After RGB encoder match")
 
         D_a = self.depth_encoder(depths_a)
-        print("After depth encoder target")
+        print("******After depth encoder target")
         D_b = self.depth_encoder(depths_b)
-        print("After depth encoder match")
+        print("*******After depth encoder match")
 
 
         fea_size = V_b.size()[2:]	# H, W

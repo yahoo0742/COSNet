@@ -411,7 +411,7 @@ def main():
                     max_iter = args.maxEpoches * train_len)
             #print(images.size())
 
-            pred1, pred2, pred3 = model(current_rgb, current_depth, counterpart_rgb, counterpart_depth)
+            pred1, pred2, pred3 = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
             loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt) + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
             loss.backward()
             
