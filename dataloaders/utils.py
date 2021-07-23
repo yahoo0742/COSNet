@@ -18,8 +18,9 @@ def flip3d(I, flip_p):
 def scale2d(img, scale, interpolation = cv2.INTER_LINEAR):
     new_height = int(img.shape[0]*scale)
     new_width = int(img.shape[1]*scale)
-    new_dims = (new_width, new_height)
-    return cv2.resize(img,new_dims, interpolation)
+    new_dims = (new_height, new_width)
+    print("**** scale2d new dims:",new_dims, " original size ",img.shape)
+    return cv2.resize(src=img, dsize=new_dims, interpolation=interpolation)
 
 def scale3d(img, scale, interpolation = cv2.INTER_LINEAR):
     result_img = []
