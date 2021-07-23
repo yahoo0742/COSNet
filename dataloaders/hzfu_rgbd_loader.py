@@ -304,7 +304,7 @@ class HzFuRGBDVideos(Dataset):
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
         if frame_info:
-            sample = {'target': None, 'target_depth': None, 'target_gt': None, 'seq_name': None, 'search_0': None, 'search_0_depth': None, 'frame_index': frame_info.id}
+            sample = {'target': None, 'target_depth': None, 'target_gt': None, 'seq_name': None, 'search_0': None, 'search_0_depth': None, 'search_0_gt':None, 'frame_index': frame_info.id}
             current_img, current_depth, current_img_gt = self._load_rgbd_and_gt(frame_info)
             sample['target'] = current_img
             sample['target_depth'] = current_depth
@@ -323,27 +323,28 @@ class HzFuRGBDVideos(Dataset):
                     match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
                     sample['search'+'_'+str(i)] = match_img
                     sample['search'+'_'+str(i)+'_depth'] = match_depth
+                    sample['search'+'_'+str(i)+'_gt'] = match_img_gt
 
             else:
                 idx_to_match = frame_index
-                if range['start'] < range['end'] -1:
+                if _range['start'] < _range['end'] -1:
                     count = 0
                     while idx_to_match == frame_index:
                         count += 1
                         if count > 3:
                             idx_to_match = frame_index + 1
                             break
-                        idx_to_match = random.randint(range['start'], range['end']-1)
+                        idx_to_match = random.randint(_range['start'], _range['end']-1)
                 if idx_to_match == frame_index:
                     print("Got a pair of frames with the same index "+frame_index+". The frame is about "+frame_info)
-                    # TODO deep copy is required
-                    match_img = current_img
-                    match_img_gt = current_img_gt
                 else:
                     frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
                     match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
+                    sample['search_0'] = match_img
+                    sample['search_0_depth'] = match_depth
+                    sample['search_0_gt'] = match_img_gt
 
-            print(" ##### sample: ",sample['target'].shape, sample['target_gt'].shape,  sample['target_depth'].shape, sample['search_0'].shape, sample['search_0_depth'].shape, sample['search_1'].shape, sample['search_2'].shape)
+            print(" ##### sample: ",sample['target'].shape, sample['target_gt'].shape,  sample['target_depth'].shape, sample['search_0'].shape, sample['search_0_depth'].shape)
             return sample
             # return current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
 
