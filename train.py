@@ -226,7 +226,7 @@ def get_10x_lr_params(model):
         b.append(model.module.main_classifier2.parameters())
         
     for j in range(len(b)):
-        print("****b[",j,"]: "+b[j])
+        print("****b[",j,"]: ",b[j])
         for i in b[j]:
             yield i
             
