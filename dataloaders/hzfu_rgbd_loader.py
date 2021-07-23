@@ -341,6 +341,7 @@ class HzFuRGBDVideos(Dataset):
                     frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
                     match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
 
+            print(" ##### sample: ",sample)
             return sample
             # return current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
 
