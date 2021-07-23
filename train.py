@@ -226,7 +226,7 @@ def get_10x_lr_params(model):
         b.append(model.module.main_classifier2.parameters())
         
     for j in range(len(b)):
-        print("****b[",j,"]: ",b[j])
+        # print("****b[",j,"]: ",b[j])
         for i in b[j]:
             yield i
             
@@ -354,7 +354,8 @@ def main():
  
     print("=====> Preparing training data")
     if args.dataset == 'hzfurgbd':
-        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=3, desired_input_size=input_size, transform=None)
+        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, desired_input_size=input_size, transform=None)
+        db_train.set_for_train()
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
@@ -385,8 +386,8 @@ def main():
         
         np.random.seed(args.random_seed + epoch)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
-            #print("i_iter=", i_iter, "epoch=", epoch)
-            current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_depth, counterpart_gt = batch['current_rgb'], batch['current_depth'], batch['current_gt'], batch['counterpart_rgb'], batch['counterpart_depth'], batch['counterpart_gt'],
+            print("i_iter=", i_iter, "epoch=", epoch)
+            current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_depth, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_depth'], batch['search_0_gt'],
 
             
             current_rgb.requires_grad_()

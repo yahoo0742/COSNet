@@ -304,9 +304,10 @@ class HzFuRGBDVideos(Dataset):
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
         if frame_info:
-            sample = {'target': None, 'target_gt': None, 'seq_name': None, 'search_0': None, 'frame_index': frame_info.id}
+            sample = {'target': None, 'target_depth': None, 'target_gt': None, 'seq_name': None, 'search_0': None, 'search_0_depth': None, 'frame_index': frame_info.id}
             current_img, current_depth, current_img_gt = self._load_rgbd_and_gt(frame_info)
             sample['target'] = current_img
+            sample['target_depth'] = current_depth
             sample['target_gt'] = current_img_gt
             sample['seq_name'] = frame_info.seq_name
 
@@ -321,6 +322,7 @@ class HzFuRGBDVideos(Dataset):
                     frame_info_to_match = self._get_framename_by_index(set_name, search_id)
                     match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
                     sample['search'+'_'+str(i)] = match_img
+                    sample['search'+'_'+str(i)+'_depth'] = match_depth
 
             else:
                 idx_to_match = frame_index
@@ -341,7 +343,7 @@ class HzFuRGBDVideos(Dataset):
                     frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
                     match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
 
-            print(" ##### sample: ",sample)
+            print(" ##### sample: ",sample['target'].shape, sample['target_gt'].shape,  sample['target_depth'].shape, sample['search_0'].shape, sample['search_0_depth'].shape, sample['search_1'].shape, sample['search_2'].shape)
             return sample
             # return current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
 
@@ -395,7 +397,7 @@ class HzFuRGBDVideos(Dataset):
             self.flip_seq_for_augmentation[seq] = flip_p
         else:
             flip_p = self.flip_seq_for_augmentation[seq]
-        print("before flip ",flip_p)
+        # print("before flip ",flip_p)
         rgb = utils.flip3d(rgb, flip_p)
         depth = utils.flip3d(depth, flip_p)
         gt = utils.flip2d(gt, flip_p)
