@@ -352,7 +352,7 @@ class HzFuRGBDVideos(Dataset):
         def __load_mat(path): #->np.array:
             # in the shape of (H, W) with values in [0, 255]
             f = h5py.File(path, 'r')
-            result = np.array(f['depth'])
+            result = np.array(f['depth'], dtype=np.float32)
             result = (result - result.min()) * 255 / (result.max() - result.min())
             result = result.transpose() 
             return result
@@ -365,14 +365,14 @@ class HzFuRGBDVideos(Dataset):
             rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
             rgb_img = np.array(rgb_img, dtype=np.float32)
             rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
-            rgb_img = rgb_img.transpose((2, 0, 1))  # NHWC -> NCHW
+            rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
 
             depth_img = __load_mat(depth_path)
             depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
 
             gt = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
             gt[gt!=0]=1 # H, W with values in {0, 1}
-            gt = np.array(gt)
+            gt = np.array(gt, dtype=np.float32)
 
             rgb_img, depth_img, gt = self._augmente_image(rgb_img, depth_img, gt, frame_info.seq_name)
             return rgb_img, depth_img, gt
