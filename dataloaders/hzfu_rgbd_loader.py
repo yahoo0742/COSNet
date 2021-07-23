@@ -381,20 +381,23 @@ class HzFuRGBDVideos(Dataset):
             rgb_img, depth_img, gt = self._augmente_image(rgb_img, depth_img, gt, frame_info.seq_name)
             return rgb_img, depth_img, gt
 
+    def next_batch(self):
+        self._scale_ratio = random.uniform(0.7, 1.3)
+        self._crop_ratio = random.uniform(0.8, 1)
+        self._flip_probability = random.uniform(0, 1)
+        print("***** new batch ",self._scale_ratio, self._crop_ratio, self._flip_probability)
+
     def _augmente_image(self, rgb, depth, gt, seq):
-        scale_ratio = random.uniform(0.7, 1.3)
-        crop_ratio = random.uniform(0.8, 1)
+        rgb, offset = utils.crop3d(rgb, self._crop_ratio)
+        depth,_ = utils.crop3d(depth, self._crop_ratio, offset)
+        gt,_ = utils.crop2d(gt, self._crop_ratio, offset)
 
-        rgb, offset = utils.crop3d(rgb, crop_ratio)
-        depth,_ = utils.crop3d(depth, crop_ratio, offset)
-        gt,_ = utils.crop2d(gt, crop_ratio, offset)
-
-        rgb = utils.scale3d(rgb, scale_ratio)
-        depth = utils.scale3d(depth, scale_ratio)
-        gt = utils.scale2d(gt, scale_ratio, cv2.INTER_NEAREST)
+        rgb = utils.scale3d(rgb, self._scale_ratio)
+        depth = utils.scale3d(depth, self._scale_ratio)
+        gt = utils.scale2d(gt, self._scale_ratio, cv2.INTER_NEAREST)
 
         if seq not in self.flip_seq_for_augmentation:
-            flip_p = random.uniform(0, 1)
+            flip_p = self._flip_probability
             self.flip_seq_for_augmentation[seq] = flip_p
         else:
             flip_p = self.flip_seq_for_augmentation[seq]

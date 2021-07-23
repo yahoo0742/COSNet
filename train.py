@@ -353,6 +353,7 @@ def main():
     print('Total network parameters: ' + str(total_paramters))
  
     print("=====> Preparing training data")
+    db_train = None
     if args.dataset == 'hzfurgbd':
         db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, desired_input_size=input_size, transform=None)
         db_train.set_for_train()
@@ -383,10 +384,12 @@ def main():
     print("  max iteration: ", args.maxEpoches*train_len)
     
     for epoch in range(start_epoch, int(args.maxEpoches)):
-        
+        print("......epoch=", epoch)
+        db_train.next_batch()
         np.random.seed(args.random_seed + epoch)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
-            print("i_iter=", i_iter, "epoch=", epoch)
+            db_train.next_batch()
+            print("  i_iter=", i_iter)
             current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_depth, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_depth'], batch['search_0_gt'],
 
             
