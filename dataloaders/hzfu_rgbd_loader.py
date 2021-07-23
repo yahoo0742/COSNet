@@ -358,10 +358,13 @@ class HzFuRGBDVideos(Dataset):
             # in the shape of (H, W) with values in [0, 255]
             f = h5py.File(path, 'r')
             result = np.array(f['depth'], dtype=np.float32)
+            print("depth shape: ",result.shape)
+
             if self.desired_HW is not None:
                 result = imresize(result, self.desired_HW)
+            print(" after depth shape: ",result.shape)
             result = (result - result.min()) * 255 / (result.max() - result.min())
-            result = result.transpose() 
+            # result = result.transpose() 
             return result
 
         rgb_path = self._get_path_of_rgb_data(frame_info.seq_name, frame_info.name_of_rgb_frame)
@@ -386,6 +389,7 @@ class HzFuRGBDVideos(Dataset):
             gt[gt!=0]=1 # H, W with values in {0, 1}
             gt = np.array(gt, dtype=np.float32)
 
+            print("gt shape: ",gt.shape)
             rgb_img, depth_img, gt = self._augmente_image(rgb_img, depth_img, gt, frame_info.seq_name)
             return rgb_img, depth_img, gt
 
