@@ -344,7 +344,7 @@ class HzFuRGBDVideos(Dataset):
                     sample['search_0_depth'] = match_depth
                     sample['search_0_gt'] = match_img_gt
 
-            print(" ##### sample: ",sample['target'].shape, sample['target_gt'].shape,  sample['target_depth'].shape, sample['search_0'].shape, sample['search_0_depth'].shape)
+            print(" ##### sample rgb: ",sample['target'].shape, " gt: ", sample['target_gt'].shape,  " depth: ", sample['target_depth'].shape, " search_rgb: " ,sample['search_0'].shape, " search_0_gt: ",sample['search_0_gt'].shape,  "search_0_depth: ", sample['search_0_depth'].shape)
             return sample
             # return current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
 
