@@ -44,6 +44,7 @@ import numpy as np
 import random
 import cv2
 import h5py
+from scipy.misc import imresize
 from torch.utils.data import Dataset
 from dataloaders import utils
 
@@ -80,13 +81,13 @@ class VideoFrameInfo:
 class HzFuRGBDVideos(Dataset):
     def __init__(self, dataset_root,
                  sample_range,
-                 desired_input_size=None,
+                 desired_HW=None,
                  transform=None,
                  meanval=(104.00699, 116.66877, 122.67892),
                  ):
         self.dataset_root = dataset_root
         self.sample_range = sample_range
-        self.desired_input_size = desired_input_size
+        self.desired_HW = desired_HW # H W
         self.transform = transform
         self.meanval = meanval
         self.stage = 'train'
@@ -357,6 +358,8 @@ class HzFuRGBDVideos(Dataset):
             # in the shape of (H, W) with values in [0, 255]
             f = h5py.File(path, 'r')
             result = np.array(f['depth'], dtype=np.float32)
+            if self.desired_HW is not None:
+                result = imresize(result, self.desired_HW)
             result = (result - result.min()) * 255 / (result.max() - result.min())
             result = result.transpose() 
             return result
@@ -367,6 +370,9 @@ class HzFuRGBDVideos(Dataset):
 
         if rgb_path and depth_path and gt_path:
             rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
+            if self.desired_HW is not None:
+                rgb_img = imresize(rgb_img, self.desired_HW)
+
             rgb_img = np.array(rgb_img, dtype=np.float32)
             rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
             rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
@@ -375,6 +381,8 @@ class HzFuRGBDVideos(Dataset):
             depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
 
             gt = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
+            if self.desired_HW is not None:
+                gt = imresize(gt, self.desired_HW)
             gt[gt!=0]=1 # H, W with values in {0, 1}
             gt = np.array(gt, dtype=np.float32)
 
