@@ -226,6 +226,7 @@ def get_10x_lr_params(model):
         b.append(model.module.main_classifier2.parameters())
         
     for j in range(len(b)):
+        print("****b[",j,"]: "+b[j])
         for i in b[j]:
             yield i
             
@@ -353,7 +354,7 @@ def main():
  
     print("=====> Preparing training data")
     if args.dataset == 'hzfurgbd':
-        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], desired_input_size=input_size, transform=None)
+        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=3, desired_input_size=input_size, transform=None)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")

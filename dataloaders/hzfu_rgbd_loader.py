@@ -73,13 +73,19 @@ class VideoFrameInfo:
         self.name_of_depth_frame = name_depth_frame
         self.name_of_groundtruth_frame = name_gt_frame
         self.seq_name = seq_name
+    def __str__(self):
+        return self.seq_name+"/["+self.id+"]:"+self.name_of_rgb_frame+","+self.name_of_groundtruth_frame
+
   
 class HzFuRGBDVideos(Dataset):
-    def __init__(self, dataset_root, 
+    def __init__(self, dataset_root,
+                 sample_range,
                  desired_input_size=None,
                  transform=None,
-                 meanval=(104.00699, 116.66877, 122.67892)):
+                 meanval=(104.00699, 116.66877, 122.67892),
+                 ):
         self.dataset_root = dataset_root
+        self.sample_range = sample_range
         self.desired_input_size = desired_input_size
         self.transform = transform
         self.meanval = meanval
@@ -290,35 +296,53 @@ class HzFuRGBDVideos(Dataset):
 
     # implementation
     def __len__(self):
-        print("HzFuRGBDVideos length: " , len(self.sets['train']['names_of_frames']))
-        return len(self.sets['train']['names_of_frames'])
+        set_name = self.stage
+        print("HzFuRGBDVideos length: " , len(self.sets[set_name]['names_of_frames']))
+        return len(self.sets[set_name]['names_of_frames'])
 
     def __getitem__(self, frame_index):
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
-        if frame_info:  
+        if frame_info:
+            sample = {'target': None, 'target_gt': None, 'seq_name': None, 'search_0': None, 'frame_index': frame_info.id}
             current_img, current_depth, current_img_gt = self._load_rgbd_and_gt(frame_info)
+            sample['target'] = current_img
+            sample['target_gt'] = current_img_gt
+            sample['seq_name'] = frame_info.seq_name
 
-            range = self.sets[set_name]['offset4_frames_of_sequences'][frame_info.seq_name]
-            idx_to_match = frame_index
-            if range['start'] < range['end'] -1:
-                count = 0
-                while idx_to_match == frame_index:
-                    count += 1
-                    if count > 3:
-                        idx_to_match = frame_index + 1
-                        break
-                    idx_to_match = random.randint(range['start'], range['end']-1)
-            if idx_to_match == frame_index:
-                print("Got a pair of frames with the same index "+frame_index+". The frame is about "+frame_info)
-                # TODO deep copy is required
-                match_img = current_img
-                match_img_gt = current_img_gt
+            _range = self.sets[set_name]['offset4_frames_of_sequences'][frame_info.seq_name]
+
+            if self.sample_range > 1:
+                search_ids_pool= list(range(_range['start'], _range['end']))
+                search_ids = random.sample(search_ids_pool, self.sample_range)#min(len(self.img_list)-1, target_id+np.random.randint(1,self.range+1))
+
+                for i in range(0,self.sample_range):
+                    search_id = search_ids[i]
+                    frame_info_to_match = self._get_framename_by_index(set_name, search_id)
+                    match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
+                    sample['search'+'_'+str(i)] = match_img
+
             else:
-                frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
-                match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
+                idx_to_match = frame_index
+                if range['start'] < range['end'] -1:
+                    count = 0
+                    while idx_to_match == frame_index:
+                        count += 1
+                        if count > 3:
+                            idx_to_match = frame_index + 1
+                            break
+                        idx_to_match = random.randint(range['start'], range['end']-1)
+                if idx_to_match == frame_index:
+                    print("Got a pair of frames with the same index "+frame_index+". The frame is about "+frame_info)
+                    # TODO deep copy is required
+                    match_img = current_img
+                    match_img_gt = current_img_gt
+                else:
+                    frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
+                    match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
 
-            return current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
+            return sample
+            # return current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
 
         else:
             raise Exception('Cannot find the sequence from frame index ', frame_index)
@@ -339,8 +363,9 @@ class HzFuRGBDVideos(Dataset):
 
         if rgb_path and depth_path and gt_path:
             rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
-            rgb_img = rgb_img.transpose((2, 0, 1)) # 3, H, W
-            rgb_img = np.array(rgb_img)
+            rgb_img = np.array(rgb_img, dtype=np.float32)
+            rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
+            rgb_img = rgb_img.transpose((2, 0, 1))  # NHWC -> NCHW
 
             depth_img = __load_mat(depth_path)
             depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
