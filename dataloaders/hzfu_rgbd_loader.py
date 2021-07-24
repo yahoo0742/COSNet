@@ -362,8 +362,10 @@ class HzFuRGBDVideos(Dataset):
 
             if self.desired_HW is not None:
                 result = imresize(result, self.desired_HW)
-            print(" after depth shape: ",result.shape)
+            result = np.array(result, dtype=np.float32)
             result = (result - result.min()) * 255 / (result.max() - result.min())
+            print(" after depth shape: ",result.shape, result.dtype)
+
             # result = result.transpose() 
             return result
 

@@ -47,9 +47,9 @@ class RGBDSegmentationModel(nn.Module):
         V_b, labels = self.encoder(rgbs_b) # N, C, H, W
         print("*****After RGB encoder match")
 
-        D_a = self.depth_encoder(depths_a)
+        D_a, depth_labels_a = self.depth_encoder(depths_a)
         print("******After depth encoder target")
-        D_b = self.depth_encoder(depths_b)
+        D_b, depth_labels_b = self.depth_encoder(depths_b)
         print("*******After depth encoder match")
 
 
