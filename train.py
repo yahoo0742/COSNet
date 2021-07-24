@@ -179,7 +179,7 @@ def get_1x_lr_params(model):
     b = []
     mod = model
     if torch.cuda.device_count() > 1:
-        mod = mod
+        mod = mod.module
 
     b.append(mod.encoder.backbone.conv1)
     b.append(mod.encoder.backbone.bn1)
