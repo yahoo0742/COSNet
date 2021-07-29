@@ -47,6 +47,7 @@ import h5py
 from scipy.misc import imresize
 from torch.utils.data import Dataset
 from dataloaders import utils
+import torch
 
 k_sub_set_percentage = {
     'train': 0.8,
@@ -358,14 +359,13 @@ class HzFuRGBDVideos(Dataset):
             # in the shape of (H, W) with values in [0, 255]
             f = h5py.File(path, 'r')
             result = np.array(f['depth'], dtype=np.float32)
-            print("depth shape: ",result.shape)
+            # print("depth shape: ",result.shape)
 
             if self.desired_HW is not None:
                 result = imresize(result, self.desired_HW)
             result = np.array(result, dtype=np.float32)
             result = (result - result.min()) * 255 / (result.max() - result.min())
-            print(" after depth shape: ",result.shape, result.dtype)
-
+            # print(" after depth shape: ",result.shape, result.dtype)
             # result = result.transpose() 
             return result
 
@@ -391,15 +391,20 @@ class HzFuRGBDVideos(Dataset):
             gt[gt!=0]=1 # H, W with values in {0, 1}
             gt = np.array(gt, dtype=np.float32)
 
-            print("gt shape: ",gt.shape)
+            # print("gt shape: ",gt.shape)
             rgb_img, depth_img, gt = self._augmente_image(rgb_img, depth_img, gt, frame_info.seq_name)
+
+            # to avoid the error `ValueError: some of the strides of a given numpy array are negative. This is currently not supported`
+            rgb_img = torch.from_numpy(rgb_img.copy())
+            depth_img = torch.from_numpy(depth_img.copy())
+            gt = torch.from_numpy(gt.copy())
             return rgb_img, depth_img, gt
 
     def next_batch(self):
         self._scale_ratio = random.uniform(0.7, 1.3)
         self._crop_ratio = random.uniform(0.8, 1)
         self._flip_probability = random.uniform(0, 1)
-        print("***** new batch ",self._scale_ratio, self._crop_ratio, self._flip_probability)
+        # print("***** new batch ",self._scale_ratio, self._crop_ratio, self._flip_probability)
 
     def _augmente_image(self, rgb, depth, gt, seq):
         rgb, offset = utils.crop3d(rgb, self._crop_ratio)
