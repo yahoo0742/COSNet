@@ -12,6 +12,7 @@ class RGBDSegmentationModel(nn.Module):
         self.depth_encoder = Encoder(1, block, num_blocks_of_layers, num_classes)
 
         self.linear_e = nn.Linear(all_channel*2, all_channel*2,bias = False)
+        print("linear e: ",self.linear_e)
         self.channel = all_channel
         self.dim = all_dim
         self.gate = nn.Conv2d(all_channel*2, 1, kernel_size  = 1, bias = False)
@@ -40,18 +41,12 @@ class RGBDSegmentationModel(nn.Module):
     def forward(self, rgbs_a, rgbs_b, depths_a, depths_b):
         
         input_size = rgbs_a.size()[2:] # H, W
-        print("***Before encoder size: ",input_size)
 
         V_a, labels = self.encoder(rgbs_a)
-        print("****After RGB encoder target")
         V_b, labels = self.encoder(rgbs_b) # N, C, H, W
-        print("*****After RGB encoder match")
 
         D_a, depth_labels_a = self.depth_encoder(depths_a)
-        print("******After depth encoder target")
         D_b, depth_labels_b = self.depth_encoder(depths_b)
-        print("*******After depth encoder match")
-
 
         fea_size = V_b.size()[2:]	# H, W
         all_dim = fea_size[0]*fea_size[1] #H*W
@@ -61,9 +56,9 @@ class RGBDSegmentationModel(nn.Module):
         D_a_flat = D_a.view(-1, D_a.size()[1], all_dim) # N, C2, H*W
         D_b_flat = D_b.view(-1, D_b.size()[1], all_dim) # N, C2, H*W
 
-        V_a_flat = np.concatenate((V_a_flat, D_a_flat), axis=1) # merge the rgb channels and the depth channel
-        V_b_flat = np.concatenate((V_b_flat, D_b_flat), axis=1) # merge the rgb channels and the depth channel
-        
+        V_a_flat = torch.cat((V_a_flat, D_a_flat), 1) # merge the rgb channels and the depth channel
+        V_b_flat = torch.cat((V_b_flat, D_b_flat), 1) # merge the rgb channels and the depth channel
+
         # S = B W A_transform
         encoder_future_1_flat_t = torch.transpose(V_a_flat,1,2).contiguous()  #N, H*W, C*2
         weighted_encoder_feature_1 = self.linear_e(encoder_future_1_flat_t) # weighted_encoder_feature_1 = encoder_future_1_flat_t * W, [N, H*W, C*2]
@@ -75,8 +70,8 @@ class RGBDSegmentationModel(nn.Module):
         Z_b = torch.bmm(V_a_flat, S_row).contiguous() #Z_b = V_a_flat prod S_row
         Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column
         
-        input1_att = Z_a.view(-1, V_b.size()[1], fea_size[0], fea_size[1]) # [N, C*2, H, W]
-        input2_att = Z_b.view(-1, V_b.size()[1], fea_size[0], fea_size[1]) # [N, C*2, H, W]
+        input1_att = Z_a.view(-1, V_a_flat.size()[1], fea_size[0], fea_size[1]) # [N, C*2, H, W]
+        input2_att = Z_b.view(-1, V_b_flat.size()[1], fea_size[0], fea_size[1]) # [N, C*2, H, W]
         input1_mask = self.gate(input1_att)
         input2_mask = self.gate(input2_att)
         input1_mask = self.gate_s(input1_mask)
@@ -84,8 +79,11 @@ class RGBDSegmentationModel(nn.Module):
         input1_att = input1_att * input1_mask
         input2_att = input2_att * input2_mask
 
-        input1_att = torch.cat([input1_att, V_a],1) 
-        input2_att = torch.cat([input2_att, V_b],1)
+        RGBD_feat_a = V_a_flat.view(-1, V_a_flat.size()[1], fea_size[0], fea_size[1]) # features extracted from RGBD from the encoder
+        RGBD_feat_b = V_b_flat.view(-1, V_b_flat.size()[1], fea_size[0], fea_size[1]) # features extracted from RGBD from the encoder
+
+        input1_att = torch.cat([input1_att, RGBD_feat_a],1) 
+        input2_att = torch.cat([input2_att, RGBD_feat_b],1)
         input1_att  = self.conv1(input1_att )
         input2_att  = self.conv2(input2_att ) 
         input1_att  = self.bn1(input1_att )
