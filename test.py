@@ -81,15 +81,15 @@ def configure_dataset_model(args):
         args.corp_size =(473, 473) #didn't see reference
         
     elif args.dataset == 'hzfurgbd': 
-        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset',
+        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'
         args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
         args.ignore_label = 255     #The index of the label to ignore during the training
         args.input_size = '640,480' #'1920,1080' #Comma-separated string with height and width of images
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
-        args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-        args.snapshot_dir = './snapshots/co_attention_rgbd_hzfurgbd_29.pth/'          #Where to save snapshots of the model
+        args.restore_from = './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.snapshot_dir = './snapshots/'          #Where to save snapshots of the model
         args.save_segimage = True
         args.seg_save_dir = "./result/test/hzfurgbd"
         args.vis_save_dir = "./result/test/hzfurgbd_vis"
@@ -125,7 +125,7 @@ def main():
     print("=====> Configure dataset and model")
     configure_dataset_model(args)
     print(args)
-    model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], num_classes=args.num_classes)
+    model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], num_classes=args.num_classes-1)
     saved_state_dict = torch.load(args.restore_from, map_location=lambda storage, loc: storage)
     #print(saved_state_dict.keys())
     #model.load_state_dict({k.replace('pspmodule.',''):v for k,v in torch.load(args.restore_from)['state_dict'].items()})
@@ -178,7 +178,7 @@ def main():
         output_sum = 0 
         for i in range(0,args.sample_range):  
             search = batch['search'+'_'+str(i)]
-            search_depth = batch['search_depth'+'_'+str(i)]
+            search_depth = batch['search_'+str(i)+'_depth']
             search_im = search
             #print(search_im.size())
             with torch.no_grad():
