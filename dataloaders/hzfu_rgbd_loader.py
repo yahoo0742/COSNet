@@ -299,7 +299,7 @@ class HzFuRGBDVideos(Dataset):
     # implementation
     def __len__(self):
         set_name = self.stage
-        print("HzFuRGBDVideos length: " , len(self.sets[set_name]['names_of_frames']))
+        print("HzFuRGBDVideos length: " , len(self.sets[set_name]['names_of_frames']), " for " + set_name)
         return len(self.sets[set_name]['names_of_frames'])
 
     def __getitem__(self, frame_index):
@@ -392,7 +392,8 @@ class HzFuRGBDVideos(Dataset):
             gt = np.array(gt, dtype=np.float32)
 
             # print("gt shape: ",gt.shape)
-            rgb_img, depth_img, gt = self._augmente_image(rgb_img, depth_img, gt, frame_info.seq_name)
+            if self.stage == 'train':
+                rgb_img, depth_img, gt = self._augmente_image(rgb_img, depth_img, gt, frame_info.seq_name)
 
             # to avoid the error `ValueError: some of the strides of a given numpy array are negative. This is currently not supported`
             rgb_img = torch.from_numpy(rgb_img.copy())
