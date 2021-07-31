@@ -12,7 +12,6 @@ class RGBDSegmentationModel(nn.Module):
         self.depth_encoder = Encoder(1, block, num_blocks_of_layers, num_classes)
 
         self.linear_e = nn.Linear(all_channel*2, all_channel*2,bias = False)
-        print("linear e: ",self.linear_e)
         self.channel = all_channel
         self.dim = all_dim
         self.gate = nn.Conv2d(all_channel*2, 1, kernel_size  = 1, bias = False)

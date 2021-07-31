@@ -1,5 +1,8 @@
 
 # Editing this file is too tricky. Load configurations from the yaml file, so that when we need to customize something, we do not need to edit this file
+import matplotlib
+matplotlib.use('Agg') # to fix the error `no display name and no $DISPLAY environment variable`
+
 import yaml
 with open("config.yaml") as config_file:
     user_config = yaml.load(config_file)
@@ -35,6 +38,17 @@ from rgbd_segmentation_model import RGBDSegmentationModel
 start = timeit.default_timer()
 
 
+
+def plot2d(x, y, xlabel=None, ylabel=None, filenameForSave=None):
+    plt.plot(x, y)
+    if xlabel:
+        plt.xlabel(xlabel)
+    if ylabel:
+        plt.ylabel(ylabel)
+    
+    if filenameForSave:
+        plt.savefig(filenameForSave+".png")
+    plt.show()
 
 
 def get_arguments():
@@ -385,6 +399,7 @@ def main():
     print("  epoch num: ", args.maxEpoches)
     print("  max iteration: ", args.maxEpoches*train_len)
     
+    loss_history = []
     for epoch in range(start_epoch, int(args.maxEpoches)):
         print("......epoch=", epoch)
         db_train.next_batch()
@@ -418,7 +433,9 @@ def main():
             loss.backward()
             
             optimizer.step()
-                
+
+            loss_history.append(loss.data)
+
             print("===> Epoch[{}]({}/{}): Loss: {:.10f}  lr: {:.5f}".format(epoch, i_iter, train_len, loss.data, lr))
             logger.write("Epoch[{}]({}/{}):     Loss: {:.10f}      lr: {:.5f}\n".format(epoch, i_iter, train_len, loss.data, lr))
             logger.flush()
@@ -432,6 +449,8 @@ def main():
     print( float(end-start)/3600, 'h')
     logger.write("total training time: {:.2f} h\n".format(float(end-start)/3600))
     logger.close()
+
+    plot2d(np.arange(args.maxEpoches), loss_history, "epoch", "loss", "training_loss_"+args.dataset)
 
 
 if __name__ == '__main__':

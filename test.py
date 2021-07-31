@@ -66,7 +66,7 @@ def get_arguments():
 
 def configure_dataset_model(args):
     if args.dataset == 'hzfurgb':
-        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset',
+        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'
         args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
         args.ignore_label = 255     #The index of the label to ignore during the training
@@ -79,21 +79,24 @@ def configure_dataset_model(args):
         args.seg_save_dir = "./result/test/hzfurgb"
         args.vis_save_dir = "./result/test/hzfurgb_vis"
         args.corp_size =(473, 473) #didn't see reference
+        args.sample_range = 1
+
         
     elif args.dataset == 'hzfurgbd': 
         args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'
         args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
         args.ignore_label = 255     #The index of the label to ignore during the training
-        args.input_size = '640,480' #'1920,1080' #Comma-separated string with height and width of images
+        args.input_size = '160,120' #'640,480' #'1920,1080' #Comma-separated string with height and width of images
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
         args.restore_from = './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-        args.snapshot_dir = './snapshots/'          #Where to save snapshots of the model
+        args.snapshot_dir = './snapshots/hzfurgbd_iteration/'          #Where to save snapshots of the model
         args.save_segimage = True
         args.seg_save_dir = "./result/test/hzfurgbd"
         args.vis_save_dir = "./result/test/hzfurgbd_vis"
         args.corp_size =(473, 473) #didn't see reference
+        args.sample_range = 1
         
     else:
         print("dataset error")
