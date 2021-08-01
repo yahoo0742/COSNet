@@ -138,7 +138,9 @@ def main():
     print("=====> Configure dataset and model")
     configure_dataset_model(args)
     h, w = map(int, args.desired_HW.split(','))
-    self.desired_HW = (h, w)
+    args.desired_HW = (h, w)
+    w, h = map(int, args.input_size.split(','))
+    args.input_size = (w,h)
     print(args)
     if args.cuda:
         print("====> Use gpu id: '{}'".format(args.gpus))
@@ -166,7 +168,7 @@ def main():
         db_test.set_for_test()
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
     elif args.dataset == 'davis':  #for davis 2016
-        db_test = db.PairwiseImg(train=False, inputRes=args.desired_HW, db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        db_test = db.PairwiseImg(train=False, desired_HW=args.desired_HW, db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
         #voc_colorize = VOCColorize()
     else:
