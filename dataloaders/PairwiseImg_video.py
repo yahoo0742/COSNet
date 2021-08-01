@@ -47,7 +47,7 @@ class PairwiseImg(Dataset):
     """DAVIS 2016 dataset constructed using the PyTorch built-in functionalities"""
 
     def __init__(self, dataset_config, saliency_dataset_config, train=True,
-                 inputRes=None,
+                 desired_HW=None,
                  db_root_dir='/DAVIS-2016',
                  img_root_dir = None,
                  transform=None,
@@ -58,7 +58,7 @@ class PairwiseImg(Dataset):
         """
         self.train = train
         self.range = sample_range
-        self.desired_input_size = inputRes
+        self.desired_HW = desired_HW
         self.img_root_dir = img_root_dir
         self.db_root_dir = db_root_dir
         self.transform = transform
@@ -196,13 +196,13 @@ class PairwiseImg(Dataset):
              img = img_temp
              label = gt_temp
              
-        if self.desired_input_size is not None:
-            img = imresize(img, self.desired_input_size)
+        if self.desired_HW is not None:
+            img = imresize(img, self.desired_HW)
             #print('ok1')
             #scipy.misc.imsave('label.png',label)
             #scipy.misc.imsave('img.png',img)
             if self.labels[idx] is not None and self.train:
-                label = imresize(label, self.desired_input_size, interp='nearest')
+                label = imresize(label, self.desired_HW, interp='nearest')
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
@@ -233,10 +233,10 @@ class PairwiseImg(Dataset):
         else:
             gt = np.zeros(img.shape[:-1], dtype=np.uint8)
             
-        if self.desired_input_size is not None:            
-            img = imresize(img, self.desired_input_size)
+        if self.desired_HW is not None:            
+            img = imresize(img, self.desired_HW)
             if self.saliency_labels[idx] is not None and self.train:
-                label = imresize(label, self.desired_input_size, interp='nearest')
+                label = imresize(label, self.desired_HW, interp='nearest')
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]

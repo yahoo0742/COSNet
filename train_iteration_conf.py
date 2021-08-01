@@ -122,7 +122,8 @@ def configure_dataset_init_model(args):
         args.img_dir = user_config["train"]["saliency_dataset"] #'/vol/graphics-solar/fengwenb/vos/saliency_dataset'
         args.data_list = './dataset/list/VOC2012/train_aug.txt'  # Path to the file listing the images in the dataset
         args.ignore_label = user_config["train"]["dataset"]["davis"]["ignore_label"]     #The index of the label to ignore during the training
-        args.input_size = user_config["train"]["dataset"]["davis"]["input_size"] #'854,480' #Comma-separated string with height and width of images
+        args.input_size = user_config["train"]["dataset"]["davis"]["input_size"] #'854,480' W, H #Comma-separated string with height and width of images
+        args.desired_HW = user_config["train"]["dataset"]["davis"]['desired_HW']
         args.num_classes = user_config["train"]["dataset"]["davis"]["num_classes"]      #Number of classes to predict (including background)
         args.img_mean = np.array(user_config["train"]["dataset"]["davis"]["img_mean"], dtype=np.float32)       # saving model file and log record during the process of training
         #Where restore model pretrained on other dataset, such as COCO.")
@@ -309,8 +310,11 @@ def main():
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed) 
 
-    h, w = map(int, args.input_size.split(','))
-    input_size = (h, w)
+    h, w = map(int, args.desired_HW.split(','))
+    args.desired_HW = (h, w)
+
+    w, h = map(int, args.input_size.split(','))
+    args.input_size = (w, h)
 
     cudnn.enabled = True
 
@@ -381,15 +385,15 @@ def main():
  
     print("=====> Preparing training data")
     if args.dataset == 'voc12':
-        trainloader = data.DataLoader(VOCDataSet(args.data_dir, args.data_list, max_iters=None, crop_size=input_size, 
+        trainloader = data.DataLoader(VOCDataSet(args.data_dir, args.data_list, max_iters=None, crop_size=args.desired_HW, 
                                                  scale=args.random_scale, mirror=args.random_mirror, mean=args.img_mean), 
                                       batch_size= args.batch_size, shuffle=True, num_workers=0, pin_memory=True, drop_last=True)
     elif args.dataset == 'cityscapes':
-        trainloader = data.DataLoader(CityscapesDataSet(args.data_dir, args.data_list, max_iters=None, crop_size=input_size, 
+        trainloader = data.DataLoader(CityscapesDataSet(args.data_dir, args.data_list, max_iters=None, crop_size=args.desired_HW, 
                                                  scale=args.random_scale, mirror=args.random_mirror, mean=args.img_mean), 
                                       batch_size = args.batch_size, shuffle=True, num_workers=0, pin_memory=True, drop_last=True)
     elif args.dataset == 'davis':  #for davis 2016
-        db_train = db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, inputRes=input_size, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        db_train = db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.desired_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
