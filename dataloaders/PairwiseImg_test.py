@@ -47,7 +47,7 @@ class PairwiseImg(Dataset):
     """DAVIS 2016 dataset constructed using the PyTorch built-in functionalities"""
 
     def __init__(self, train=True,
-                 inputRes=None,
+                 desired_HW=None,
                  db_root_dir='/DAVIS-2016',
                  transform=None,
                  meanval=(104.00699, 116.66877, 122.67892),
@@ -57,7 +57,7 @@ class PairwiseImg(Dataset):
         """
         self.train = train
         self.range = sample_range
-        self.inputRes = inputRes
+        self.desired_HW = desired_HW # w, h
         self.db_root_dir = db_root_dir
         self.transform = transform
         self.meanval = meanval
@@ -89,7 +89,7 @@ class PairwiseImg(Dataset):
                     #print("images: ",images)
                     images_path = os.path.join(db_root_dir, parts[0]) #subfolder[1], subfolder[2]) #list(map(lambda x: os.path.join(db_root_dir), images))
                     #print("imag path: ",images_path)
-                    print(" subfold ",subfolder)
+                    # print(" subfold ",subfolder)
                     if subfolder[2] not in Index:
                         start_num = len(img_list)
                         img_list.append(images_path)
@@ -103,7 +103,7 @@ class PairwiseImg(Dataset):
                     lab_path = os.path.join(db_root_dir, parts[1])	
                     #lab = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', seq.strip('\n'))))
                     #lab_path = list(map(lambda x: os.path.join('Annotations/480p/', seq.strip(), x), lab))
-                    print("label path: ",lab_path)
+                    # print("label path: ",lab_path)
                     labels.append(lab_path)
                         #print("labels: ",labels)
         else: #针对所有的训练样本， img_list存放的是图片的路径
@@ -118,12 +118,12 @@ class PairwiseImg(Dataset):
                 img_list = [img_list[0]]
                 labels = [labels[0]]
 
-        print(labels)
-        print("======")
-        print(img_list)
+        # print(labels)
+        # print("======")
+        # print(img_list)
 
         assert (len(labels) == len(img_list))
-        print(img_list)
+        # print(img_list)
 
         self.img_list = img_list
         self.labels = labels
@@ -137,8 +137,8 @@ class PairwiseImg(Dataset):
         target, target_gt,sequence_name = self.make_img_gt_pair(idx) #测试时候要分割的帧
         target_id = idx
         seq_name1 = self.img_list[target_id].split('/')[-2] #获取视频名称
-        print("seq name1: ",seq_name1)
-        sample = {'target': target, 'target_gt': target_gt, 'seq_name': sequence_name, 'search_0': None}
+        print("seq name1: ",seq_name1, idx)
+        sample = {'target': target, 'target_gt': target_gt, 'seq_name': sequence_name, 'search_0': None, 'frame_index': idx}
         if self.range>=1:
             my_index = self.Index[seq_name1]
             search_num = list(range(my_index[0], my_index[1]))  
@@ -190,13 +190,13 @@ class PairwiseImg(Dataset):
              img = img_temp
              label = gt_temp
              
-        if self.inputRes is not None:
-            img = imresize(img, self.inputRes)
+        if self.desired_HW is not None:
+            img = imresize(img, self.desired_HW)
             #print('ok1')
             #scipy.misc.imsave('label.png',label)
             #scipy.misc.imsave('img.png',img)
             if self.labels[idx] is not None and self.train:
-                label = imresize(label, self.inputRes, interp='nearest')
+                label = imresize(label, self.desired_HW, interp='nearest')
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
