@@ -84,7 +84,7 @@ def configure_dataset_model(args):
         args.desired_HW = '120,214' # H, W
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
-        args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.restore_from = './pretrained/co_attention_davis_29.pth' #'./pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
         args.snapshot_dir = './snapshots/davis_iteration/'          #Where to save snapshots of the model
         args.save_segimage = True
         args.seg_save_dir = "./result/test/davis_iteration_conf"
