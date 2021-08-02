@@ -218,13 +218,14 @@ def get_1x_lr_params(model):
     if torch.cuda.device_count() == 1:
         b.append(model.encoder.aspp)
     else:
-        b.append(model.module.encoder.backbone.conv1)
-        b.append(model.module.encoder.backbone.bn1)
-        b.append(model.module.encoder.backbone.layer1)
-        b.append(model.module.encoder.backbone.layer2)
-        b.append(model.module.encoder.backbone.layer3)
-        b.append(model.module.encoder.backbone.layer4)
-        b.append(model.module.encoder.aspp)
+        b.append(model.module.encoder.conv1)
+        b.append(model.module.encoder.bn1)
+        b.append(model.module.encoder.layer1)
+        b.append(model.module.encoder.layer2)
+        b.append(model.module.encoder.layer3)
+        b.append(model.module.encoder.layer4)
+
+        b.append(model.module.encoder.layer5) #aspp
         b.append(model.module.encoder.main_classifier)
     for i in range(len(b)):
         for j in b[i].modules():
@@ -245,7 +246,6 @@ def get_10x_lr_params(model):
         b.append(model.linear_e.parameters())
         b.append(model.main_classifier.parameters())
     else:
-        #b.append(model.module.rgb_encoder.layer5.parameters())
         b.append(model.module.linear_e.parameters())
         b.append(model.module.conv1.parameters())
         b.append(model.module.conv2.parameters())

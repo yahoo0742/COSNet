@@ -83,11 +83,11 @@ class PairwiseImg(Dataset):
                 image_list = [] #DUTS-TR/Imgs/0001.jpg
                 im_label = []
                 for seq in seqs:
-                    print("seq: ",seq) #wbf
+                    # print("seq: ",seq) #wbf
                     path_to_category = os.path.join(dataset_config["img_path"], seq.strip('\n'))
                     images = np.sort(os.listdir(path_to_category))
                     images_path = list(map(lambda x: os.path.join(seq.strip(), x), images))
-                    print("images_path",images_path) #wbf
+                    # print("images_path",images_path) #wbf
                     start_num = len(video_list)
                     video_list.extend(images_path)
                     end_num = len(video_list)
@@ -100,7 +100,7 @@ class PairwiseImg(Dataset):
                 #data_list = np.sort(os.listdir(db_root_dir))
                 for seq in saliency_datasets: #所有数据集
                     seq = seq.strip('\n') 
-                    print(" saliency seq: ",seq) #wbf
+                    # print(" saliency seq: ",seq) #wbf
                     img_fullpath = os.path.join(saliency_dataset_config["root_path"], saliency_dataset_config["datasets"][seq]["images"])
                     images = np.sort(os.listdir(img_fullpath))#针对某个数据集，比如DUT			
         # Initialize the original DAVIS splits for training the parent network

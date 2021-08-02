@@ -249,7 +249,7 @@ class ResNet(nn.Module):
 class CoattentionModel(nn.Module):
     def  __init__(self, block, num_blocks_of_resnet_layers, num_classes, all_channel=256, all_dim=60*60):	#473./8=60	
         super(CoattentionModel, self).__init__()
-        self.rgb_encoder = ResNet(3, block, num_blocks_of_resnet_layers, num_classes)
+        self.encoder = ResNet(3, block, num_blocks_of_resnet_layers, num_classes)
         #self.depth_encoder = ResNet(1, block, num_blocks_of_resnet_layers, num_classes)
 
         self.linear_e = nn.Linear(all_channel, all_channel,bias = False)
@@ -282,8 +282,8 @@ class CoattentionModel(nn.Module):
         
         #input1_att, input2_att = self.coattention(input1, input2) 
         input_size = rgbs_a.size()[2:] # H, W
-        V_a, category = self.rgb_encoder(rgbs_a)
-        V_b, category = self.rgb_encoder(rgbs_b) # N, C, H, W
+        V_a, category = self.encoder(rgbs_a)
+        V_b, category = self.encoder(rgbs_b) # N, C, H, W
 
         fea_size = V_b.size()[2:]	# H, W
         all_dim = fea_size[0]*fea_size[1] #H*W
@@ -295,23 +295,26 @@ class CoattentionModel(nn.Module):
         weighted_encoder_feature_1 = self.linear_e(encoder_future_1_flat_t) # weighted_encoder_feature_1 = encoder_future_1_flat_t * W, [N, H*W, C]
         S = torch.bmm(weighted_encoder_feature_1, V_b_flat) # S = weighted_encoder_feature_1 prod encoder_feature_2_flat, [N, H*W, H*W]
 
-        S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
-        S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
+        S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise, the column sums to 1, from a column, it is easy to address the most similar feature from A with a feature from B 
+        S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise, he column sums to 1, from a column, it is easy to address the most similar feature from B with a feature from A
 
-        Z_b = torch.bmm(V_a_flat, S_row).contiguous() #注意我们这个地方要不要用交互以及Residual的结构 Z_b = V_a_flat prod S_row
-        Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column
+        Z_b = torch.bmm(V_a_flat, S_row).contiguous() #注意我们这个地方要不要用交互以及Residual的结构 Z_b = V_a_flat prod S_row Z_b is the most similar features from A with features from B
+        Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column, Z_a is the most similar features from B with features from A
         
         input1_att = Z_a.view(-1, V_b.size()[1], fea_size[0], fea_size[1]) # [N, C, H, W]
         input2_att = Z_b.view(-1, V_b.size()[1], fea_size[0], fea_size[1]) # [N, C, H, W]
+
         input1_mask = self.gate(input1_att)
         input2_mask = self.gate(input2_att)
         input1_mask = self.gate_s(input1_mask)
         input2_mask = self.gate_s(input2_mask)
+
         input1_att = input1_att * input1_mask
         input2_att = input2_att * input2_mask
 
         input1_att = torch.cat([input1_att, V_a],1) 
         input2_att = torch.cat([input2_att, V_b],1)
+
         input1_att  = self.conv1(input1_att )
         input2_att  = self.conv2(input2_att ) 
         input1_att  = self.bn1(input1_att )
