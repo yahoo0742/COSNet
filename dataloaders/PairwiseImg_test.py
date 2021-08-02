@@ -55,6 +55,11 @@ class PairwiseImg(Dataset):
         """Loads image to label pairs for tool pose estimation
         db_root_dir: dataset directory with subfolders "JPEGImages" and "Annotations"
         """
+
+        self.paths_of_images = None
+        self.paths_of_labels = None
+        self.offsets_of_seqs = None
+
         self.train = train
         self.range = sample_range
         self.desired_HW = desired_HW # w, h
@@ -73,76 +78,78 @@ class PairwiseImg(Dataset):
         if self.seq_name is None: #所有的数据集都参与训练
             with open(os.path.join(db_root_dir, 'ImageSets', '480p', fname + '.txt')) as f:
                 seqs = f.readlines()
-                img_list = []
-                labels = []
-                Index = {}
+                images_paths = []
+                labels_paths = []
+                offsets_of_seqs = {}
                 for seq in seqs:
                     #print("crt seq: ", seq)
                     parts = seq.strip('\n').split()
-                    parts[0] = parts[0][1:] # remove /
-                    parts[1] = parts[1][1:] # remove /
+                    parts[0] = parts[0][1:] # remove /    RGB path
+                    parts[1] = parts[1][1:] # remove /    label path
                     part_img_path = parts[0]
-                    subfolder = part_img_path.split('/')
-                    #print(subfolder)
+                    subfolder = part_img_path.split('/') # JPEGImages, 480p, dance-twirl, 00073.jpg
+                    # print("subfol: ", subfolder)
 
                     #images = np.sort(os.listdir(os.path.join(db_root_dir, subfolder[1], subfolder[2], subfolder[3]))) #seq.strip('\n'))))
                     #print("images: ",images)
                     images_path = os.path.join(db_root_dir, parts[0]) #subfolder[1], subfolder[2]) #list(map(lambda x: os.path.join(db_root_dir), images))
+                    # images_path is db_root_dir + RGB path
+                    
                     #print("imag path: ",images_path)
                     # print(" subfold ",subfolder)
-                    if subfolder[2] not in Index:
-                        start_num = len(img_list)
-                        img_list.append(images_path)
-                        end_num = len(img_list)
-                        Index[subfolder[2]]= np.array([start_num, end_num])
+                    if subfolder[2] not in offsets_of_seqs:
+                        start_num = len(images_paths)
+                        images_paths.append(images_path)
+                        end_num = len(images_paths)
+                        offsets_of_seqs[subfolder[2]]= np.array([start_num, end_num])
                     else:
-                        img_list.append(images_path)
-                        end_num = len(img_list)
-                        Index[subfolder[2]][1] = end_num
+                        images_paths.append(images_path)
+                        end_num = len(images_paths)
+                        offsets_of_seqs[subfolder[2]][1] = end_num
                 
                     lab_path = os.path.join(db_root_dir, parts[1])	
                     #lab = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', seq.strip('\n'))))
                     #lab_path = list(map(lambda x: os.path.join('Annotations/480p/', seq.strip(), x), lab))
                     # print("label path: ",lab_path)
-                    labels.append(lab_path)
-                        #print("labels: ",labels)
+                    labels_paths.append(lab_path)
+                        #print("labels_paths: ",labels_paths)
         else: #针对所有的训练样本， img_list存放的是图片的路径
 
             # Initialize the per sequence images for online training
             names_img = np.sort(os.listdir(os.path.join(db_root_dir, str(seq_name))))
-            img_list = list(map(lambda x: os.path.join(( str(seq_name)), x), names_img))
+            images_paths = list(map(lambda x: os.path.join(( str(seq_name)), x), names_img))
             #name_label = np.sort(os.listdir(os.path.join(db_root_dir,  str(seq_name))))
-            labels = [os.path.join( (str(seq_name)+'/saliencymaps'), names_img[0])]
-            labels.extend([None]*(len(names_img)-1)) #在labels这个列表后面添加元素None
+            labels_paths = [os.path.join( (str(seq_name)+'/saliencymaps'), names_img[0])]
+            labels_paths.extend([None]*(len(names_img)-1)) #在labels这个列表后面添加元素None
             if self.train:
-                img_list = [img_list[0]]
-                labels = [labels[0]]
+                images_paths = [images_paths[0]]
+                labels_paths = [labels_paths[0]]
 
-        # print(labels)
+        # print(labels_paths)
         # print("======")
-        # print(img_list)
+        # print(images_paths)
 
-        assert (len(labels) == len(img_list))
-        # print(img_list)
+        assert (len(labels_paths) == len(images_paths))
+        # print(images_paths)
 
-        self.img_list = img_list
-        self.labels = labels
-        self.Index = Index
+        self.paths_of_images = images_paths
+        self.paths_of_labels = labels_paths
+        self.offsets_of_seqs = offsets_of_seqs
         #img_files = open('all_im.txt','w+')
 
     def __len__(self):
-        return len(self.img_list)
+        return len(self.paths_of_images)
 
     def __getitem__(self, idx):
         target, target_gt,sequence_name = self.make_img_gt_pair(idx) #测试时候要分割的帧
         target_id = idx
-        seq_name1 = self.img_list[target_id].split('/')[-2] #获取视频名称
+        seq_name1 = self.paths_of_images[target_id].split('/')[-2] #获取视频名称
         print("seq name1: ",seq_name1, idx)
         sample = {'target': target, 'target_gt': target_gt, 'seq_name': sequence_name, 'search_0': None, 'frame_index': idx}
         if self.range>=1:
-            my_index = self.Index[seq_name1]
+            my_index = self.offsets_of_seqs[seq_name1]
             search_num = list(range(my_index[0], my_index[1]))  
-            search_ids = random.sample(search_num, self.range)#min(len(self.img_list)-1, target_id+np.random.randint(1,self.range+1))
+            search_ids = random.sample(search_num, self.range)#min(len(self.paths_of_images)-1, target_id+np.random.randint(1,self.range+1))
         
             for i in range(0,self.range):
                 search_id = search_ids[i]
@@ -170,10 +177,10 @@ class PairwiseImg(Dataset):
         """
         Make the image-ground-truth pair
         """
-        img = cv2.imread(os.path.join(self.db_root_dir, self.img_list[idx]), cv2.IMREAD_COLOR)
-        if self.labels[idx] is not None and self.train:
-            label = cv2.imread(os.path.join(self.db_root_dir, self.labels[idx]), cv2.IMREAD_GRAYSCALE)
-            #print(os.path.join(self.db_root_dir, self.labels[idx]))
+        img = cv2.imread(os.path.join(self.db_root_dir, self.paths_of_images[idx]), cv2.IMREAD_COLOR)
+        if self.paths_of_labels[idx] is not None and self.train:
+            label = cv2.imread(os.path.join(self.db_root_dir, self.paths_of_labels[idx]), cv2.IMREAD_GRAYSCALE)
+            #print(os.path.join(self.db_root_dir, self.paths_of_labels[idx]))
         else:
             gt = np.zeros(img.shape[:-1], dtype=np.uint8)
             
@@ -195,7 +202,7 @@ class PairwiseImg(Dataset):
             #print('ok1')
             #scipy.misc.imsave('label.png',label)
             #scipy.misc.imsave('img.png',img)
-            if self.labels[idx] is not None and self.train:
+            if self.paths_of_labels[idx] is not None and self.train:
                 label = imresize(label, self.desired_HW, interp='nearest')
 
         img = np.array(img, dtype=np.float32)
@@ -203,16 +210,16 @@ class PairwiseImg(Dataset):
         img = np.subtract(img, np.array(self.meanval, dtype=np.float32))        
         img = img.transpose((2, 0, 1))  # NHWC -> NCHW
         
-        if self.labels[idx] is not None and self.train:
+        if self.paths_of_labels[idx] is not None and self.train:
                 gt = np.array(label, dtype=np.int32)
                 gt[gt!=0]=1
                 #gt = gt/np.max([gt.max(), 1e-8])
         #np.save('gt.npy')
-        sequence_name = self.img_list[idx].split('/')[2]
+        sequence_name = self.paths_of_images[idx].split('/')[-2]
         return img, gt, sequence_name 
 
     def get_img_size(self):
-        img = cv2.imread(os.path.join(self.db_root_dir, self.img_list[0]))
+        img = cv2.imread(os.path.join(self.db_root_dir, self.paths_of_images[0]))
         
         return list(img.shape[:2])
 
