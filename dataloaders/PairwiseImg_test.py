@@ -182,8 +182,8 @@ class PairwiseImg(Dataset):
         if need_gt:
             label = cv2.imread(os.path.join(self.db_root_dir, self.paths_of_labels[idx]), cv2.IMREAD_GRAYSCALE)
             #print(os.path.join(self.db_root_dir, self.paths_of_labels[idx]))
-        # else:
-            # gt = np.zeros(img.shape[:-1], dtype=np.uint8)
+        else:
+            gt = np.zeros((1,1), dtype=np.uint8) #((img.shape[:-1]), dtype=np.uint8)
             
          ## 已经读取了image以及对应的ground truth可以进行data augmentation了
         if self.train:  #scaling, cropping and flipping

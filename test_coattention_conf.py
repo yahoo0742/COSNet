@@ -38,6 +38,8 @@ import torch.nn as nn
 #import pydensecrf.densecrf as dcrf
 #from pydensecrf.utils import unary_from_softmax, create_pairwise_bilateral, create_pairwise_gaussian
 from deeplab.siamese_model_conf import CoattentionNet
+from deeplab.residual_net import Bottleneck
+from deeplab.siamese_model import CoattentionSiameseNet
 from torchvision.utils import save_image
 from evaluation import compute_iou
 
@@ -81,14 +83,14 @@ def configure_dataset_model(args):
         args.data_list = '/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/val.txt' #'your_path/DAVIS-2016/test_seqs.txt'  # Path to the file listing the images in the dataset
         args.ignore_label = 255     #The index of the label to ignore during the training
         args.input_size = '854,480' # '854,480' W, H #'1920,1080' #Comma-separated string with height and width of images
-        args.desired_HW = '120,214' # H, W
+        args.desired_HW = '240,427' # H, W
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
-        args.restore_from = './pretrained/co_attention_davis_29.pth' #'./pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-        args.snapshot_dir = './snapshots/davis_iteration/'          #Where to save snapshots of the model
+        args.restore_from = './snapshots/davis_240x427s/co_attention_davis_29.pth' #'./pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.snapshot_dir = './snapshots/davis_240x427s/'          #Where to save snapshots of the model
         args.save_segimage = True
-        args.seg_save_dir = "./result/test/davis_iteration_conf"
-        args.vis_save_dir = "./result/test/davis_vis"
+        args.seg_save_dir = "./result/test/davis_240x427s_iou"
+        args.vis_save_dir = "./result/test/davis_240x427s_iou_vis"
         args.corp_size =(473, 473) #didn't see reference
 
     elif args.dataset == 'hzfuRGB': 
@@ -149,7 +151,8 @@ def main():
             raise Exception("No GPU found or Wrong gpu id, please run without --cuda")
 
     model = CoattentionNet(num_classes=args.num_classes)
-    
+ #model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)^M
+
     saved_state_dict = torch.load(args.restore_from, map_location=lambda storage, loc: storage)
     #print(saved_state_dict.keys())
     #model.load_state_dict({k.replace('pspmodule.',''):v for k,v in torch.load(args.restore_from)['state_dict'].items()})
@@ -182,6 +185,8 @@ def main():
             os.makedirs(args.vis_save_dir)
     my_index = 0
     old_temp=''
+    sum_iou = 0
+    count_iou = 0
     for index, batch in enumerate(testloader):
         print('%d processd'%(index))
         target = batch['target']
@@ -223,9 +228,12 @@ def main():
         for idx in range(len(masks_data)):
             x = masks_data[idx]
             iou = compute_iou(x, np.array(batch['target_gt'][idx]))
+            sum_iou += iou
+            count_iou += 1
             mask = Image.fromarray(x, mode='L')
             masks.append(mask)
 
+        print("    IOU: ", (sum_iou/count_iou) + " till batch "+index)
         # mask = (output1*255).astype(np.uint8)
         #print(mask.shape[0])
         # mask = Image.fromarray(mask)
@@ -261,6 +269,7 @@ def main():
         else:
             print("dataset error")
     
+    print("IOU: ",(sum_iou/count_iou))
 
 if __name__ == '__main__':
     main()
