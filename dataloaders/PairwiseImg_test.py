@@ -141,10 +141,10 @@ class PairwiseImg(Dataset):
         return len(self.paths_of_images)
 
     def __getitem__(self, idx):
-        target, target_gt,sequence_name = self.make_img_gt_pair(idx) #测试时候要分割的帧
+        target, target_gt,sequence_name = self.make_img_gt_pair(idx, True) #测试时候要分割的帧
         target_id = idx
         seq_name1 = self.paths_of_images[target_id].split('/')[-2] #获取视频名称
-        print("seq name1: ",seq_name1, idx)
+        # print("seq name1: ",seq_name1, idx)
         sample = {'target': target, 'target_gt': target_gt, 'seq_name': sequence_name, 'search_0': None, 'frame_index': idx}
         if self.range>=1:
             my_index = self.offsets_of_seqs[seq_name1]
@@ -153,7 +153,7 @@ class PairwiseImg(Dataset):
         
             for i in range(0,self.range):
                 search_id = search_ids[i]
-                search, search_gt,sequence_name = self.make_img_gt_pair(search_id)
+                search, search_gt,sequence_name = self.make_img_gt_pair(search_id, False)
                 if sample['search_0'] is None:
                     sample['search_0'] = search
                 else:
@@ -165,24 +165,25 @@ class PairwiseImg(Dataset):
                 sample['fname'] = fname
        
         else:
-            img, gt = self.make_img_gt_pair(idx)
-            sample = {'image': img, 'gt': gt}
+            img, _ = self.make_img_gt_pair(idx, False)
+            sample['search_0'] = img
             if self.seq_name is not None:
                 fname = os.path.join(self.seq_name, "%05d" % idx)
                 sample['fname'] = fname
 
         return sample  #这个类最后的输出
 
-    def make_img_gt_pair(self, idx): #这个函数存在的意义是为了getitem函数服务的
+    def make_img_gt_pair(self, idx, load_gt): #这个函数存在的意义是为了getitem函数服务的
         """
         Make the image-ground-truth pair
         """
+        need_gt = load_gt and self.paths_of_labels[idx] is not None #and self.train we need to calc the accuracy.
         img = cv2.imread(os.path.join(self.db_root_dir, self.paths_of_images[idx]), cv2.IMREAD_COLOR)
-        if self.paths_of_labels[idx] is not None and self.train:
+        if need_gt:
             label = cv2.imread(os.path.join(self.db_root_dir, self.paths_of_labels[idx]), cv2.IMREAD_GRAYSCALE)
             #print(os.path.join(self.db_root_dir, self.paths_of_labels[idx]))
-        else:
-            gt = np.zeros(img.shape[:-1], dtype=np.uint8)
+        # else:
+            # gt = np.zeros(img.shape[:-1], dtype=np.uint8)
             
          ## 已经读取了image以及对应的ground truth可以进行data augmentation了
         if self.train:  #scaling, cropping and flipping
@@ -202,7 +203,7 @@ class PairwiseImg(Dataset):
             #print('ok1')
             #scipy.misc.imsave('label.png',label)
             #scipy.misc.imsave('img.png',img)
-            if self.paths_of_labels[idx] is not None and self.train:
+            if need_gt:
                 label = imresize(label, self.desired_HW, interp='nearest')
 
         img = np.array(img, dtype=np.float32)
@@ -210,7 +211,7 @@ class PairwiseImg(Dataset):
         img = np.subtract(img, np.array(self.meanval, dtype=np.float32))        
         img = img.transpose((2, 0, 1))  # NHWC -> NCHW
         
-        if self.paths_of_labels[idx] is not None and self.train:
+        if need_gt:
                 gt = np.array(label, dtype=np.int32)
                 gt[gt!=0]=1
                 #gt = gt/np.max([gt.max(), 1e-8])
