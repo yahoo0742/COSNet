@@ -213,7 +213,7 @@ def main():
         output2 = []
         for idx in range(len(output1)):
             img = output1[idx, 0]
-            img = cv2.resize(img, args.input_size) # (w, h)
+            img = cv2.resize(img, (args.desired_HW[1], args.desired_HW[0])) # (w, h)
             output2.append(img)
         output1 = np.array(output2)
         # output1 = cv2.resize(output1, (original_shape[1],original_shape[0]))
