@@ -93,22 +93,23 @@ def configure_dataset_model(args):
         args.vis_save_dir = "./result/test/davis_240x427s_iou_vis"
         args.corp_size =(473, 473) #didn't see reference
 
-    elif args.dataset == 'hzfuRGB': 
+    elif args.dataset == 'hzfurgb': 
         args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
-        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/DAVIS'  #/DAVIS-2016'   # 37572 image pairs
+        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'  #/DAVIS-2016'   # 37572 image pairs
         args.data_list = '/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/val.txt' #'your_path/DAVIS-2016/test_seqs.txt'  # Path to the file listing the images in the dataset
         args.ignore_label = 255     #The index of the label to ignore during the training
         args.input_size = '640,480' #'1920,1080' W, H #Comma-separated string with height and width of images
-        args.desired_HW = '120,160' #H, W
+        args.desired_HW = '240,320' #H, W
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
-        args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-        args.snapshot_dir = './snapshots/davis_iteration/'          #Where to save snapshots of the model
+        args.restore_from = './snapshots/davis_240x427s/co_attention_davis_29.pth' #'./pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.snapshot_dir = './snapshots/hzfurgb/'          #Where to save snapshots of the model
         args.save_segimage = True
-        args.seg_save_dir = "./result/test/hzfuRGB"
-        args.vis_save_dir = "./result/test/hzfuRGB_vis"
+        args.seg_save_dir = "./result/test/hzfurgb_240x427s_iou"
+        args.vis_save_dir = "./result/test/hzfurgb_240x427s_iou_vis"
         args.corp_size =(473, 473) #didn't see reference
+        args.sample_range = 1
     
     else:
         print("dataset error")
@@ -166,8 +167,8 @@ def main():
         interp = nn.Upsample(size=(505, 505), mode='bilinear')
         voc_colorize = VOCColorize()
     
-    elif args.dataset == 'hzfuRGB':
-        db_test = hzfurgbd_db.HzFuRGBDVideos('/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset', sample_range=args.sample_range, desired_HW=args.desired_HW)
+    elif args.dataset == 'hzfurgb':
+        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.desired_HW)
         db_test.set_for_test()
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
     elif args.dataset == 'davis':  #for davis 2016
@@ -233,7 +234,7 @@ def main():
             mask = Image.fromarray(x, mode='L')
             masks.append(mask)
 
-        print("    IOU: ", (sum_iou/count_iou) + " till batch "+index)
+        print("    IOU: ", (sum_iou/count_iou), " till batch ", index)
         # mask = (output1*255).astype(np.uint8)
         #print(mask.shape[0])
         # mask = Image.fromarray(mask)
@@ -266,6 +267,15 @@ def main():
                 # mask.save(seg_filename)
                 #np.concatenate((torch.zeros(1, 473, 473), mask, torch.zeros(1, 512, 512)),axis = 0)
                 #save_image(output1 * 0.8 + target.data, args.vis_save_dir, normalize=True)
+        elif args.dataset == 'hzfurgb':
+            if args.save_segimage:
+                save_dir_res = os.path.join(args.seg_save_dir, 'Results', args.seq_name)
+                if not os.path.exists(save_dir_res):
+                    os.makedirs(save_dir_res)
+                for idx in range(len(masks)):
+                    mask = masks[idx]
+                    seg_filename = os.path.join(save_dir_res, '{}.png'.format(frame_index[idx]))
+                    mask.save(seg_filename)
         else:
             print("dataset error")
     
