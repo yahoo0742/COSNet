@@ -85,6 +85,7 @@ class HzFuRGBDVideos(Dataset):
                  desired_HW=None,
                  transform=None,
                  meanval=(104.00699, 116.66877, 122.67892),
+                 channels = 'rgbd'
                  ):
         self.dataset_root = dataset_root
         self.sample_range = sample_range
@@ -92,6 +93,7 @@ class HzFuRGBDVideos(Dataset):
         self.transform = transform
         self.meanval = meanval
         self.stage = 'train'
+        self.channels = channels
         self.flip_seq_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
 
         self.sets = {
@@ -307,8 +309,19 @@ class HzFuRGBDVideos(Dataset):
         frame_info = self._get_framename_by_index(set_name, frame_index)
         if frame_info:
             sample = {'target': None, 'target_depth': None, 'target_gt': None, 'seq_name': None, 'search_0': None, 'search_0_depth': None, 'search_0_gt':None, 'frame_index': frame_info.id}
+
             current_img, current_depth, current_img_gt = self._load_rgbd_and_gt(frame_info)
-            sample['target'] = current_img
+
+            if 'rgb' in self.channels:
+                sample['target'] = current_img
+            else:
+                # use depth as rgb
+                r = current_depth.copy()
+                r = np.subtract(r, np.array(self.meanval, dtype=np.float32))
+                g = r.copy()
+                b = g.copy()
+                sample['target'] = np.array([r,g,b])
+
             sample['target_depth'] = current_depth
             sample['target_gt'] = current_img_gt
             sample['seq_name'] = frame_info.seq_name
@@ -323,9 +336,17 @@ class HzFuRGBDVideos(Dataset):
                     search_id = search_ids[i]
                     frame_info_to_match = self._get_framename_by_index(set_name, search_id)
                     match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
-                    sample['search'+'_'+str(i)] = match_img
-                    sample['search'+'_'+str(i)+'_depth'] = match_depth
-                    sample['search'+'_'+str(i)+'_gt'] = match_img_gt
+                    if 'rgb' in self.channels:
+                        sample['search_'+str(i)] = match_img
+                    else:
+                        # use depth as rgb
+                        r = match_depth.copy()
+                        r = np.subtract(r, np.array(self.meanval, dtype=np.float32))
+                        g = r.copy()
+                        b = g.copy()
+                        sample['search_'+str(i)] = np.array([r,g,b])
+                    sample['search_'+str(i)+'_depth'] = match_depth
+                    sample['search_'+str(i)+'_gt'] = match_img_gt
 
             else:
                 idx_to_match = frame_index
@@ -342,7 +363,15 @@ class HzFuRGBDVideos(Dataset):
                 else:
                     frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
                     match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
-                    sample['search_0'] = match_img
+                    if 'rgb' in self.channels:
+                        sample['search_0'] = match_img
+                    else:
+                        # use depth as rgb
+                        r = match_depth.copy()
+                        r = np.subtract(r, np.array(self.meanval, dtype=np.float32))        
+                        g = r.copy()
+                        b = g.copy()
+                        sample['search_0'] = np.array([r,g,b])
                     sample['search_0_depth'] = match_depth
                     sample['search_0_gt'] = match_img_gt
 

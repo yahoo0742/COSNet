@@ -111,6 +111,21 @@ def configure_dataset_model(args):
         args.corp_size =(473, 473) #didn't see reference
         args.sample_range = 1
     
+    elif args.dataset == 'hzfud': 
+        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'  #/DAVIS-2016'   # 37572 image pairs
+        args.ignore_label = 255     #The index of the label to ignore during the training
+        args.input_size = '640,480' #'1920,1080' W, H #Comma-separated string with height and width of images
+        args.desired_HW = '240,320' #H, W
+        args.num_classes = 2      #Number of classes to predict (including background)
+        args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
+        args.restore_from = './snapshots/davis_240x427s/co_attention_davis_29.pth' #'./pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.snapshot_dir = './snapshots/hzfurgb/'          #Where to save snapshots of the model
+        args.save_segimage = True
+        args.seg_save_dir = "./result/test/hzfud_240x427s_iou"
+        args.vis_save_dir = "./result/test/hzfud_240x427s_iou_vis"
+        args.corp_size =(473, 473) #didn't see reference
+        args.sample_range = 1
+    
     else:
         print("dataset error")
 
@@ -168,7 +183,11 @@ def main():
         voc_colorize = VOCColorize()
     
     elif args.dataset == 'hzfurgb':
-        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.desired_HW)
+        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.desired_HW, channels='rgb')
+        db_test.set_for_test()
+        testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
+    elif args.dataset == 'hzfud':
+        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.desired_HW, channels='d')
         db_test.set_for_test()
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
     elif args.dataset == 'davis':  #for davis 2016
@@ -267,7 +286,7 @@ def main():
                 # mask.save(seg_filename)
                 #np.concatenate((torch.zeros(1, 473, 473), mask, torch.zeros(1, 512, 512)),axis = 0)
                 #save_image(output1 * 0.8 + target.data, args.vis_save_dir, normalize=True)
-        elif args.dataset == 'hzfurgb':
+        elif args.dataset == 'hzfurgb' or args.dataset == 'hzfud':
             if args.save_segimage:
                 save_dir_res = os.path.join(args.seg_save_dir, 'Results', args.seq_name)
                 if not os.path.exists(save_dir_res):
