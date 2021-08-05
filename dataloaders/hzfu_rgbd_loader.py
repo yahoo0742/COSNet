@@ -305,6 +305,16 @@ class HzFuRGBDVideos(Dataset):
         return len(self.sets[set_name]['names_of_frames'])
 
     def __getitem__(self, frame_index):
+
+        def use_depth_as_rgb(depth_data):
+            r = np.array(depth_data).copy()
+            g = r.copy()
+            b = g.copy()
+            rgb = np.stack((r,g,b), axis=2) # rows, columns, 3 channels
+            rgb = np.subtract(rgb, np.array(self.meanval, dtype=np.float32))
+            rgb = rgb.transpose((2,0,1)) # channels, rows, columns
+            return rgb
+
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
         if frame_info:
@@ -316,11 +326,8 @@ class HzFuRGBDVideos(Dataset):
                 sample['target'] = current_img
             else:
                 # use depth as rgb
-                r = current_depth.copy()
-                r = np.subtract(r, np.array(self.meanval, dtype=np.float32))
-                g = r.copy()
-                b = g.copy()
-                sample['target'] = np.array([r,g,b])
+                rgb = use_depth_as_rgb(current_depth[0])
+                sample['target'] = rgb
 
             sample['target_depth'] = current_depth
             sample['target_gt'] = current_img_gt
@@ -340,11 +347,8 @@ class HzFuRGBDVideos(Dataset):
                         sample['search_'+str(i)] = match_img
                     else:
                         # use depth as rgb
-                        r = match_depth.copy()
-                        r = np.subtract(r, np.array(self.meanval, dtype=np.float32))
-                        g = r.copy()
-                        b = g.copy()
-                        sample['search_'+str(i)] = np.array([r,g,b])
+                        rgb = use_depth_as_rgb(match_depth[0])
+                        sample['search_'+str(i)] = rgb
                     sample['search_'+str(i)+'_depth'] = match_depth
                     sample['search_'+str(i)+'_gt'] = match_img_gt
 
@@ -367,11 +371,8 @@ class HzFuRGBDVideos(Dataset):
                         sample['search_0'] = match_img
                     else:
                         # use depth as rgb
-                        r = match_depth.copy()
-                        r = np.subtract(r, np.array(self.meanval, dtype=np.float32))        
-                        g = r.copy()
-                        b = g.copy()
-                        sample['search_0'] = np.array([r,g,b])
+                        rgb = use_depth_as_rgb(match_depth[0])
+                        sample['search_0'] = rgb
                     sample['search_0_depth'] = match_depth
                     sample['search_0_gt'] = match_img_gt
 
