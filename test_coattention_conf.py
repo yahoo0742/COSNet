@@ -92,6 +92,7 @@ def configure_dataset_model(args):
         args.seg_save_dir = "./result/test/davis_240x427s_iou"
         args.vis_save_dir = "./result/test/davis_240x427s_iou_vis"
         args.corp_size =(473, 473) #didn't see reference
+        args.sample_range = 1
 
     elif args.dataset == 'hzfurgb': 
         args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
@@ -185,14 +186,14 @@ def main():
     elif args.dataset == 'hzfurgb':
         db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.desired_HW, channels='rgb')
         db_test.set_for_test()
-        testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
+        testloader = data.DataLoader(db_test, batch_size=args.batch_size, shuffle=False, num_workers=0)
     elif args.dataset == 'hzfud':
         db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.desired_HW, channels='d')
         db_test.set_for_test()
-        testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
+        testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=False, num_workers=0)
     elif args.dataset == 'davis':  #for davis 2016
         db_test = db.PairwiseImg(train=False, desired_HW=args.desired_HW, db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
-        testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
+        testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=False, num_workers=0)
         #voc_colorize = VOCColorize()
     else:
         print("dataset error")
@@ -238,7 +239,8 @@ def main():
         output2 = []
         for idx in range(len(output1)):
             img = output1[idx, 0]
-            img = cv2.resize(img, (args.desired_HW[1], args.desired_HW[0])) # (w, h)
+            if args.desired_HW:
+                img = cv2.resize(img, (args.desired_HW[1], args.desired_HW[0])) # (w, h)
             output2.append(img)
         output1 = np.array(output2)
         # output1 = cv2.resize(output1, (original_shape[1],original_shape[0]))
