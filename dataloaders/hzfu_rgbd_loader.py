@@ -82,14 +82,14 @@ class VideoFrameInfo:
 class HzFuRGBDVideos(Dataset):
     def __init__(self, dataset_root,
                  sample_range,
-                 desired_HW=None,
+                 output_HW=None,
                  transform=None,
                  meanval=(104.00699, 116.66877, 122.67892),
                  channels = 'rgbd'
                  ):
         self.dataset_root = dataset_root
         self.sample_range = sample_range
-        self.desired_HW = desired_HW # H W
+        self.output_HW = output_HW # H W
         self.transform = transform
         self.meanval = meanval
         self.stage = 'train'
@@ -304,6 +304,9 @@ class HzFuRGBDVideos(Dataset):
         print("HzFuRGBDVideos length: " , len(self.sets[set_name]['names_of_frames']), " for " + set_name)
         return len(self.sets[set_name]['names_of_frames'])
 
+    '''
+    Return the rgb, depth of the target frame and the rgb, depth of the matching/search frame
+    '''
     def __getitem__(self, frame_index):
 
         def use_depth_as_rgb(depth_data):
@@ -335,7 +338,7 @@ class HzFuRGBDVideos(Dataset):
 
             _range = self.sets[set_name]['offset4_frames_of_sequences'][frame_info.seq_name]
 
-            if self.sample_range > 1:
+            if self.sample_range >= 1:
                 search_ids_pool= list(range(_range['start'], _range['end']))
                 search_ids = random.sample(search_ids_pool, self.sample_range)#min(len(self.img_list)-1, target_id+np.random.randint(1,self.range+1))
 
@@ -353,30 +356,21 @@ class HzFuRGBDVideos(Dataset):
                     sample['search_'+str(i)+'_gt'] = match_img_gt
 
             else:
+                # use the same frame to the target frame as the matching/search frame
                 idx_to_match = frame_index
-                if _range['start'] < _range['end'] -1:
-                    count = 0
-                    while idx_to_match == frame_index:
-                        count += 1
-                        if count > 3:
-                            idx_to_match = frame_index + 1
-                            break
-                        idx_to_match = random.randint(_range['start'], _range['end']-1)
-                if idx_to_match == frame_index:
-                    print("Got a pair of frames with the same index "+frame_index+". The frame is about "+frame_info)
-                else:
-                    frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
-                    match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
-                    if 'rgb' in self.channels:
-                        sample['search_0'] = match_img
-                    else:
-                        # use depth as rgb
-                        rgb = use_depth_as_rgb(match_depth[0])
-                        sample['search_0'] = rgb
-                    sample['search_0_depth'] = match_depth
-                    sample['search_0_gt'] = match_img_gt
 
-            print(" ##### sample rgb: ",sample['target'].shape, " gt: ", sample['target_gt'].shape,  " depth: ", sample['target_depth'].shape, " search_rgb: " ,sample['search_0'].shape, " search_0_gt: ",sample['search_0_gt'].shape,  "search_0_depth: ", sample['search_0_depth'].shape)
+                frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
+                match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
+                if 'rgb' in self.channels:
+                    sample['search_0'] = match_img
+                else:
+                    # use depth as rgb
+                    rgb = use_depth_as_rgb(match_depth[0])
+                    sample['search_0'] = rgb
+                sample['search_0_depth'] = match_depth
+                sample['search_0_gt'] = match_img_gt
+
+            # print(" ##### sample rgb: ",sample['target'].shape, " gt: ", sample['target_gt'].shape,  " depth: ", sample['target_depth'].shape, " search_rgb: " ,sample['search_0'].shape, " search_0_gt: ",sample['search_0_gt'].shape,  "search_0_depth: ", sample['search_0_depth'].shape)
             return sample
             # return current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
 
@@ -391,8 +385,8 @@ class HzFuRGBDVideos(Dataset):
             result = np.array(f['depth'], dtype=np.float32)
             # print("depth shape: ",result.shape)
 
-            if self.desired_HW is not None:
-                result = imresize(result, self.desired_HW)
+            if self.output_HW is not None:
+                result = imresize(result, self.output_HW)
             result = np.array(result, dtype=np.float32)
             result = (result - result.min()) * 255 / (result.max() - result.min())
             # print(" after depth shape: ",result.shape, result.dtype)
@@ -405,8 +399,8 @@ class HzFuRGBDVideos(Dataset):
 
         if rgb_path and depth_path and gt_path:
             rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
-            if self.desired_HW is not None:
-                rgb_img = imresize(rgb_img, self.desired_HW)
+            if self.output_HW is not None:
+                rgb_img = imresize(rgb_img, self.output_HW)
 
             rgb_img = np.array(rgb_img, dtype=np.float32)
             rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
@@ -416,8 +410,8 @@ class HzFuRGBDVideos(Dataset):
             depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
 
             gt = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
-            if self.desired_HW is not None:
-                gt = imresize(gt, self.desired_HW)
+            if self.output_HW is not None:
+                gt = imresize(gt, self.output_HW)
             gt[gt!=0]=1 # H, W with values in {0, 1}
             gt = np.array(gt, dtype=np.float32)
 

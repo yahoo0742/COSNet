@@ -60,6 +60,7 @@ def get_arguments():
     parser.add_argument("--seq_name", default = 'bmx-bumps')
     parser.add_argument("--use_crf", default = 'True')
     parser.add_argument("--sample_range", default =5)
+    parser.add_argument("--output_HW", default=None)
     
     return parser.parse_args()
 
@@ -83,7 +84,7 @@ def configure_dataset_model(args):
         args.data_list = '/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/val.txt' #'your_path/DAVIS-2016/test_seqs.txt'  # Path to the file listing the images in the dataset
         args.ignore_label = 255     #The index of the label to ignore during the training
         args.input_size = '854,480' # '854,480' W, H #'1920,1080' #Comma-separated string with height and width of images
-        args.desired_HW = '240,427' # H, W
+        # args.desired_HW = '240,427' # H, W
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
         args.restore_from = './snapshots/davis_240x427s/co_attention_davis_29.pth' #'./pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
@@ -101,7 +102,7 @@ def configure_dataset_model(args):
         args.data_list = '/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/val.txt' #'your_path/DAVIS-2016/test_seqs.txt'  # Path to the file listing the images in the dataset
         args.ignore_label = 255     #The index of the label to ignore during the training
         args.input_size = '640,480' #'1920,1080' W, H #Comma-separated string with height and width of images
-        args.desired_HW = '240,320' #H, W
+        # args.desired_HW = '240,320' #H, W
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
         args.restore_from = './snapshots/davis_240x427s/co_attention_davis_29.pth' #'./pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
@@ -116,7 +117,7 @@ def configure_dataset_model(args):
         args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'  #/DAVIS-2016'   # 37572 image pairs
         args.ignore_label = 255     #The index of the label to ignore during the training
         args.input_size = '640,480' #'1920,1080' W, H #Comma-separated string with height and width of images
-        args.desired_HW = '240,320' #H, W
+        # args.desired_HW = '240,320' #H, W
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
         args.restore_from = './snapshots/davis_240x427s/co_attention_davis_29.pth' #'./pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
@@ -156,11 +157,14 @@ def main():
     args = get_arguments()
     print("=====> Configure dataset and model")
     configure_dataset_model(args)
-    h, w = map(int, args.desired_HW.split(','))
-    args.desired_HW = (h, w)
+    if args.output_HW:
+        h, w = map(int, args.output_HW.split(','))
+        args.output_HW = (h, w)
+
     w, h = map(int, args.input_size.split(','))
     args.input_size = (w,h)
     print(args)
+
     if args.cuda:
         print("====> Use gpu id: '{}'".format(args.gpus))
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
@@ -184,15 +188,15 @@ def main():
         voc_colorize = VOCColorize()
     
     elif args.dataset == 'hzfurgb':
-        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.desired_HW, channels='rgb')
+        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.output_HW, channels='rgb')
         db_test.set_for_test()
         testloader = data.DataLoader(db_test, batch_size=args.batch_size, shuffle=False, num_workers=0)
     elif args.dataset == 'hzfud':
-        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.desired_HW, channels='d')
+        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, desired_HW=args.output_HW, channels='d')
         db_test.set_for_test()
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=False, num_workers=0)
     elif args.dataset == 'davis':  #for davis 2016
-        db_test = db.PairwiseImg(train=False, desired_HW=args.desired_HW, db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        db_test = db.PairwiseImg(train=False, desired_HW=args.output_HW, db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=False, num_workers=0)
         #voc_colorize = VOCColorize()
     else:
@@ -239,8 +243,8 @@ def main():
         output2 = []
         for idx in range(len(output1)):
             img = output1[idx, 0]
-            if args.desired_HW:
-                img = cv2.resize(img, (args.desired_HW[1], args.desired_HW[0])) # (w, h)
+            if args.output_HW:
+                img = cv2.resize(img, (args.output_HW[1], args.output_HW[0])) # (w, h)
             output2.append(img)
         output1 = np.array(output2)
         # output1 = cv2.resize(output1, (original_shape[1],original_shape[0]))

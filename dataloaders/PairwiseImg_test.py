@@ -47,7 +47,7 @@ class PairwiseImg(Dataset):
     """DAVIS 2016 dataset constructed using the PyTorch built-in functionalities"""
 
     def __init__(self, train=True,
-                 desired_HW=None,
+                 output_HW=None,
                  db_root_dir='/DAVIS-2016',
                  transform=None,
                  meanval=(104.00699, 116.66877, 122.67892),
@@ -62,7 +62,7 @@ class PairwiseImg(Dataset):
 
         self.train = train
         self.range = sample_range
-        self.desired_HW = desired_HW # w, h
+        self.output_HW = output_HW # w, h
         self.db_root_dir = db_root_dir
         self.transform = transform
         self.meanval = meanval
@@ -198,17 +198,17 @@ class PairwiseImg(Dataset):
              img = img_temp
              label = gt_temp
              
-        if self.desired_HW is not None:
-            img = imresize(img, self.desired_HW)
+        if self.output_HW is not None:
+            img = imresize(img, self.output_HW)
             #print('ok1')
             #scipy.misc.imsave('label.png',label)
             #scipy.misc.imsave('img.png',img)
             if need_gt:
-                label = imresize(label, self.desired_HW, interp='nearest')
+                label = imresize(label, self.output_HW, interp='nearest')
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
-        img = np.subtract(img, np.array(self.meanval, dtype=np.float32))        
+        img = np.subtract(img, np.array(self.meanval, dtype=np.float32))
         img = img.transpose((2, 0, 1))  # NHWC -> NCHW
         
         if need_gt:
