@@ -411,9 +411,9 @@ class HzFuRGBDVideos(Dataset):
 
             gt = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
             if self.output_HW is not None:
-                gt = imresize(gt, self.output_HW)
+                gt = imresize(gt, self.output_HW, interp='nearest')
             gt[gt!=0]=1 # H, W with values in {0, 1}
-            gt = np.array(gt, dtype=np.float32)
+            gt = np.array(gt, dtype=np.int32)
 
             # print("gt shape: ",gt.shape)
             if self.stage == 'train':
