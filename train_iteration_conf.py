@@ -394,7 +394,7 @@ def main():
                                                  scale=args.random_scale, mirror=args.random_mirror, mean=args.img_mean), 
                                       batch_size = args.batch_size, shuffle=True, num_workers=0, pin_memory=True, drop_last=True)
     elif args.dataset == 'davis':  #for davis 2016
-        db_train = db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, output_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        db_train = db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
@@ -467,6 +467,8 @@ def main():
             print("===> Epoch[{}]({}/{}): Loss: {:.10f}  lr: {:.5f}".format(epoch, i_iter, train_len, loss.data, lr))
             logger.write("Epoch[{}]({}/{}):     Loss: {:.10f}      lr: {:.5f}\n".format(epoch, i_iter, train_len, loss.data, lr))
             logger.flush()
+
+            torch.cuda.empty_cache()
                 
         print("=====> saving model")
         state={"epoch": epoch+1, "model": model.state_dict()}
