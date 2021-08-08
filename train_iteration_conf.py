@@ -331,22 +331,32 @@ def main():
     new_params = model.state_dict().copy()
 
     print("=====> Restoring initial state")
-    for i in saved_state_dict["model"]:
-        #Scale.layer5.conv2d_list.3.weight
-        i_parts = i.split('.') # 针对多GPU的情况
-        #i_parts.pop(1)
-        #print('i_parts:  ', '.'.join(i_parts[1:-1]))
-        #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
-        
-        if i_parts[1].startswith('layer5'):
-            key = 'encoder.aspp.' + '.'.join(i_parts[2:])
-        elif i_parts[1].startswith('main_classifier'):
-            key = 'encoder.' + '.'.join(i_parts[1:])
-        else:
-            key = 'encoder.backbone.' + '.'.join(i_parts[1:])
-        new_params[key] = saved_state_dict["model"][i]
-            #print('copy {}'.format('.'.join(i_parts[1:])))
     
+    if args.cuda:
+        #model.to(device)
+        if torch.cuda.device_count()>1:
+            for i in saved_state_dict["model"]:
+                #Scale.layer5.conv2d_list.3.weight
+                i_parts = i.split('.') # 针对多GPU的情况
+                #i_parts.pop(1)
+                #print('i_parts:  ', '.'.join(i_parts[1:-1]))
+                #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
+                
+                if i_parts[1].startswith('layer5'):
+                    key = 'encoder.aspp.' + '.'.join(i_parts[2:])
+                elif i_parts[1].startswith('main_classifier'):
+                    key = 'encoder.' + '.'.join(i_parts[1:])
+                else:
+                    key = 'encoder.backbone.' + '.'.join(i_parts[1:])
+                new_params[key] = saved_state_dict["model"][i]
+            #print('copy {}'.format('.'.join(i_parts[1:])))
+        else:
+            for i in saved_state_dict["model"]["module"]:
+                if not i.startswith('main_classifier'):
+                    key = 'encoder.' + i
+                new_params[key] = saved_state_dict["model"][i]
+
+
    
     print("=====> Loading init weights,  pretrained COCO for VOC2012, and pretrained Coarse cityscapes for cityscapes")
  
