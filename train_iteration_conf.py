@@ -385,13 +385,16 @@ def main():
     print('Total network parameters: ' + str(total_paramters))
  
     print("=====> Preparing training data")
+    db_train = None
     if args.dataset == 'voc12':
-        trainloader = data.DataLoader(VOCDataSet(args.data_dir, args.data_list, max_iters=None, crop_size=args.output_HW, 
-                                                 scale=args.random_scale, mirror=args.random_mirror, mean=args.img_mean), 
+        db_train = VOCDataSet(args.data_dir, args.data_list, max_iters=None, crop_size=args.output_HW, 
+                                                 scale=args.random_scale, mirror=args.random_mirror, mean=args.img_mean)
+        trainloader = data.DataLoader(db_train, 
                                       batch_size= args.batch_size, shuffle=True, num_workers=0, pin_memory=True, drop_last=True)
     elif args.dataset == 'cityscapes':
-        trainloader = data.DataLoader(CityscapesDataSet(args.data_dir, args.data_list, max_iters=None, crop_size=args.output_HW, 
-                                                 scale=args.random_scale, mirror=args.random_mirror, mean=args.img_mean), 
+        db_train = CityscapesDataSet(args.data_dir, args.data_list, max_iters=None, crop_size=args.output_HW, 
+                                                 scale=args.random_scale, mirror=args.random_mirror, mean=args.img_mean)
+        trainloader = data.DataLoader(db_train, 
                                       batch_size = args.batch_size, shuffle=True, num_workers=0, pin_memory=True, drop_last=True)
     elif args.dataset == 'davis':  #for davis 2016
         db_train = db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None, sample_range=args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
@@ -426,20 +429,22 @@ def main():
     for epoch in range(start_epoch, int(args.maxEpoches)):
         
         np.random.seed(args.random_seed + epoch)
+        if db_train.train_from_saliency:
+            db_train.train_from_saliency(True)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
             #print("i_iter=", i_iter, "epoch=", epoch)
             targets, targets_gts, searches, searches_gts = batch['target'], batch['target_gt'], batch['search'], batch['search_gt']
             saliency_images, saliency_gts = batch['img'], batch['img_gt']
             #print(labels.size())
-            saliency_images.requires_grad_()
+            #saliency_images.requires_grad_()
             saliency_images = Variable(saliency_images).cuda()
             saliency_gts = Variable(saliency_gts.float().unsqueeze(1)).cuda()
             
-            targets.requires_grad_()
+            #targets.requires_grad_()
             targets = Variable(targets).cuda()
             targets_gts = Variable(targets_gts.float().unsqueeze(1)).cuda()
             
-            searches.requires_grad_()
+            #searches.requires_grad_()
             searches = Variable(searches).cuda()
             searches_gts = Variable(searches_gts.float().unsqueeze(1)).cuda()
             
@@ -449,16 +454,17 @@ def main():
                     max_iter = args.maxEpoches * train_len)
             #print(images.size())
             if i_iter%3 ==0: #对于静态图片的训练
-                
                 pred1, pred2, pred3 = model(saliency_images, saliency_images)
                 loss = 0.1*(calc_loss_BCE(pred3, saliency_gts) + 0.8* calc_loss_L1(pred3, saliency_gts) )
                 loss.backward()
-                
+                if db_train.train_from_saliency:
+                    db_train.train_from_saliency(False)
             else:
-                    
                 pred1, pred2, pred3 = model(targets, searches)
                 loss = calc_loss_BCE(pred1, targets_gts) + 0.8* calc_loss_L1(pred1, targets_gts) + calc_loss_BCE(pred2, searches_gts) + 0.8* calc_loss_L1(pred2, searches_gts)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
                 loss.backward()
+                if (i_iter+1)%3 ==0 and db_train.train_from_saliency:
+                    db_train.train_from_saliency(True)
             
             optimizer.step()
             

@@ -133,23 +133,34 @@ class PairwiseImg(Dataset):
         self.index_range_of_objects = Index # like {'boat': array([ 82, 157]), 'bear': array([ 0, 82]), 'camel': array([157, 247])} index of video_list
         #img_files = open('all_im.txt','w+')
 
+    def train_from_saliency(self, from_saliency):
+        self.from_saliency = from_saliency
+
     def __len__(self):
         print(len(self.video_list), len(self.saliency_images))
         return len(self.video_list)
     
     def __getitem__(self, idx):
-        target, target_gt = self.make_video_gt_pair(idx)
-        target_id = idx
-        img_idx = np.random.randint(1,len(self.saliency_images)-1)
         seq_name1 = self.video_list[idx].split('/')[0] #获取物体名称
+        if self.from_saliency:
+            target = np.zeros((1,1), dtype=np.float32)
+            target_gt = np.zeros((1,1), dtype=np.int32)
+            img_idx = np.random.randint(1,len(self.saliency_images)-1)
+        else:
+            target, target_gt = self.make_video_gt_pair(idx)
         
         if self.train:
-            my_index = self.index_range_of_objects[seq_name1]
-            search_id = np.random.randint(my_index[0], my_index[1])#min(len(self.video_list)-1, target_id+np.random.randint(1,self.range+1))
-            if search_id == target_id:
-                search_id = np.random.randint(my_index[0], my_index[1])
-            search, search_gt = self.make_video_gt_pair(search_id)
-            img, img_gt = self.make_img_gt_pair(img_idx)
+            if self.from_saliency:
+                img, img_gt = self.make_img_gt_pair(img_idx)
+            else:
+                my_index = self.index_range_of_objects[seq_name1]
+                search_id = np.random.randint(my_index[0], my_index[1])#min(len(self.video_list)-1, target_id+np.random.randint(1,self.range+1))
+                if search_id == idx:
+                    search_id = np.random.randint(my_index[0], my_index[1])
+                search, search_gt = self.make_video_gt_pair(search_id)
+                img = np.zeros((1,1), dtype=np.float32)
+                img_gt = np.zeros((1,1), dtype=np.int32)
+
             sample = {'target': target, 'target_gt': target_gt, 'search': search, 'search_gt': search_gt, \
                       'img': img, 'img_gt': img_gt}
             #np.save('search1.npy',search)
