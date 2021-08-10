@@ -287,6 +287,30 @@ def netParams(model):
 
     return total_paramters
 
+
+def convert_parameters_for_model(model, saved_state_dict, use_original_model):
+    new_params = model.state_dict().copy()
+    if args.cuda:
+        #model.to(device)
+        if torch.cuda.device_count()>1:
+            if use_original_model:
+                print("")
+            else:
+                for i in saved_state_dict["model"]:
+                    if i.startswith("module.layer5."):
+                        newKey = i.replace("module.layer5.", "encoder.aspp.")
+                    elif i.startswith("module.main_classifier."):
+                        newKey = i.replace("module.main_classifier.", "encoder.main_classifier.")
+                    else:
+                        newKey = i.replace("module.", "encoder.backbone.")
+                    new_params[newKey] = saved_state_dict["model"][i]
+                return new_params
+        else:
+            for i in saved_state_dict["model"]:
+                i_parts = i.split('.')
+                key = 'encoder.' + '.'.join(i_parts[1:])
+                new_params[key] = saved_state_dict["model"][i]
+
 def main():
     
     
@@ -325,36 +349,37 @@ def main():
 
     print("=====> Building network")
 
-    # model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
-    model = CoattentionNet(num_classes=args.num_classes)
+    model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
+    #model = CoattentionNet(num_classes=args.num_classes)
+    use_original_model = type(model) == CoattentionNet
     #print(model)
     new_params = model.state_dict().copy()
 
     print("=====> Restoring initial state")
-    
-    if args.cuda:
-        #model.to(device)
-        if torch.cuda.device_count()>1:
-            for i in saved_state_dict["model"]:
-                #Scale.layer5.conv2d_list.3.weight
-                i_parts = i.split('.') # 针对多GPU的情况
-                #i_parts.pop(1)
-                #print('i_parts:  ', '.'.join(i_parts[1:-1]))
-                #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
+    convert_parameters_for_model(model, saved_state_dict, True)
+    # if args.cuda:
+    #     #model.to(device)
+    #     if torch.cuda.device_count()>1:
+    #         for i in saved_state_dict["model"]:
+    #             #Scale.layer5.conv2d_list.3.weight
+    #             i_parts = i.split('.') # 针对多GPU的情况
+    #             #i_parts.pop(1)
+    #             #print('i_parts:  ', '.'.join(i_parts[1:-1]))
+    #             #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
                 
-                if i_parts[1].startswith('layer5'):
-                    key = 'encoder.aspp.' + '.'.join(i_parts[2:])
-                elif i_parts[1].startswith('main_classifier'):
-                    key = 'encoder.' + '.'.join(i_parts[1:])
-                else:
-                    key = 'encoder.backbone.' + '.'.join(i_parts[1:])
-                new_params[key] = saved_state_dict["model"][i]
-            #print('copy {}'.format('.'.join(i_parts[1:])))
-        else:
-            for i in saved_state_dict["model"]["module"]:
-                if not i.startswith('main_classifier'):
-                    key = 'encoder.' + i
-                new_params[key] = saved_state_dict["model"][i]
+    #             if i_parts[1].startswith('layer5'):
+    #                 key = 'encoder.aspp.' + '.'.join(i_parts[2:])
+    #             elif i_parts[1].startswith('main_classifier'):
+    #                 key = 'encoder.' + '.'.join(i_parts[1:])
+    #             else:
+    #                 key = 'encoder.backbone.' + '.'.join(i_parts[1:])
+    #             new_params[key] = saved_state_dict["model"][i]
+    #         #print('copy {}'.format('.'.join(i_parts[1:])))
+    #     else:
+    #         for i in saved_state_dict["model"]:
+    #             i_parts = i.split('.')
+    #             key = 'encoder.' + '.'.join(i_parts[1:])
+    #             new_params[key] = saved_state_dict["model"][i]
 
 
    
