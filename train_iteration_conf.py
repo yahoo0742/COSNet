@@ -89,6 +89,7 @@ def get_arguments():
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") #使用3号GPU
+    parser.add_argument("--sample_range", type=int, default=5, help="The number of frames sampled to compare with the target frame.")
 
 
     return parser.parse_args()
@@ -215,18 +216,22 @@ def get_1x_lr_params(model):
     any batchnorm parameter
     """
     b = []
-    if torch.cuda.device_count() == 1:
-        b.append(model.encoder.aspp)
+    mod = model
+    if torch.cuda.device_count() > 1:
+        mod = mod.module
+    
+    if args.use_original_model:
+       print("get_1x_lr_params TODO")
     else:
-        b.append(model.module.encoder.conv1)
-        b.append(model.module.encoder.bn1)
-        b.append(model.module.encoder.layer1)
-        b.append(model.module.encoder.layer2)
-        b.append(model.module.encoder.layer3)
-        b.append(model.module.encoder.layer4)
+        b.append(mod.encoder.backbone.conv1)
+        b.append(mod.encoder.backbone.bn1)
+        b.append(mod.encoder.backbone.layer1)
+        b.append(mod.encoder.backbone.layer2)
+        b.append(mod.encoder.backbone.layer3)
+        b.append(mod.encoder.backbone.layer4)
+        b.append(mod.encoder.aspp)
+        b.append(mod.encoder.main_classifier)
 
-        b.append(model.module.encoder.layer5) #aspp
-        b.append(model.module.encoder.main_classifier)
     for i in range(len(b)):
         for j in b[i].modules():
             jj = 0
@@ -242,19 +247,22 @@ def get_10x_lr_params(model):
     which does the classification of pixel into classes
     """
     b = []
-    if torch.cuda.device_count() == 1:
-        b.append(model.linear_e.parameters())
-        b.append(model.main_classifier.parameters())
+    mod = model
+    if torch.cuda.device_count() > 1:
+        mod = model.module
+
+    if args.use_original_model:
+        print("get_10x_lr_params TODO")
     else:
-        b.append(model.module.linear_e.parameters())
-        b.append(model.module.conv1.parameters())
-        b.append(model.module.conv2.parameters())
-        b.append(model.module.gate.parameters())
-        b.append(model.module.bn1.parameters())
-        b.append(model.module.bn2.parameters())   
-        b.append(model.module.main_classifier1.parameters())
-        b.append(model.module.main_classifier2.parameters())
-        
+        b.append(mod.linear_e.parameters())
+        b.append(mod.conv1.parameters())
+        b.append(mod.conv2.parameters())
+        b.append(mod.gate.parameters())
+        b.append(mod.bn1.parameters())
+        b.append(mod.bn2.parameters())   
+        b.append(mod.main_classifier1.parameters())
+        b.append(mod.main_classifier2.parameters())
+
     for j in range(len(b)):
         for i in b[j]:
             yield i
@@ -292,24 +300,18 @@ def convert_parameters_for_model(model, saved_state_dict, use_original_model):
     new_params = model.state_dict().copy()
     if args.cuda:
         #model.to(device)
-        if torch.cuda.device_count()>1:
-            if use_original_model:
-                print("")
-            else:
-                for i in saved_state_dict["model"]:
-                    if i.startswith("module.layer5."):
-                        newKey = i.replace("module.layer5.", "encoder.aspp.")
-                    elif i.startswith("module.main_classifier."):
-                        newKey = i.replace("module.main_classifier.", "encoder.main_classifier.")
-                    else:
-                        newKey = i.replace("module.", "encoder.backbone.")
-                    new_params[newKey] = saved_state_dict["model"][i]
-                return new_params
+        if use_original_model:
+            print("")
         else:
             for i in saved_state_dict["model"]:
-                i_parts = i.split('.')
-                key = 'encoder.' + '.'.join(i_parts[1:])
-                new_params[key] = saved_state_dict["model"][i]
+                if i.startswith("module.layer5."):
+                    newKey = i.replace("module.layer5.", "encoder.aspp.")
+                elif i.startswith("module.main_classifier."):
+                    newKey = i.replace("module.main_classifier.", "encoder.main_classifier.")
+                else:
+                    newKey = i.replace("module.", "encoder.backbone.")
+                new_params[newKey] = saved_state_dict["model"][i]
+    return new_params
 
 def main():
     
@@ -351,12 +353,10 @@ def main():
 
     model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
     #model = CoattentionNet(num_classes=args.num_classes)
-    use_original_model = type(model) == CoattentionNet
+    args.use_original_model = type(model) == CoattentionNet
     #print(model)
-    new_params = model.state_dict().copy()
-
     print("=====> Restoring initial state")
-    convert_parameters_for_model(model, saved_state_dict, True)
+    new_params = convert_parameters_for_model(model, saved_state_dict, args.use_original_model)
     # if args.cuda:
     #     #model.to(device)
     #     if torch.cuda.device_count()>1:
@@ -387,6 +387,8 @@ def main():
  
             
     model.load_state_dict(new_params) #只用到resnet的第5个卷积层的参数
+
+
     #print(model.keys())
     if args.cuda:
         #model.to(device)
