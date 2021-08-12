@@ -141,28 +141,35 @@ class PairwiseImg(Dataset):
         return len(self.video_list)
     
     def __getitem__(self, idx):
-        seq_name1 = self.video_list[idx].split('/')[0] #获取物体名称
-        if self.from_saliency:
-            target = np.zeros((1,1), dtype=np.float32)
-            target_gt = np.zeros((1,1), dtype=np.int32)
-            img_idx = np.random.randint(1,len(self.saliency_images)-1)
-        else:
-            target, target_gt = self.make_video_gt_pair(idx)
-        
+        '''
+        if we need to get an item from the saliency set, we only return "img" and "img_gt",
+        otherwise, return "target", "target_gt", "search", "search_gt"
+        '''
+        seq_name1 = self.video_list[idx].split('/')[0]
+
         if self.train:
             if self.from_saliency:
+                # get an item from the saliency set
+                target = np.zeros((1,1), dtype=np.float32)
+                target_gt = np.zeros((1,1), dtype=np.int32)
+                search = np.zeros((1,1), dtype=np.float32)
+                search_gt = np.zeros((1,1), dtype=np.int32)
+                img_idx = np.random.randint(1,len(self.saliency_images)-1)
                 img, img_gt = self.make_img_gt_pair(img_idx)
             else:
+                # get an item from the video frames
+                img = np.zeros((1,1), dtype=np.float32)
+                img_gt = np.zeros((1,1), dtype=np.int32)
+                target, target_gt = self.make_video_gt_pair(idx)
+
                 my_index = self.index_range_of_objects[seq_name1]
                 search_id = np.random.randint(my_index[0], my_index[1])#min(len(self.video_list)-1, target_id+np.random.randint(1,self.range+1))
                 if search_id == idx:
                     search_id = np.random.randint(my_index[0], my_index[1])
                 search, search_gt = self.make_video_gt_pair(search_id)
-                img = np.zeros((1,1), dtype=np.float32)
-                img_gt = np.zeros((1,1), dtype=np.int32)
 
             sample = {'target': target, 'target_gt': target_gt, 'search': search, 'search_gt': search_gt, \
-                      'img': img, 'img_gt': img_gt}
+                    'img': img, 'img_gt': img_gt}
             #np.save('search1.npy',search)
             #np.save('search_gt.npy',search_gt)
             if self.seq_name is not None:
@@ -171,17 +178,10 @@ class PairwiseImg(Dataset):
 
             if self.transform is not None:
                 sample = self.transform(sample)
-       
-        else:
-            img, gt = self.make_video_gt_pair(idx)
-            sample = {'image': img, 'gt': gt}
-            if self.seq_name is not None:
-                fname = os.path.join(self.seq_name, "%05d" % idx)
-                sample['fname'] = fname
+
+            return sample
+                
         
-        
-        
-        return sample  #这个类最后的输出
 
     def make_video_gt_pair(self, idx): # get an image pair consisting of a video frame and the annotation of the frame with the index of 'idx'
         """

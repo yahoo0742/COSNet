@@ -473,30 +473,42 @@ def main():
             targets, targets_gts, searches, searches_gts = batch['target'], batch['target_gt'], batch['search'], batch['search_gt']
             saliency_images, saliency_gts = batch['img'], batch['img_gt']
             #print(labels.size())
-            #saliency_images.requires_grad_()
-            saliency_images = Variable(saliency_images).cuda()
-            saliency_gts = Variable(saliency_gts.float().unsqueeze(1)).cuda()
             
-            #targets.requires_grad_()
-            targets = Variable(targets).cuda()
-            targets_gts = Variable(targets_gts.float().unsqueeze(1)).cuda()
-            
-            #searches.requires_grad_()
-            searches = Variable(searches).cuda()
-            searches_gts = Variable(searches_gts.float().unsqueeze(1)).cuda()
-            
-            optimizer.zero_grad()
-            
-            lr = adjust_learning_rate(optimizer, i_iter+epoch*train_len, epoch,
-                    max_iter = args.maxEpoches * train_len)
             #print(images.size())
-            if i_iter%3 ==0: #对于静态图片的训练
+            if i_iter%3 ==0: # training from salient images
+                # only "img", "img_gt" are required
+
+                #saliency_images.requires_grad_()
+                saliency_images = Variable(saliency_images).cuda()
+                saliency_gts = Variable(saliency_gts.float().unsqueeze(1)).cuda()
+                
+                optimizer.zero_grad()
+
+                lr = adjust_learning_rate(optimizer, i_iter+epoch*train_len, epoch,
+                    max_iter = args.maxEpoches * train_len)
+
                 pred1, pred2, pred3 = model(saliency_images, saliency_images)
                 loss = 0.1*(calc_loss_BCE(pred3, saliency_gts) + 0.8* calc_loss_L1(pred3, saliency_gts) )
                 loss.backward()
                 if db_train.train_from_saliency:
                     db_train.train_from_saliency(False)
             else:
+                # training from video frames
+                # only "target", "target_gt", "search", "search_gt" are required
+                
+                #targets.requires_grad_()
+                targets = Variable(targets).cuda()
+                targets_gts = Variable(targets_gts.float().unsqueeze(1)).cuda()
+                
+                #searches.requires_grad_()
+                searches = Variable(searches).cuda()
+                searches_gts = Variable(searches_gts.float().unsqueeze(1)).cuda()
+                
+                optimizer.zero_grad()
+
+                lr = adjust_learning_rate(optimizer, i_iter+epoch*train_len, epoch,
+                    max_iter = args.maxEpoches * train_len)
+
                 pred1, pred2, pred3 = model(targets, searches)
                 loss = calc_loss_BCE(pred1, targets_gts) + 0.8* calc_loss_L1(pred1, targets_gts) + calc_loss_BCE(pred2, searches_gts) + 0.8* calc_loss_L1(pred2, searches_gts)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
                 loss.backward()
