@@ -5,11 +5,11 @@ import numpy as np
 from deeplab.deeplabv3_encoder import Encoder, DepthEncoder
 
 class RGBDSegmentationModel(nn.Module):
-    def __init__(self, block, num_blocks_of_layers, num_classes, all_channel=256, all_dim=60*60, parallel_for_depth=False):	#473./8=60	
+    def __init__(self, block, num_blocks_of_layers_4_rgb, num_blocks_of_layers_4_depth, num_classes, all_channel=256, all_dim=60*60, parallel_for_depth=False):	#473./8=60	
         super(RGBDSegmentationModel, self).__init__()
 
-        self.encoder = Encoder(3, block, num_blocks_of_layers, num_classes) # rgb encoder
-        self.depth_encoder = DepthEncoder(1, block, num_blocks_of_layers, num_classes)
+        self.encoder = Encoder(3, block, num_blocks_of_layers_4_rgb, num_classes) # rgb encoder
+        self.depth_encoder = DepthEncoder(1, block, num_blocks_of_layers_4_depth, num_classes)
 
         self.parallel_for_depth = parallel_for_depth
 
@@ -166,6 +166,7 @@ class RGBDSegmentationModel(nn.Module):
         # add weighted depth features to RGB features
         input1_att = torch.add(input1_att, D_a)
 
+        # encode(d) * weight + rgb_features
 
         # Segmentation
         x1 = self.main_classifier1(input1_att)
