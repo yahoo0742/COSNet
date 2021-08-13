@@ -159,7 +159,7 @@ class RGBDSegmentationModel(nn.Module):
         input2_att  = self.prelu(input2_att )
 
         # extract depth features
-        D_a, _ = self.depth_encoder(depths_a) # N, C, H, W
+        D_a = self.depth_encoder(depths_a) # N, C, H, W
         depth_mask = self.depth_gate(D_a)
         depth_mask = self.depth_gate_s(depth_mask)
         D_a = D_a * depth_mask
