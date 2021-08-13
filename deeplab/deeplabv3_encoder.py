@@ -132,9 +132,14 @@ class DepthEncoder(nn.Module):
 
         self.backbone = rn.ResNet(input_channels, res_block, num_blocks_of_layers, num_classes)
 
-        dilations = [ 6, 12, 18]
-        paddings = [6, 12, 18]
-        self.aspp = ASPP(input_channels=2048, output_channels=256, depth=512, dilation_series=dilations, padding_series=paddings)
+        if False:
+            dilations = [ 6, 12, 18]
+            paddings = [6, 12, 18]
+            self.aspp = ASPP(input_channels=2048, output_channels=256, depth=512, dilation_series=dilations, padding_series=paddings)
+        else:
+            self.conv= nn.Conv2d(2048, 256, kernel_size=1,stride=1)
+            self.bn = nn.BatchNorm2d(256)
+            self.relu = nn.ReLU(inplace=True)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -147,6 +152,12 @@ class DepthEncoder(nn.Module):
         input_size = x.size()[2:] # H, W
 
         features = self.backbone(x)
-        # features = self.aspp(features)
+        if False:
+            features = self.aspp(features)
+        else:
+            features = self.conv(features)
+            features = self.bn(features)
+            features = self.relu(features)
+
 
         return features
