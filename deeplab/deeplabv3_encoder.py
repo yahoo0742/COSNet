@@ -120,3 +120,33 @@ class Encoder(nn.Module):
         #print("after upsample, tensor size:", x.size())
         annotation = self.softmax(annotation)
         return features, annotation
+
+
+
+
+class DepthEncoder(nn.Module):
+    def __init__(self, input_channels, res_block, num_blocks_of_layers, num_classes):
+        self.inner_channels = 64
+        self.input_channels = input_channels
+        super(Encoder, self).__init__()
+
+        self.backbone = rn.ResNet(input_channels, res_block, num_blocks_of_layers, num_classes)
+
+        dilations = [ 6, 12, 18]
+        paddings = [6, 12, 18]
+        self.aspp = ASPP(input_channels=2048, output_channels=256, depth=512, dilation_series=dilations, padding_series=paddings)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                m.weight.data.normal_(0, 0.01)
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+
+    def forward(self, x):
+        input_size = x.size()[2:] # H, W
+
+        features = self.backbone(x)
+        # features = self.aspp(features)
+
+        return features
