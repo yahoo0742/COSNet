@@ -229,8 +229,9 @@ def get_10x_lr_params(model):
     b.append(mod.depth_encoder.backbone.layer2.parameters())
     b.append(mod.depth_encoder.backbone.layer3.parameters())
     b.append(mod.depth_encoder.backbone.layer4.parameters())
-    b.append(mod.depth_encoder.aspp.parameters())
-    b.append(mod.depth_encoder.main_classifier.parameters())
+    if False:
+        b.append(mod.depth_encoder.aspp.parameters())
+        b.append(mod.depth_encoder.main_classifier.parameters())
 
     b.append(mod.linear_e.parameters())
     b.append(mod.conv1.parameters())
