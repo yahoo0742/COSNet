@@ -128,7 +128,7 @@ class DepthEncoder(nn.Module):
     def __init__(self, input_channels, res_block, num_blocks_of_layers, num_classes):
         self.inner_channels = 64
         self.input_channels = input_channels
-        super(Encoder, self).__init__()
+        super(DepthEncoder, self).__init__()
 
         self.backbone = rn.ResNet(input_channels, res_block, num_blocks_of_layers, num_classes)
 
