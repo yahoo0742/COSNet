@@ -407,19 +407,19 @@ def main():
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
             db_train.next_batch()
             print("  i_iter=", i_iter)
-            current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_depth, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_depth'], batch['search_0_gt'],
+            current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_gt'],
 
             
-            current_rgb.requires_grad_()
+            # current_rgb.requires_grad_()
             current_rgb = Variable(current_rgb).cuda()
-            current_depth.requires_grad_()
+            # current_depth.requires_grad_()
             current_depth = Variable(current_depth).cuda()
             current_gt = Variable(current_gt.float().unsqueeze(1)).cuda()
 
-            counterpart_rgb.requires_grad_()
+            # counterpart_rgb.requires_grad_()
             counterpart_rgb = Variable(counterpart_rgb).cuda()
-            counterpart_depth.requires_grad_()
-            counterpart_depth = Variable(counterpart_depth).cuda()
+            # counterpart_depth.requires_grad_()
+            # counterpart_depth = Variable(counterpart_depth).cuda()
             counterpart_gt = Variable(counterpart_gt.float().unsqueeze(1)).cuda()
 
             optimizer.zero_grad()
@@ -428,7 +428,7 @@ def main():
                     max_iter = args.maxEpoches * train_len)
             #print(images.size())
 
-            pred1, pred2, pred3 = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
+            pred1, pred2, pred3 = model(current_rgb, counterpart_rgb, current_depth)
             loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt) + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
             loss.backward()
             
