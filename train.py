@@ -34,6 +34,7 @@ import timeit
 from deeplab.residual_net import Bottleneck
 # from deeplab.siamese_model import CoattentionSiameseNet
 from rgbd_segmentation_model import RGBDSegmentationModel
+import datetime
 
 start = timeit.default_timer()
 
@@ -126,9 +127,16 @@ def configure_dataset_init_model(args):
         #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/hzfurgbd/psp_davis_0.pth' #
         args.snapshot_dir = user_config["train"]["dataset"]["hzfurgbd"]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
         args.resume = user_config["train"]["dataset"]["hzfurgbd"]["checkpoint_file"] #'./snapshots/hzfurgbd/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
-       
     else:
         print("dataset error")
+        return
+    
+    h, w = map(int, user_config["train"]["dataset"][args.dataset]["output_HW"].split(','))
+    args.output_HW = (h, w)
+    timenow = datetime.datetime.now()
+    ymd_hm = timenow.strftime("%Y%m%d_%H%M")
+    args.snapshot_dir = osp.join(user_config["train"]["dataset"][args.dataset]["snapshot_output_path"], 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hm)
+
 
 def adjust_learning_rate(optimizer, i_iter, epoch, max_iter):
     """Sets the learning rate to the initial LR divided by 5 at 60th, 120th and 160th epochs"""
@@ -362,6 +370,7 @@ def main():
     model.train()
     cudnn.benchmark = True
 
+    print("#######model:\n", model)
     if not os.path.exists(args.snapshot_dir):
         os.makedirs(args.snapshot_dir)
     
@@ -440,6 +449,8 @@ def main():
             print("===> Epoch[{}]({}/{}): Loss: {:.10f}  lr: {:.5f}".format(epoch, i_iter, train_len, loss.data, lr))
             logger.write("Epoch[{}]({}/{}):     Loss: {:.10f}      lr: {:.5f}\n".format(epoch, i_iter, train_len, loss.data, lr))
             logger.flush()
+
+            torch.cuda.empty_cache()
                 
         print("=====> saving model")
         state={"epoch": epoch+1, "model": model.state_dict()}
