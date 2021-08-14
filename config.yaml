@@ -16,11 +16,11 @@
             "annotation_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/Annotations/480p/"
             "subset_file": "./train_seqs.txt"
             "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/"
-            "batch_size": 16 #10 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
+            "batch_size": 4 #10 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
             "max_epoches": 30 #60 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
             "input_size": '854,480' #'854480' #Comma-separated string with height and width of images
-            "output_HW": '480,854'
+            "output_HW": '120,214' #'480,854'
             "num_classes": 2      #Number of classes to predict (including background)
             "img_mean": [104.00698793, 116.66876762, 122.67891434] ## saving model file and log record during the process of training
             "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
@@ -32,7 +32,7 @@
         "hzfurgbd":
             "subset_file": "./train_seqs.txt"
             "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset/"
-            "batch_size": 3 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
+            "batch_size": 4 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
             "max_epoches": 30 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
             "input_size": '640,480' #'640,480'  #Comma-separated string with height and width of images
