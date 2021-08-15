@@ -40,6 +40,15 @@ import gc
 start = timeit.default_timer()
 
 
+def logMem(logger, prefix):
+    total = torch.cuda.get_device_properties(None).total_memory
+    mem_alloc = torch.cuda.memory_allocated()
+    mem_cache = torch.cuda.memory_cached()
+    msg = prefix + " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)
+    print(msg)
+    if logger:
+        logger.write(msg)
+
 
 def plot2d(x, y, xlabel=None, ylabel=None, filenameForSave=None):
     plt.plot(x, y)
@@ -104,7 +113,7 @@ def configure_dataset_init_model(args):
         args.img_dir = user_config["train"]["saliency_dataset"] #'/vol/graphics-solar/fengwenb/vos/saliency_dataset'
         args.data_list = './dataset/list/VOC2012/train_aug.txt'  # Path to the file listing the images in the dataset
         args.ignore_label = user_config["train"]["dataset"]["davis"]["ignore_label"]     #The index of the label to ignore during the training
-        args.input_size = user_config["train"]["dataset"]["davis"]["input_size"] #'854,480' #Comma-separated string with height and width of images
+        # args.input_size = user_config["train"]["dataset"]["davis"]["input_size"] #'854,480' #Comma-separated string with height and width of images
         args.num_classes = user_config["train"]["dataset"]["davis"]["num_classes"]      #Number of classes to predict (including background)
         args.img_mean = np.array(user_config["train"]["dataset"]["davis"]["img_mean"], dtype=np.float32)       # saving model file and log record during the process of training
         #Where restore model pretrained on other dataset, such as COCO.")
@@ -119,7 +128,7 @@ def configure_dataset_init_model(args):
         args.maxEpoches = user_config["train"]["dataset"]["hzfurgbd"]["max_epoches"] # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
         args.data_dir = user_config["train"]["dataset"]["hzfurgbd"]["data_path"]   # 37572 image pairs
         args.ignore_label = user_config["train"]["dataset"]["hzfurgbd"]["ignore_label"]     #The index of the label to ignore during the training
-        args.input_size = user_config["train"]["dataset"]["hzfurgbd"]["input_size"] #'854,480' #Comma-separated string with height and width of images
+        # args.input_size = user_config["train"]["dataset"]["hzfurgbd"]["input_size"] #'854,480' #Comma-separated string with height and width of images
         args.num_classes = user_config["train"]["dataset"]["hzfurgbd"]["num_classes"]      #Number of classes to predict (including background)
         args.img_mean = np.array(user_config["train"]["dataset"]["hzfurgbd"]["img_mean"], dtype=np.float32)       # saving model file and log record during the process of training
         #Where restore model pretrained on other dataset, such as COCO.")
@@ -285,14 +294,6 @@ def netParams(model):
     return total_paramters
 
 
-def logMem(logger, prefix):
-    total = torch.cuda.get_device_properties(None).total_memory
-    mem_alloc = torch.cuda.memory_allocated()
-    mem_cache = torch.cuda.memory_cached()
-    msg = prefix + " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)
-    print(msg)
-    logger.write(msg)
-
 def main():
     
     print("=====> Configure dataset and pretrained model:",args)
@@ -315,8 +316,17 @@ def main():
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed) 
 
-    h, w = map(int, args.input_size.split(','))
-    input_size = (h, w)
+    if not os.path.exists(args.snapshot_dir):
+        os.makedirs(args.snapshot_dir)
+
+    logFileLoc = osp.join(args.snapshot_dir, args.logFile)
+    newLogFile = False
+    if os.path.isfile(logFileLoc):
+        logger = open(logFileLoc, 'a')
+    else:
+        logger = open(logFileLoc, 'w')
+        newLogFile = True
+    logger.flush()
 
     cudnn.enabled = True
 
@@ -330,31 +340,32 @@ def main():
     # model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
     #model = CoattentionNet(num_classes=args.num_classes)
     #print(model)
-    new_params = model.state_dict().copy()
     print("=====> Restoring initial state")
 
-    for i in saved_state_dict["model"]:
-        #Scale.layer5.conv2d_list.3.weight
-        i_parts = i.split('.') # multiple cpu
-        #i_parts.pop(1)
-        #print('i_parts:  ', '.'.join(i_parts[1:-1]))
-        #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
+
+    def convert_parameters_for_model(model, saved_state_dict):
+        new_params = model.state_dict().copy()
+        if args.cuda:
+            #model.to(device)
+            for i in saved_state_dict["model"]:
+                if i.startswith("module.layer5."):
+                    newKey = i.replace("module.layer5.", "encoder.aspp.")
+                elif i.startswith("module.main_classifier."):
+                    newKey = i.replace("module.main_classifier.", "encoder.main_classifier.")
+                else:
+                    newKey = i.replace("module.", "encoder.backbone.")
+                new_params[newKey] = saved_state_dict["model"][i]
+        return new_params
         
-        if i_parts[1].startswith('layer5'):
-            key = 'encoder.aspp.' + '.'.join(i_parts[2:])
-        elif i_parts[1].startswith('main_classifier'):
-            key = 'encoder.' + '.'.join(i_parts[1:])
-        else:
-            key = 'encoder.backbone.' + '.'.join(i_parts[1:])
-        new_params[key] = saved_state_dict["model"][i]
-            #print('copy {}'.format('.'.join(i_parts[1:])))
     
-   
+    new_params = convert_parameters_for_model(model, saved_state_dict)
+
     print("=====> Loading init weights,  pretrained COCO for VOC2012, and pretrained Coarse cityscapes for cityscapes")
  
-            
     model.load_state_dict(new_params) #only resnet first 5 conv layers params
     #print(model.keys())
+    logMem(logger, "After loading state")
+
     if args.cuda:
         #model.to(device)
         if torch.cuda.device_count()>1:
@@ -363,6 +374,8 @@ def main():
         else:
             print("single GPU for training")
             model = model.cuda()  #1-card data parallel
+
+    logMem(logger, "After sending model to GPU")
     start_epoch=0
     
     print("=====> Whether resuming from a checkpoint, for continuing training")
@@ -380,18 +393,23 @@ def main():
     cudnn.benchmark = True
 
     print("#######model:\n", model)
-    if not os.path.exists(args.snapshot_dir):
-        os.makedirs(args.snapshot_dir)
+
     
     print('=====> Computing network parameters')
     total_paramters = netParams(model)
     print('Total network parameters: ' + str(total_paramters))
  
+    if newLogFile:
+        logger.write("Parameters: %s" % (str(total_paramters)))
+        logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
+        logger.flush()
+
     print("=====> Preparing training data")
     db_train = None
     if args.dataset == 'hzfurgbd':
-        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=input_size, transform=None)
+        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, transform=None)
         db_train.set_for_train()
+        db_train.set_batch_size(args.batch_size)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
@@ -402,15 +420,9 @@ def main():
     optimizer.zero_grad()
 
 
-    
-    logFileLoc = osp.join(args.snapshot_dir, args.logFile)
-    if os.path.isfile(logFileLoc):
-        logger = open(logFileLoc, 'a')
-    else:
-        logger = open(logFileLoc, 'w')
-        logger.write("Parameters: %s" % (str(total_paramters)))
-        logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
-    logger.flush()
+    logMem(logger, "After creating dataloader")
+
+
 
     print("=====> Begin to train")
     train_len=len(trainloader)
@@ -424,6 +436,8 @@ def main():
         db_train.next_batch()
         np.random.seed(args.random_seed + epoch)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
+            logMem(logger, " Start batch")
+
             db_train.next_batch()
             print("  i_iter=", i_iter)
             current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_gt'],
@@ -446,11 +460,15 @@ def main():
             lr = adjust_learning_rate(optimizer, i_iter+epoch*train_len, epoch,
                     max_iter = args.maxEpoches * train_len)
             #print(images.size())
+            logMem(logger, " After feeding data to GPU")
+
 
             pred1, pred2, pred3 = model(current_rgb, counterpart_rgb, current_depth)
             loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt) + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
+            logMem(logger, " After forward")
             loss.backward()
-            
+            logMem(logger, " After backward")
+
             optimizer.step()
 
             loss_history.append(loss.data)
@@ -466,12 +484,13 @@ def main():
             del counterpart_gt
             del batch
             gc.collect()
-
             torch.cuda.empty_cache()
+            logMem(logger, " After GC")
+
                 
         print("=====> saving model")
         state={"epoch": epoch+1, "model": model.state_dict()}
-        torch.save(state, osp.join(args.snapshot_dir, 'co_attention_rgbd_'+str(args.dataset)+"_"+str(epoch)+'.pth'))
+        torch.save(state, osp.join(args.snapshot_dir, 'snapshot_'+str(args.dataset)+"_"+str(epoch)+'.pth'))
 
 
     end = timeit.default_timer()

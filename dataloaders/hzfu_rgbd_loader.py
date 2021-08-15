@@ -123,6 +123,8 @@ class HzFuRGBDVideos(Dataset):
             }
         }
 
+        self.batch_size = 1
+
         self._load_meta_data()
         self._split_dataset()
 
@@ -131,6 +133,9 @@ class HzFuRGBDVideos(Dataset):
     
     def set_for_train(self):
         self.stage = 'train'
+
+    def set_batch_size(self, size):
+        self.batch_size = size
 
     def new_training_epoch(self):
         self.flip_seq_for_augmentation.clear()
@@ -301,8 +306,12 @@ class HzFuRGBDVideos(Dataset):
     # implementation
     def __len__(self):
         set_name = self.stage
-        print("HzFuRGBDVideos length: " , len(self.sets[set_name]['names_of_frames']), " for " + set_name)
-        return len(self.sets[set_name]['names_of_frames'])
+        result = len(self.sets[set_name]['names_of_frames'])
+        if result % self.batch_size != 0:
+            result = result - result % self.batch_size
+
+        print("HzFuRGBDVideos length: " , result, " for " + set_name)
+        return result
 
     '''
     Return the rgb, depth of the target frame and the rgb, depth of the matching/search frame
