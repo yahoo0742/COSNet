@@ -35,6 +35,7 @@ from deeplab.residual_net import Bottleneck
 # from deeplab.siamese_model import CoattentionSiameseNet
 from rgbd_segmentation_model import RGBDSegmentationModel
 import datetime
+import gc
 
 start = timeit.default_timer()
 
@@ -283,8 +284,16 @@ def netParams(model):
 
     return total_paramters
 
+
+def logMem(logger, prefix):
+    total = torch.cuda.get_device_properties(None).total_memory
+    mem_alloc = torch.cuda.memory_allocated()
+    mem_cache = torch.cuda.memory_cached()
+    msg = prefix + " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)
+    print(msg)
+    logger.write(msg)
+
 def main():
-    
     
     print("=====> Configure dataset and pretrained model:",args)
     configure_dataset_init_model(args)
@@ -394,7 +403,7 @@ def main():
 
 
     
-    logFileLoc = args.snapshot_dir + args.logFile
+    logFileLoc = osp.join(args.snapshot_dir, args.logFile)
     if os.path.isfile(logFileLoc):
         logger = open(logFileLoc, 'a')
     else:
@@ -449,6 +458,14 @@ def main():
             print("===> Epoch[{}]({}/{}): Loss: {:.10f}  lr: {:.5f}".format(epoch, i_iter, train_len, loss.data, lr))
             logger.write("Epoch[{}]({}/{}):     Loss: {:.10f}      lr: {:.5f}\n".format(epoch, i_iter, train_len, loss.data, lr))
             logger.flush()
+
+            del current_rgb
+            del current_depth
+            del current_gt
+            del counterpart_rgb
+            del counterpart_gt
+            del batch
+            gc.collect()
 
             torch.cuda.empty_cache()
                 
