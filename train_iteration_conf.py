@@ -37,9 +37,18 @@ from deeplab.siamese_model_conf import CoattentionNet #siame_model 是直接将a
 #from deeplab.utils import get_1x_lr_params, get_10x_lr_params#, adjust_learning_rate #, loss_calc
 from deeplab.residual_net import Bottleneck
 from deeplab.siamese_model import CoattentionSiameseNet
+import gc
 
 start = timeit.default_timer()
 
+
+def logMem(logger, prefix):
+    total = torch.cuda.get_device_properties(None).total_memory
+    mem_alloc = torch.cuda.memory_allocated()
+    mem_cache = torch.cuda.memory_cached()
+    msg = prefix + " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)
+    print(msg)
+    logger.write(msg)
 
 def plot2d(x, y, xlabel=None, ylabel=None, filenameForSave=None):
     plt.plot(x, y)
@@ -351,8 +360,8 @@ def main():
 
     print("=====> Building network")
 
-    model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
-    #model = CoattentionNet(num_classes=args.num_classes)
+    # model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
+    model = CoattentionNet(num_classes=args.num_classes)
     args.use_original_model = type(model) == CoattentionNet
     #print(model)
     print("=====> Restoring initial state")
@@ -523,6 +532,16 @@ def main():
             logger.write("Epoch[{}]({}/{}):     Loss: {:.10f}      lr: {:.5f}\n".format(epoch, i_iter, train_len, loss.data, lr))
             logger.flush()
 
+            del targets
+            del targets_gts
+            del target_depth
+            del searches
+            del searches_gts
+            del search_depth
+            del saliency_images
+            del saliency_gts
+            del batch
+            gc.collect()
             torch.cuda.empty_cache()
                 
         print("=====> saving model")
