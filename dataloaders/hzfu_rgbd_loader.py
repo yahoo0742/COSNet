@@ -446,7 +446,7 @@ class HzFuRGBDVideos(Dataset):
                 if self.output_HW is not None:
                     gt_img = imresize(gt_img, self.output_HW, interp='nearest')
                 gt_img[gt_img!=0]=1 # H, W with values in {0, 1}
-                gt_img = np.array(gt_img, dtype=np.int32)
+                gt_img = np.array(gt_img, dtype=np.uint8)
                 # print("gt shape: ",gt_img.shape)
 
         if self.stage == 'train':
@@ -455,10 +455,16 @@ class HzFuRGBDVideos(Dataset):
         # to avoid the error `ValueError: some of the strides of a given numpy array are negative. This is currently not supported`
         if not rgb_img == None:
             rgb_img = torch.from_numpy(rgb_img.copy())
+        else:
+            rgb_img = np.zeros((1,1), dtype=np.float32)
         if not depth_img == None:
             depth_img = torch.from_numpy(depth_img.copy())
+        else:
+            depth_img = np.zeros((1,1), dtype=np.float32)
         if not gt_img == None:
             gt_img = torch.from_numpy(gt_img.copy())
+        else:
+            gt = np.zeros((1,1), dtype=np.uint8)
 
         return rgb_img, depth_img, gt_img
 
