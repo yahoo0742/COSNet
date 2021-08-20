@@ -108,7 +108,6 @@ def config(args):
     else:
         print("dataset error")
 
-    args.result_dir = user_config['test']['dataset'][args.dataset]['result_path']
     args.data_path = user_config['test']['dataset'][args.dataset]['data_path'] #'/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'
     args.sample_range = user_config['test']['dataset'][args.dataset]['sample_range']
 
