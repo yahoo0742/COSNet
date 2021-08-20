@@ -20,7 +20,7 @@
             "max_epoches": 30 #60 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
             "input_size": '854,480' #'854480' #Comma-separated string with height and width of images
-            "output_HW": '120,214' #'480,854'
+            "output_HW": '480,854'
             "num_classes": 2      #Number of classes to predict (including background)
             "img_mean": [104.00698793, 116.66876762, 122.67891434] ## saving model file and log record during the process of training
             "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
@@ -36,7 +36,7 @@
             "max_epoches": 30 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
             "input_size": '640,480' #'640,480'  #Comma-separated string with height and width of images
-            "output_HW": '120,160'
+            "output_HW": '480,640'
             "num_classes": 2      #Number of classes to predict (including background)
             "img_mean": [104.00698793, 116.66876762, 122.67891434] ## saving model file and log record during the process of training
             "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
@@ -57,12 +57,33 @@
 
 
 "test":
+    "model":
+        "original_coattention_rgb":
+            "pretrained_params": "./pretrained/co_attention.pth"
+        "refactored_coattention_rgb":
+            "pretrained_params": "./pretrained/"
+        "added_depth_rgbd":
+            "pretrained_params": "./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth"
+        "concatenated_depth_rgbd":
+            "pretrained_params":
     "dataset":
         "davis":
+            "model":
             "subset_file": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/val.txt"
             "path": ""
+            "output_WH": ""
         "hzfurgb":
-
+            "model":
+            "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset"
+            "output_WH": "640,480"
+            "image_HW_4_model": "480, 640"
+            "sample_range": 1
         "hzfurgbd":
+            "model":
+            "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset"
+            "output_WH": "640,480"
+            "image_HW_4_model": "480, 640"
+            "sample_range": 1
+    
     
 

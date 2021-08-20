@@ -49,11 +49,6 @@ from torch.utils.data import Dataset
 from dataloaders import utils
 import torch
 
-k_sub_set_percentage = {
-    'train': 0.8,
-    'test': 0.2
-}
-
 class Folder:
     def __init__(self, folder_name):
         self.folder_name = folder_name
@@ -83,62 +78,61 @@ class HzFuRGBDVideos(Dataset):
     def __init__(self, dataset_root,
                  sample_range,
                  output_HW=None,
-                 transform=None,
+                 channels_for_target_frame = 'rgbdt',
+                 channels_for_counterpart_frame = 'rgbdt',
+                 for_training = True,
+                 percentage_for_training = 0.8,
+                 batch_size = 1,
                  meanval=(104.00699, 116.66877, 122.67892),
-                 channels = 'rgbd'
+                 transform=None
                  ):
         self.dataset_root = dataset_root
         self.sample_range = sample_range
         self.output_HW = output_HW # H W
+        self.percentage_for_training = percentage_for_training
         self.transform = transform
         self.meanval = meanval
-        self.stage = 'train'
-        self.channels = channels
-        self.flip_seq_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
+        self.stage = 'train' if for_training else 'test'
+        self.channels_for_target_frame = channels_for_target_frame
+        self.channels_for_counterpart_frame = channels_for_counterpart_frame
+        
+        self.flip_prob_of_seqs_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
 
         self.sets = {
             'entire': {
                 'names_of_sequences': [],
-                'offset4_frames_of_sequences': {},
+                'frame_range_of_sequences': {},
                 'names_of_frames': [],
                 'frame_to_sequence': []
             },
             'train': {
                 'names_of_sequences': [],
-                'offset4_frames_of_sequences': {},
+                'frame_range_of_sequences': {},
                 'names_of_frames': [], # it is more convenient for iterating frames by organizing all frames of all sequence together 
                 'frame_to_sequence': []
             },
             'validate': {
                 'names_of_sequences': [],
-                'offset4_frames_of_sequences': {},
+                'frame_range_of_sequences': {},
                 'names_of_frames': [],
                 'frame_to_sequence': []
             },
             'test': {
                 'names_of_sequences': [],
-                'offset4_frames_of_sequences': {},
+                'frame_range_of_sequences': {},
                 'names_of_frames': [],
                 'frame_to_sequence': []
             }
         }
 
-        self.batch_size = 1
+        self.batch_size = batch_size
 
         self._load_meta_data()
         self._split_dataset()
 
-    def set_for_test(self):
-        self.stage = 'test'
-    
-    def set_for_train(self):
-        self.stage = 'train'
-
-    def set_batch_size(self, size):
-        self.batch_size = size
 
     def new_training_epoch(self):
-        self.flip_seq_for_augmentation.clear()
+        self.flip_prob_of_seqs_for_augmentation.clear()
 
     def _get_path(self, content_type, seq_name=None, frame_name=None): #(self, content_type:Folder, seq_name=None, frame_name=None):
         if seq_name == None:
@@ -166,7 +160,7 @@ class HzFuRGBDVideos(Dataset):
         return self._get_path(EContentInfo.groundtruth, seq_name, frame_name)
 
     def _get_frames_of_seq(self, set_name, seq_name):
-        seq_offset = self.sets[set_name]['offset4_frames_of_sequences'][seq_name]
+        seq_offset = self.sets[set_name]['frame_range_of_sequences'][seq_name]
         if seq_offset:
             return self.sets[set_name]['names_of_frames'][seq_offset['start']:seq_offset['end']]
         return None
@@ -275,7 +269,7 @@ class HzFuRGBDVideos(Dataset):
             if len(labelled_frames_of_seq) > 0:
                 start_idx = len(self.sets['entire']['names_of_frames'])
                 end_idx = start_idx + len(labelled_frames_of_seq)
-                self.sets['entire']['offset4_frames_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
+                self.sets['entire']['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets['entire']['names_of_frames'].extend(labelled_frames_of_seq)
 
     def _split_dataset(self):
@@ -286,7 +280,7 @@ class HzFuRGBDVideos(Dataset):
             if not frames_of_seq:
                 raise Exception('Cannot find any frame for '+seq)
 
-            if rand < k_sub_set_percentage['train']:
+            if rand < self.percentage_for_training:
                 # train
                 to_be_in_subset = 'train'
             else:
@@ -299,7 +293,7 @@ class HzFuRGBDVideos(Dataset):
             start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
             num_frames = len(frames_of_seq)
             end_idx = num_frames + start_idx
-            self.sets[to_be_in_subset]['offset4_frames_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
+            self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
             self.sets[to_be_in_subset]['names_of_frames'].extend(frames_of_seq)
             #self.sets[to_be_in_subset]['frame_to_sequence'].extend([seq_index]*num_frames)
 
@@ -313,71 +307,65 @@ class HzFuRGBDVideos(Dataset):
         print("HzFuRGBDVideos length: " , result, " for " + set_name)
         return result
 
-    '''
-    Return the rgb, depth of the target frame and the rgb, depth of the matching/search frame
-    '''
     def __getitem__(self, frame_index):
+        '''
+        :return: the rgb, depth of the target frame and the rgb, depth of the matching/search frame
+        '''
+        def _load_frame(self, frame_info, channels_to_load):
 
-        def use_depth_as_rgb(depth_data):
-            r = np.array(depth_data).copy()
-            g = r.copy()
-            b = g.copy()
-            rgb = np.stack((r,g,b), axis=2) # rows, columns, 3 channels
-            rgb = np.subtract(rgb, np.array(self.meanval, dtype=np.float32))
-            rgb = rgb.transpose((2,0,1)) # channels, rows, columns
-            return rgb
+            def _use_depth_as_rgb(depth_data):
+                '''
+                :return: a tensor in the shape of (3, rows, columns), every channel of the tensor is a copy of the depth_data subracting the mean value
+                '''
+                r = np.array(depth_data).copy()
+                g = r.copy()
+                b = g.copy()
+                rgb = np.stack((r,g,b), axis=2) # (rows, columns, 3 channels)
+                rgb = np.subtract(rgb, np.array(self.meanval, dtype=np.float32))
+                rgb = rgb.transpose((2,0,1)) # from (rows, columns, channels) to (channels, rows, columns)
+                return rgb
+
+            rgb, depth, gt = self._load_images(frame_info, channels_to_load)
+            if (not rgb) and ('rgb' not in channels_to_load):
+                if 'd' in channels_to_load:
+                    rgb = _use_depth_as_rgb(depth[0])
+                else:
+                    raise Exception("Invalid 'channels' parameter, which should be 'd' or 'rgb' or 'rgbd'.")
+            return rgb, depth, gt
 
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
         if frame_info:
-            sample = {'target': None, 'target_depth': None, 'target_gt': None, 'seq_name': None, 'search_0': None, 'search_0_depth': None, 'search_0_gt':None, 'frame_index': frame_info.id}
+            sample = {
+                'seq_name': frame_info.seq_name, 'frame_index': frame_info.id,
+                'target': None, 'target_depth': None, 'target_gt': None, 
+                'search_0': None, 'search_0_depth': None, 'search_0_gt':None
+            }
 
-            current_img, current_depth, current_img_gt = self._load_rgbd_and_gt(frame_info)
-
-            if 'rgb' in self.channels:
-                sample['target'] = current_img
-            else:
-                # use depth as rgb
-                rgb = use_depth_as_rgb(current_depth[0])
-                sample['target'] = rgb
-
+            # 1. target frame
+            current_rgb, current_depth, current_gt = self._load_frame(frame_info, self.channels_for_target_frame)
+            sample['target'] = current_rgb
             sample['target_depth'] = current_depth
-            sample['target_gt'] = current_img_gt
-            sample['seq_name'] = frame_info.seq_name
+            sample['target_gt'] = current_gt
 
-            _range = self.sets[set_name]['offset4_frames_of_sequences'][frame_info.seq_name]
-
+            # 2. (a) counterpart frame(s) for comparison with the target frame
+            frame_range_of_seq = self.sets[set_name]['frame_range_of_sequences'][frame_info.seq_name]
+            frame_indices_for_counterpart = []
             if self.sample_range >= 1:
-                search_ids_pool= list(range(_range['start'], _range['end']))
-                search_ids = random.sample(search_ids_pool, self.sample_range)#min(len(self.img_list)-1, target_id+np.random.randint(1,self.range+1))
-
-                for i in range(0,self.sample_range):
-                    search_id = search_ids[i]
-                    frame_info_to_match = self._get_framename_by_index(set_name, search_id)
-                    match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
-                    if 'rgb' in self.channels:
-                        sample['search_'+str(i)] = match_img
-                    else:
-                        # use depth as rgb
-                        rgb = use_depth_as_rgb(match_depth[0])
-                        sample['search_'+str(i)] = rgb
-                    sample['search_'+str(i)+'_depth'] = match_depth
-                    sample['search_'+str(i)+'_gt'] = match_img_gt
-
+                frame_indices_candidates= list(range(frame_range_of_seq['start'], frame_range_of_seq['end']))
+                frame_indices_for_counterpart = random.sample(frame_indices_candidates, self.sample_range)#min(len(self.img_list)-1, target_id+np.random.randint(1,self.range+1))
             else:
                 # use the same frame to the target frame as the matching/search frame
-                idx_to_match = frame_index
+                frame_indices_for_counterpart = [frame_index]
 
-                frame_info_to_match = self._get_framename_by_index(set_name, idx_to_match)
-                match_img, match_depth, match_img_gt = self._load_rgbd_and_gt(frame_info_to_match)
-                if 'rgb' in self.channels:
-                    sample['search_0'] = match_img
-                else:
-                    # use depth as rgb
-                    rgb = use_depth_as_rgb(match_depth[0])
-                    sample['search_0'] = rgb
-                sample['search_0_depth'] = match_depth
-                sample['search_0_gt'] = match_img_gt
+            for i in range(len(frame_indices_for_counterpart)):
+                key = 'search_'+str(i)
+                frame_idx = frame_indices_for_counterpart[i]
+                frame_info_of_cp = self._get_framename_by_index(set_name, frame_idx)
+                cp_rgb, cp_depth, cp_gt = self._load_frame(frame_info_of_cp, self.channels_for_counterpart_frame)
+                sample[key] = cp_rgb
+                sample[key+'_depth'] = cp_depth
+                sample[key+'_gt'] = cp_gt
 
             # print(" ##### sample rgb: ",sample['target'].shape, " gt: ", sample['target_gt'].shape,  " depth: ", sample['target_depth'].shape, " search_rgb: " ,sample['search_0'].shape, " search_0_gt: ",sample['search_0_gt'].shape,  "search_0_depth: ", sample['search_0_depth'].shape)
             return sample
@@ -386,77 +374,108 @@ class HzFuRGBDVideos(Dataset):
         else:
             raise Exception('Cannot find the sequence from frame index ', frame_index)
 
-    def _load_rgbd_and_gt(self, frame_info):
-    #def _load_rgbd_and_gt(self, frame_index_in_train_set):
+    def _load_images(self, frame_info, channels='rgbdt'):
+        '''
+        Load images in channels givin frame_info
+        : param frame_info: the info of a frame being loaded
+        : param channels: rgbdt stands for red, green, blue, depth, ground truth
+        '''
+
         def __load_mat(path): #->np.array:
             # in the shape of (H, W) with values in [0, 255]
+            '''
+            : return: a 2d array in the shape of (output_HW[0], outputHW[1]) with values in [0,255]
+            '''
             f = h5py.File(path, 'r')
             result = np.array(f['depth'], dtype=np.float32)
             # print("depth shape: ",result.shape)
 
+            # resize to the expected size
             if self.output_HW is not None:
                 result = imresize(result, self.output_HW)
             result = np.array(result, dtype=np.float32)
+
+            # normalize
             result = (result - result.min()) * 255 / (result.max() - result.min())
             # print(" after depth shape: ",result.shape, result.dtype)
             # result = result.transpose() 
             return result
 
-        rgb_path = self._get_path_of_rgb_data(frame_info.seq_name, frame_info.name_of_rgb_frame)
-        depth_path = self._get_path_of_depth_data(frame_info.seq_name, frame_info.name_of_depth_frame)
-        gt_path = self._get_path_of_groundtruth_data(frame_info.seq_name, frame_info.name_of_groundtruth_frame)
+        load_rgb = 'rgb' in channels
+        load_depth = 'd' in channels
+        load_groundtruth = 't' in channels
+        rgb_img = None
+        depth_img = None
+        gt_img = None
+        if load_rgb:
+            # load rgb
+            rgb_path = self._get_path_of_rgb_data(frame_info.seq_name, frame_info.name_of_rgb_frame)
+            if rgb_path:
+                rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
+                if self.output_HW is not None:
+                    rgb_img = imresize(rgb_img, self.output_HW)
+                rgb_img = np.array(rgb_img, dtype=np.float32)
+                rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
+                rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
 
-        if rgb_path and depth_path and gt_path:
-            rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
-            if self.output_HW is not None:
-                rgb_img = imresize(rgb_img, self.output_HW)
+        if load_depth:
+            # load depth
+            depth_path = self._get_path_of_depth_data(frame_info.seq_name, frame_info.name_of_depth_frame)
+            if depth_path:
+                depth_img = __load_mat(depth_path)
+                depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
 
-            rgb_img = np.array(rgb_img, dtype=np.float32)
-            rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
-            rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
+        if load_groundtruth:
+            # load gt
+            gt_path = self._get_path_of_groundtruth_data(frame_info.seq_name, frame_info.name_of_groundtruth_frame)
+            if gt_path:
+                gt_img = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
+                if self.output_HW is not None:
+                    gt_img = imresize(gt_img, self.output_HW, interp='nearest')
+                gt_img[gt_img!=0]=1 # H, W with values in {0, 1}
+                gt_img = np.array(gt_img, dtype=np.int32)
+                # print("gt shape: ",gt_img.shape)
 
-            depth_img = __load_mat(depth_path)
-            depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
-
-            gt = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
-            if self.output_HW is not None:
-                gt = imresize(gt, self.output_HW, interp='nearest')
-            gt[gt!=0]=1 # H, W with values in {0, 1}
-            gt = np.array(gt, dtype=np.int32)
-
-            # print("gt shape: ",gt.shape)
+        if rgb_img or depth_img or gt_img:
             if self.stage == 'train':
-                rgb_img, depth_img, gt = self._augmente_image(rgb_img, depth_img, gt, frame_info.seq_name)
+                rgb_img, depth_img, gt_img = self._augmente_image(rgb_img, depth_img, gt_img, frame_info.seq_name)
 
             # to avoid the error `ValueError: some of the strides of a given numpy array are negative. This is currently not supported`
             rgb_img = torch.from_numpy(rgb_img.copy())
             depth_img = torch.from_numpy(depth_img.copy())
-            gt = torch.from_numpy(gt.copy())
-            return rgb_img, depth_img, gt
+            gt_img = torch.from_numpy(gt_img.copy())
+
+        return rgb_img, depth_img, gt_img
+
 
     def next_batch(self):
         self._scale_ratio = random.uniform(0.7, 1.3)
         self._crop_ratio = random.uniform(0.8, 1)
-        self._flip_probability = random.uniform(0, 1)
         # print("***** new batch ",self._scale_ratio, self._crop_ratio, self._flip_probability)
 
     def _augmente_image(self, rgb, depth, gt, seq):
-        rgb, offset = utils.crop3d(rgb, self._crop_ratio)
-        depth,_ = utils.crop3d(depth, self._crop_ratio, offset)
-        gt,_ = utils.crop2d(gt, self._crop_ratio, offset)
-
-        rgb = utils.scale3d(rgb, self._scale_ratio)
-        depth = utils.scale3d(depth, self._scale_ratio)
-        gt = utils.scale2d(gt, self._scale_ratio, cv2.INTER_NEAREST)
-
+        # for flipping images, we need to keep the frames of a sequence same, flip all frames of a sequence or not flip any frame of the sequence
         if seq not in self.flip_seq_for_augmentation:
-            flip_p = self._flip_probability
+            flip_p = random.uniform(0, 1)
             self.flip_seq_for_augmentation[seq] = flip_p
         else:
-            flip_p = self.flip_seq_for_augmentation[seq]
+            flip_p = self.flip_prob_of_seqs_for_augmentation[seq]
         # print("before flip ",flip_p)
-        rgb = utils.flip3d(rgb, flip_p)
-        depth = utils.flip3d(depth, flip_p)
-        gt = utils.flip2d(gt, flip_p)
+
+        offset = None
+        if rgb:
+            rgb, offset = utils.crop3d(rgb, self._crop_ratio, offset)
+            rgb = utils.scale3d(rgb, self._scale_ratio)
+            rgb = utils.flip3d(rgb, flip_p)
+
+        if depth:
+            depth, offset = utils.crop3d(depth, self._crop_ratio, offset)
+            depth = utils.scale3d(depth, self._scale_ratio)
+            depth = utils.flip3d(depth, flip_p)
+
+        if gt:
+            gt, offset = utils.crop2d(gt, self._crop_ratio, offset)
+            gt = utils.scale2d(gt, self._scale_ratio, cv2.INTER_NEAREST)
+            gt = utils.flip2d(gt, flip_p)
 
         return rgb, depth, gt

@@ -39,10 +39,23 @@ import torch.nn as nn
 #from pydensecrf.utils import unary_from_softmax, create_pairwise_bilateral, create_pairwise_gaussian
 from deeplab.residual_net import Bottleneck
 from rgbd_segmentation_model import RGBDSegmentationModel
+from deeplab.siamese_model_conf import CoattentionNet #original coattention model 
+from deeplab.siamese_model import CoattentionSiameseNet #refactored coattention model
+
+
 
 from torchvision.utils import save_image
 
 from evaluation import compute_iou
+import datetime
+
+
+log_section_start = "##=="
+log_section_end = "==##"
+
+timenow = datetime.datetime.now()
+ymd_hms = timenow.strftime("%Y%m%d_%H%M%S")
+
 
 def get_arguments():
     """Parse all the arguments provided from the CLI.
@@ -50,9 +63,9 @@ def get_arguments():
     Returns:
       A list of parsed arguments.
     """
-    parser = argparse.ArgumentParser(description="PSPnet")
-    parser.add_argument("--dataset", type=str, default='cityscapes',
-                        help="voc12, cityscapes, or pascal-context")
+    parser = argparse.ArgumentParser(description="RGBDCoAttention")
+    parser.add_argument("--dataset", type=str, default='hzfurgbd',
+                        help="hzfurgb, hzfurgbd, or davis")
 
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
@@ -60,46 +73,50 @@ def get_arguments():
                         help="choose gpu device.")
     parser.add_argument("--seq_name", default = 'bmx-bumps')
     parser.add_argument("--use_crf", default = 'True')
+    parser.add_argument("--save_seg_img", default = 'True')
     parser.add_argument("--sample_range", default =5)
-    
+    parser.add_argument("--epoches", default=0)
+    parser.add_argument("--batch_size", default=0)
+
     return parser.parse_args()
 
-def configure_dataset_model(args):
-    if args.dataset == 'hzfurgb':
-        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'
-        args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
-        args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
-        args.ignore_label = 255     #The index of the label to ignore during the training
-        args.input_size = '640,480' #'1920,1080' #Comma-separated string with height and width of images
-        args.num_classes = 2      #Number of classes to predict (including background)
-        args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
-        args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-        args.snapshot_dir = './snapshots/hzfurgb_iteration/'          #Where to save snapshots of the model
-        args.save_segimage = True
-        args.seg_save_dir = "./result/test/hzfurgb"
-        args.vis_save_dir = "./result/test/hzfurgb_vis"
-        args.corp_size =(473, 473) #didn't see reference
-        args.sample_range = 1
 
-        
-    elif args.dataset == 'hzfurgbd': 
-        args.data_dir = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'
-        args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
-        args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
+def config(args):
+
+    if args.dataset == 'hzfurgb':
+        if not args.batch_size:
+            args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        if not args.epoches:
+            args.epoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= epoches*len(train_aug)/batch_size_per_gpu'),
         args.ignore_label = 255     #The index of the label to ignore during the training
-        args.input_size = '160,120' #'640,480' #'1920,1080' #Comma-separated string with height and width of images
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
-        args.restore_from = './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-        args.snapshot_dir = './snapshots/hzfurgbd_iteration/'          #Where to save snapshots of the model
-        args.save_segimage = True
-        args.seg_save_dir = "./result/test/hzfurgbd"
-        args.vis_save_dir = "./result/test/hzfurgbd_vis"
-        args.corp_size =(473, 473) #didn't see reference
-        args.sample_range = 1
-        
+        #args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+
+    elif args.dataset == 'hzfurgbd': 
+        if not args.batch_size:
+            args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        if not args.epoches:
+            args.epoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= epoches*len(train_aug)/batch_size_per_gpu'),
+
+        args.ignore_label = 255     #The index of the label to ignore during the training
+        args.num_classes = 2      #Number of classes to predict (including background)
+        args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
+        #args.restore_from = './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+
     else:
         print("dataset error")
+
+    args.data_path = user_config['test']['dataset'][args.dataset]['data_path'] #'/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'
+    args.sample_range = user_config['test']['dataset'][args.dataset]['sample_range']
+
+    h, w = map(int, user_config['test']['dataset'][args.dataset]['image_HW_4_model'].split(','))
+    args.image_HW_4_model = (h, w)
+    h, w = map(int, user_config['test']['dataset'][args.dataset]['output_WH'].split(','))
+    args.output_WH = (w, h)
+
+    args.result_dir = os.path.join(args.result_dir, ymd_hms)
+
 
 def convert_state_dict(state_dict):
     """Converts a state dict saved from a dataParallel module to normal 
@@ -120,72 +137,101 @@ def convert_state_dict(state_dict):
             np.save('weight_matrix.npy',v.cpu().numpy())
     return state_dict_new
 
+
 def sigmoid(inX): 
     return 1.0/(1+np.exp(-inX))#定义一个sigmoid方法，其本质就是1/(1+e^-x)
 
+
 def main():
     args = get_arguments()
-    print("=====> Configure dataset and model")
-    configure_dataset_model(args)
+    config(args)
     print(args)
-    model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], num_classes=args.num_classes-1)
-    saved_state_dict = torch.load(args.restore_from, map_location=lambda storage, loc: storage)
+
+    logFileName = os.path.join(args.result_dir, args.dataset+"_test_log.txt")
+    if os.path.isfile(logFileName):
+        logger = open(logFileName, 'a')
+    else:
+        logger = open(logFileName, 'w')
+
+    model_name = user_config['test']['model'][args.model]
+    args.full_model_name = ""
+    if model_name == "ori" or model_name == "original_coattention_rgb":
+        model = CoattentionNet(num_classes=2)
+        args.full_model_name = "original_coattention_rgb"
+    elif model_name == "ref" or model_name == "refactored_coattention_rgb":
+        model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], 1)
+        args.full_model_name = "refactored_coattention_rgb"
+    elif model_name == "add" or model_name == "added_depth_rgbd":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3],  [3, 4, 6, 3], 1)
+        args.full_model_name = "added_depth_rgbd"
+    elif model_name == "coc" or model_name == "concatenated_depth_rgbd":
+        print("TODO for concatenated_depth_rgbd")
+        args.full_model_name = "concatenated_depth_rgbd"
+        return
+    else:
+        print("Invalid model name!")
+        return
+
+    args.pretrained_params = user_config['test']['model'][args.full_model_name]['pretrained_params']
+    logger.write(log_section_start+str(args)+log_section_end+"\n")
+    logger.flush()
+
+    saved_state_dict = torch.load(args.pretrained_params, map_location=lambda storage, loc: storage)
     #print(saved_state_dict.keys())
     #model.load_state_dict({k.replace('pspmodule.',''):v for k,v in torch.load(args.restore_from)['state_dict'].items()})
     model.load_state_dict( convert_state_dict(saved_state_dict["model"]) ) #convert_state_dict(saved_state_dict["model"])
 
     model.eval()
     model.cuda()
+
     if args.dataset == 'davis':  #for davis 2016
-        db_test = db.PairwiseImg(train=False, inputRes=(854,480), db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        db_test = db.PairwiseImg(train=False, output_HW=(854,480), db_root_dir=args.data_path,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
         #voc_colorize = VOCColorize()
     elif args.dataset == 'hzfurgb':
-        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range)
-        db_test.set_for_test()
+        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbt', channels_for_counterpart_frame='rgb', percentage_for_training=0, for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
     elif args.dataset == 'hzfurgbd':
-        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range)
-        db_test.set_for_test()
+        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbdt', channels_for_counterpart_frame='rgbd',  percentage_for_training=0, for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
     else:
         print("dataset error")
 
     data_list = []
 
-    if args.save_segimage:
-        if not os.path.exists(args.seg_save_dir) and not os.path.exists(args.vis_save_dir):
-            os.makedirs(args.seg_save_dir)
-            os.makedirs(args.vis_save_dir)
+    if args.save_seg_img:
+        args.output_img_dir = os.path.join(args.result_dir, "obj_seg_imgs")
+        if not os.path.exists(args.output_img_dir):
+            os.makedirs(args.output_img_dir)
+        
     print("======> test set size:", len(testloader))
+
     my_index = 0
     old_temp=''
+
+    iou_result = 0
+    iou_counter = 0
     for index, batch in enumerate(testloader):
         print('%d processd'%(index))
         # current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
         target = batch['target']
         target_depth = batch['target_depth']
         frame_index = batch['frame_index']
-        #search = batch['search']
-        temp = batch['seq_name']
-
-        args.seq_name=temp[0]
-        # print(args.seq_name)
-        if old_temp==args.seq_name:
-            my_index = my_index+1
-        else:
-            my_index = 0
-
-        seq_name = ""
+        seqs_name = batch['seq_name']
 
         output_sum = 0 
         for i in range(0,args.sample_range):  
-            search = batch['search'+'_'+str(i)]
+            search_img = batch['search'+'_'+str(i)]
             search_depth = batch['search_'+str(i)+'_depth']
-            search_im = search
-            #print(search_im.size())
+            #print(search_img.size())
             with torch.no_grad():
-                output = model(Variable(target).cuda(),Variable(search_im).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
+                if args.depth_coattention:
+                    output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
+                elif args.depth_constraint:
+                    output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
+                else:
+                    output = model(Variable(target).cuda(),Variable(search_img).cuda())
+
                 #print(output[0]) # output有两个
                 # output_sum = output_sum + output[0].data[0,0].cpu().numpy() #分割那个分支的结果
                 output_sum = output_sum + output[0].data.cpu().numpy() #分割那个分支的结果^M
@@ -193,24 +239,25 @@ def main():
                 #output2 = output[1].data[0, 0].cpu().numpy() #interp'
         
         output1 = output_sum/args.sample_range
-     
-        # first_image = np.array(Image.open(args.data_dir+'/JPEGImages/480p/blackswan/00000.jpg'))
-        original_shape = (480, 640) #first_image.shape 
         outputarray = np.array(output1)
 
+        # resize
         output2 = []
         for idx in range(len(output1)):
             img = output1[idx, 0]
-            img = cv2.resize(img, (original_shape[1],original_shape[0]))
+            img = cv2.resize(img, args.output_WH)
             output2.append(img)
         output1 = np.array(output2)
-        # output1 = cv2.resize(output1, (original_shape[1],original_shape[0]))
 
-        masks_data = (output1 * 255).astype(np.uint8)
+        # calc IOU and generate the final images
+        masks_data_uint8 = (output1 * 255).astype(np.uint8)
         masks = []
-        for idx in range(len(masks_data)):
-            x = masks_data[idx]
+        for idx in range(len(masks_data_uint8)):
+            x = masks_data_uint8[idx]
             iou = compute_iou(x, np.array(batch['target_gt'][idx]))
+            logger.write(log_section_start+" seq: "+ seqs_name[idx]+" frame: "+frame_index[idx]+" IOU: "+str(iou)+log_section_end+"\n")
+            iou_result = iou + iou_result
+            iou_counter = iou_counter + 1
             mask = Image.fromarray(x, mode='L')
             masks.append(mask)
 
@@ -218,32 +265,18 @@ def main():
         # #print(mask.shape[0])
         # mask = Image.fromarray(mask)
 
-        if args.dataset == 'davis':
+        if args.output_img_dir:
             
-            save_dir_res = os.path.join(args.seg_save_dir, 'Results', args.seq_name)
-            old_temp=args.seq_name
-            if not os.path.exists(save_dir_res):
-                os.makedirs(save_dir_res)
-            if args.save_segimage:   
-                my_index1 = str(my_index).zfill(5)
-                seg_filename = os.path.join(save_dir_res, '{}.png'.format(my_index1))
-                #color_file = Image.fromarray(voc_colorize(output).transpose(1, 2, 0), 'RGB')
+            for idx in range(len(masks)):
+                mask = masks[idx]
+                save_dir = os.path.join(args.output_img_dir, seqs_name[idx])
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)
+                seg_filename = os.path.join(save_dir, '{}.png'.format(frame_index[idx]))
                 mask.save(seg_filename)
-                #np.concatenate((torch.zeros(1, 473, 473), mask, torch.zeros(1, 512, 512)),axis = 0)
-                #save_image(output1 * 0.8 + target.data, args.vis_save_dir, normalize=True)
-        elif args.dataset == 'hzfurgbd':
-            if args.save_segimage:
-                save_dir_res = os.path.join(args.seg_save_dir, 'Results', seq_name)
-                if not os.path.exists(save_dir_res):
-                    os.makedirs(save_dir_res)
-                for idx in range(len(masks)):
-                    mask = masks[idx]
-                    seg_filename = os.path.join(save_dir_res, '{}.png'.format(frame_index[idx]))
-                    mask.save(seg_filename)
+    iou_result = iou_result/iou_counter
+    logger.write(log_section_start+" final IOU: "+ iou_result +log_section_end+"\n")
 
-        else:
-            print("dataset error")
-    
 
 if __name__ == '__main__':
     main()

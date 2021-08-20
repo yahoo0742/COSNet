@@ -44,7 +44,7 @@ def logMem(logger, prefix):
     total = torch.cuda.get_device_properties(None).total_memory
     mem_alloc = torch.cuda.memory_allocated()
     mem_cache = torch.cuda.memory_cached()
-    msg = prefix + " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)
+    msg = prefix + " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)+ "\n"
     print(msg)
     if logger:
         logger.write(msg)
@@ -407,9 +407,7 @@ def main():
     print("=====> Preparing training data")
     db_train = None
     if args.dataset == 'hzfurgbd':
-        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, transform=None)
-        db_train.set_for_train()
-        db_train.set_batch_size(args.batch_size)
+        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, transform=None, for_training=True, batch_size=args.batch_size)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
@@ -498,7 +496,7 @@ def main():
     logger.write("total training time: {:.2f} h\n".format(float(end-start)/3600))
     logger.close()
 
-    plot2d(np.arange(args.maxEpoches), loss_history, "epoch", "loss", "training_loss_"+args.dataset)
+    plot2d(np.arange(len(loss_history)), loss_history, "epoch", "loss", "training_loss_"+args.dataset)
 
 
 if __name__ == '__main__':
