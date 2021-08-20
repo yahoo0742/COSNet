@@ -430,6 +430,10 @@ class HzFuRGBDVideos(Dataset):
                 rgb_img = np.array(rgb_img, dtype=np.float32)
                 rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
                 rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
+            else:
+                raise Exception("Cannot find the rgb image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
+        else:
+            rgb_img = np.zeros((1,1), dtype=np.float32)
 
         if load_depth:
             # load depth
@@ -437,6 +441,10 @@ class HzFuRGBDVideos(Dataset):
             if depth_path:
                 depth_img = __load_mat(depth_path)
                 depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
+            else:
+                raise Exception("Cannot find the depth image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
+        else:
+            depth_img = np.zeros((1,1), dtype=np.float32)
 
         if load_groundtruth:
             # load gt
@@ -448,23 +456,18 @@ class HzFuRGBDVideos(Dataset):
                 gt_img[gt_img!=0]=1 # H, W with values in {0, 1}
                 gt_img = np.array(gt_img, dtype=np.uint8)
                 # print("gt shape: ",gt_img.shape)
+            else:
+                raise Exception("Cannot find the groud truth image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
+        else:
+            gt_img = np.zeros((1,1), dtype=np.uint8)
 
         if self.stage == 'train':
             rgb_img, depth_img, gt_img = self._augmente_image(rgb_img, depth_img, gt_img, frame_info.seq_name)
 
         # to avoid the error `ValueError: some of the strides of a given numpy array are negative. This is currently not supported`
-        if not rgb_img == None:
-            rgb_img = torch.from_numpy(rgb_img.copy())
-        else:
-            rgb_img = np.zeros((1,1), dtype=np.float32)
-        if not depth_img == None:
-            depth_img = torch.from_numpy(depth_img.copy())
-        else:
-            depth_img = np.zeros((1,1), dtype=np.float32)
-        if not gt_img == None:
-            gt_img = torch.from_numpy(gt_img.copy())
-        else:
-            gt = np.zeros((1,1), dtype=np.uint8)
+        rgb_img = torch.from_numpy(rgb_img.copy())
+        depth_img = torch.from_numpy(depth_img.copy())
+        gt_img = torch.from_numpy(gt_img.copy())
 
         return rgb_img, depth_img, gt_img
 
