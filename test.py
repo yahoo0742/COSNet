@@ -153,6 +153,12 @@ def main():
     else:
         logger = open(logFileName, 'w')
 
+    if args.cuda:
+        print("====> Use gpu id: '{}'".format(args.gpus))
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
+        if not torch.cuda.is_available():
+            raise Exception("No GPU found or Wrong gpu id, please run without --cuda")
+
     model_name = user_config['test']['model'][args.model]
     args.full_model_name = ""
     if model_name == "ori" or model_name == "original_coattention_rgb":

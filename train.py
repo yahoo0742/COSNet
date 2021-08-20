@@ -348,12 +348,23 @@ def main():
         if args.cuda:
             #model.to(device)
             for i in saved_state_dict["model"]:
-                if i.startswith("module.layer5."):
-                    newKey = i.replace("module.layer5.", "encoder.aspp.")
-                elif i.startswith("module.main_classifier."):
-                    newKey = i.replace("module.main_classifier.", "encoder.main_classifier.")
+                if True:
+                    if i.startswith("module.layer5."):
+                        newKey = i.replace("module.layer5.", "encoder.aspp.")
+                    elif i.startswith("module.main_classifier."):
+                        newKey = i.replace("module.main_classifier.", "encoder.main_classifier.")
+                    else:
+                        newKey = i.replace("module.", "encoder.backbone.")
                 else:
-                    newKey = i.replace("module.", "encoder.backbone.")
+                    if i.startswith("module.encoder.layer5."):
+                        newKey = i.replace("module.encoder.layer5.", "encoder.aspp.")
+                    elif i.startswith("module.encoder.main_classifier."):
+                        newKey = i.replace("module.encoder.main_classifier.", "encoder.main_classifier.")
+                    elif i.startswith("module.encoder."):
+                        newKey = i.replace("module.encoder.", "encoder.backbone.")
+                    else:
+                        newKey = i.replace("module.", "")
+                    print("key ", i, " NEW: ",newKey)
                 new_params[newKey] = saved_state_dict["model"][i]
         return new_params
         
