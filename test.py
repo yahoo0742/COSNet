@@ -129,7 +129,7 @@ def convert_state_dict(state_dict):
     #print(type(state_dict))
     for k, v in state_dict.items():
         print("state key: ",k)
-        name = k[7:] # remove the prefix module.
+        name = k # k[7:] # remove the prefix module.
         # My heart is broken, the pytorch have no ability to do with the problem.
         state_dict_new[name] = v
         if name == 'linear_e.weight':
@@ -170,9 +170,10 @@ def main():
         print("Invalid model name!")
         return
 
-    args.result_dir = os.path.join("vos_test_results", args.dataset, args.full_model_name, ymd_hms)
-
-    logFileName = os.path.join(args.result_dir, args.dataset+"_"+args.full_model_name+"_"+ymd_hms+"test_log.txt")
+    args.result_dir = os.path.join(".", "vos_test_results", args.dataset, args.full_model_name, ymd_hms)
+    if not os.path.exists(args.result_dir):
+        os.makedirs(args.result_dir)
+    logFileName = os.path.join(args.result_dir, args.dataset+"__"+args.full_model_name+"_"+ymd_hms+"_test_log.txt")
     if os.path.isfile(logFileName):
         logger = open(logFileName, 'a')
     else:
