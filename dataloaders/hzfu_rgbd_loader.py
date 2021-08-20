@@ -323,7 +323,7 @@ class HzFuRGBDVideos(Dataset):
         '''
         :return: the rgb, depth of the target frame and the rgb, depth of the matching/search frame
         '''
-        def _load_frame(self, frame_info, channels_to_load):
+        def _load_frame(frame_info, channels_to_load):
 
             def _use_depth_as_rgb(depth_data):
                 '''
@@ -345,6 +345,7 @@ class HzFuRGBDVideos(Dataset):
                     raise Exception("Invalid 'channels' parameter, which should be 'd' or 'rgb' or 'rgbd'.")
             return rgb, depth, gt
 
+
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
         if frame_info:
@@ -355,7 +356,7 @@ class HzFuRGBDVideos(Dataset):
             }
 
             # 1. target frame
-            current_rgb, current_depth, current_gt = self._load_frame(frame_info, self.channels_for_target_frame)
+            current_rgb, current_depth, current_gt = _load_frame(frame_info, self.channels_for_target_frame)
             sample['target'] = current_rgb
             sample['target_depth'] = current_depth
             sample['target_gt'] = current_gt
@@ -374,7 +375,7 @@ class HzFuRGBDVideos(Dataset):
                 key = 'search_'+str(i)
                 frame_idx = frame_indices_for_counterpart[i]
                 frame_info_of_cp = self._get_framename_by_index(set_name, frame_idx)
-                cp_rgb, cp_depth, cp_gt = self._load_frame(frame_info_of_cp, self.channels_for_counterpart_frame)
+                cp_rgb, cp_depth, cp_gt = _load_frame(frame_info_of_cp, self.channels_for_counterpart_frame)
                 sample[key] = cp_rgb
                 sample[key+'_depth'] = cp_depth
                 sample[key+'_gt'] = cp_gt
