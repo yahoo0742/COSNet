@@ -152,18 +152,17 @@ def main():
         if not torch.cuda.is_available():
             raise Exception("No GPU found or Wrong gpu id, please run without --cuda")
 
-    model_name = user_config['test']['model'][args.model]
     args.full_model_name = ""
-    if model_name == "ori" or model_name == "original_coattention_rgb":
+    if args.model == "ori" or args.model == "original_coattention_rgb":
         model = CoattentionNet(num_classes=2)
         args.full_model_name = "original_coattention_rgb"
-    elif model_name == "ref" or model_name == "refactored_coattention_rgb":
+    elif args.model == "ref" or args.model == "refactored_coattention_rgb":
         model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], 1)
         args.full_model_name = "refactored_coattention_rgb"
-    elif model_name == "add" or model_name == "added_depth_rgbd":
+    elif args.model == "add" or args.model == "added_depth_rgbd":
         model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3],  [3, 4, 6, 3], 1)
         args.full_model_name = "added_depth_rgbd"
-    elif model_name == "coc" or model_name == "concatenated_depth_rgbd":
+    elif args.model == "coc" or args.model == "concatenated_depth_rgbd":
         print("TODO for concatenated_depth_rgbd")
         args.full_model_name = "concatenated_depth_rgbd"
         return
