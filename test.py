@@ -77,6 +77,7 @@ def get_arguments():
     parser.add_argument("--sample_range", default =5)
     parser.add_argument("--epoches", default=0)
     parser.add_argument("--batch_size", default=0)
+    parser.add_argument("--model", default="add", help="ori, ref, add, or coc")
 
     return parser.parse_args()
 
@@ -107,6 +108,7 @@ def config(args):
     else:
         print("dataset error")
 
+    args.result_dir = user_config['test']['dataset'][args.dataset]['result_path']
     args.data_path = user_config['test']['dataset'][args.dataset]['data_path'] #'/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'
     args.sample_range = user_config['test']['dataset'][args.dataset]['sample_range']
 
@@ -114,8 +116,6 @@ def config(args):
     args.image_HW_4_model = (h, w)
     h, w = map(int, user_config['test']['dataset'][args.dataset]['output_WH'].split(','))
     args.output_WH = (w, h)
-
-    args.result_dir = os.path.join(args.result_dir, ymd_hms)
 
 
 def convert_state_dict(state_dict):
@@ -147,12 +147,6 @@ def main():
     config(args)
     print(args)
 
-    logFileName = os.path.join(args.result_dir, args.dataset+"_test_log.txt")
-    if os.path.isfile(logFileName):
-        logger = open(logFileName, 'a')
-    else:
-        logger = open(logFileName, 'w')
-
     if args.cuda:
         print("====> Use gpu id: '{}'".format(args.gpus))
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
@@ -177,6 +171,14 @@ def main():
     else:
         print("Invalid model name!")
         return
+
+    args.result_dir = os.path.join("vos_test_results", args.dataset, args.full_model_name, ymd_hms)
+
+    logFileName = os.path.join(args.result_dir, args.dataset+"_"+args.full_model_name+"_"+ymd_hms+"test_log.txt")
+    if os.path.isfile(logFileName):
+        logger = open(logFileName, 'a')
+    else:
+        logger = open(logFileName, 'w')
 
     args.pretrained_params = user_config['test']['model'][args.full_model_name]['pretrained_params']
     logger.write(log_section_start+str(args)+log_section_end+"\n")
