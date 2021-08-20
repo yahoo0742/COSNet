@@ -338,7 +338,7 @@ class HzFuRGBDVideos(Dataset):
                 return rgb
 
             rgb, depth, gt = self._load_images(frame_info, channels_to_load)
-            if (not rgb) and ('rgb' not in channels_to_load):
+            if 'rgb' not in channels_to_load:
                 if 'd' in channels_to_load:
                     rgb = _use_depth_as_rgb(depth[0])
                 else:
