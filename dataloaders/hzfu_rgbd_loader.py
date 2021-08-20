@@ -272,8 +272,6 @@ class HzFuRGBDVideos(Dataset):
                     videoFrameInfo = VideoFrameInfo(seq, gt_frame_id, rgb_framename, depth_framename, gt_framename)
                     labelled_frames_of_seq.append(videoFrameInfo)
 
-            for seq in invalid_seqs:
-                self.sets['entire']['names_of_sequences'].remove(seq)
             # now all valid frames (labelled frames) of this sequence have been collected in labelled_frames_of_seq
 
             if len(labelled_frames_of_seq) > 0:
@@ -281,6 +279,10 @@ class HzFuRGBDVideos(Dataset):
                 end_idx = start_idx + len(labelled_frames_of_seq)
                 self.sets['entire']['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets['entire']['names_of_frames'].extend(labelled_frames_of_seq)
+
+        for seq in invalid_seqs:
+            self.sets['entire']['names_of_sequences'].remove(seq)
+
 
     def _split_dataset(self):
         # sequence based -- all frames of a sequence is randomly chosen for training, or for test
