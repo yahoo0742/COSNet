@@ -232,9 +232,7 @@ def main():
             search_depth = batch['search_'+str(i)+'_depth']
             #print(search_img.size())
             with torch.no_grad():
-                if args.depth_coattention:
-                    output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
-                elif args.depth_constraint:
+                if args.full_model_name == "added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd":
                     output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
                 else:
                     output = model(Variable(target).cuda(),Variable(search_img).cuda())
