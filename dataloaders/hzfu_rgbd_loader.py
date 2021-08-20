@@ -453,11 +453,11 @@ class HzFuRGBDVideos(Dataset):
             rgb_img, depth_img, gt_img = self._augmente_image(rgb_img, depth_img, gt_img, frame_info.seq_name)
 
         # to avoid the error `ValueError: some of the strides of a given numpy array are negative. This is currently not supported`
-        if rgb_img.any():
+        if not rgb_img == None:
             rgb_img = torch.from_numpy(rgb_img.copy())
-        if depth_img.any():
+        if not depth_img == None:
             depth_img = torch.from_numpy(depth_img.copy())
-        if gt_img.any():
+        if not gt_img == None:
             gt_img = torch.from_numpy(gt_img.copy())
 
         return rgb_img, depth_img, gt_img
