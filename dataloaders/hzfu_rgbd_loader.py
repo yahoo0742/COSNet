@@ -216,6 +216,7 @@ class HzFuRGBDVideos(Dataset):
                     folder.set_extension_name(None)
             return framenames_of_seq
 
+        invalid_seqs = []
         for seq in self.sets['entire']['names_of_sequences']:
             '''
             because not every rgb frame has been labelled in the dataset and I only consider the labelled frames as valid frames for training and test,
@@ -226,6 +227,7 @@ class HzFuRGBDVideos(Dataset):
             names_of_gt_frames_of_seq = __check_framenames_of_sequence(EContentInfo.groundtruth, seq)
 
             if names_of_gt_frames_of_seq == None or names_of_depth_frames_of_seq == None or names_of_rgb_frames_of_seq == None:
+                invalid_seqs.append(seq)
                 continue
 
             names_of_rgb_frames_of_seq.sort()
@@ -270,6 +272,8 @@ class HzFuRGBDVideos(Dataset):
                     videoFrameInfo = VideoFrameInfo(seq, gt_frame_id, rgb_framename, depth_framename, gt_framename)
                     labelled_frames_of_seq.append(videoFrameInfo)
 
+            for seq in invalid_seqs:
+                self.sets['entire']['names_of_sequences'].remove(seq)
             # now all valid frames (labelled frames) of this sequence have been collected in labelled_frames_of_seq
 
             if len(labelled_frames_of_seq) > 0:
