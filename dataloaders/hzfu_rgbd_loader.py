@@ -420,6 +420,7 @@ class HzFuRGBDVideos(Dataset):
         rgb_img = None
         depth_img = None
         gt_img = None
+        crop_offset = None
         if load_rgb:
             # load rgb
             rgb_path = self._get_path_of_rgb_data(frame_info.seq_name, frame_info.name_of_rgb_frame)
@@ -430,6 +431,9 @@ class HzFuRGBDVideos(Dataset):
                 rgb_img = np.array(rgb_img, dtype=np.float32)
                 rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
                 rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
+                if self.stage == 'train':
+                    rgb_img, crop_offset = self._augmente_image(rgb_img, frame_info.seq_name, crop_offset, True)
+
             else:
                 raise Exception("Cannot find the rgb image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
         else:
@@ -441,6 +445,8 @@ class HzFuRGBDVideos(Dataset):
             if depth_path:
                 depth_img = __load_mat(depth_path)
                 depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
+                if self.stage == 'train':
+                    depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
             else:
                 raise Exception("Cannot find the depth image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
         else:
@@ -456,13 +462,15 @@ class HzFuRGBDVideos(Dataset):
                 gt_img[gt_img!=0]=1 # H, W with values in {0, 1}
                 gt_img = np.array(gt_img, dtype=np.uint8)
                 # print("gt shape: ",gt_img.shape)
+                if self.stage == 'train':
+                    gt_img, crop_offset = self._augmente_image(gt_img, frame_info.seq_name, crop_offset, False)
             else:
                 raise Exception("Cannot find the groud truth image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
         else:
             gt_img = np.zeros((1,1), dtype=np.uint8)
 
-        if self.stage == 'train':
-            rgb_img, depth_img, gt_img = self._augmente_image(rgb_img, depth_img, gt_img, frame_info.seq_name)
+        # if self.stage == 'train':
+        #     rgb_img, depth_img, gt_img = self._augmente_images(rgb_img, depth_img, gt_img, frame_info.seq_name)
 
         # to avoid the error `ValueError: some of the strides of a given numpy array are negative. This is currently not supported`
         rgb_img = torch.from_numpy(rgb_img.copy())
@@ -477,7 +485,27 @@ class HzFuRGBDVideos(Dataset):
         self._crop_ratio = random.uniform(0.8, 1)
         # print("***** new batch ",self._scale_ratio, self._crop_ratio, self._flip_probability)
 
-    def _augmente_image(self, rgb, depth, gt, seq):
+    def _augmente_image(self, img, seq, offset, is3D):
+        # for flipping images, we need to keep the frames of a sequence same, flip all frames of a sequence or not flip any frame of the sequence
+        if seq not in self.flip_prob_of_seqs_for_augmentation:
+            flip_p = random.uniform(0, 1)
+            self.flip_prob_of_seqs_for_augmentation[seq] = flip_p
+        else:
+            flip_p = self.flip_prob_of_seqs_for_augmentation[seq]
+
+        if is3D:
+            img, offset = utils.crop3d(img, self._crop_ratio, offset)
+            img = utils.scale3d(img, self._scale_ratio)
+            img = utils.flip3d(img, flip_p)
+        else:
+            img, offset = utils.crop2d(img, self._crop_ratio, offset)
+            img = utils.scale2d(img, self._scale_ratio, cv2.INTER_NEAREST)
+            img = utils.flip2d(img, flip_p)
+
+        return img, offset
+
+
+    def _augmente_images(self, rgb, depth, gt, seq):
         # for flipping images, we need to keep the frames of a sequence same, flip all frames of a sequence or not flip any frame of the sequence
         if seq not in self.flip_prob_of_seqs_for_augmentation:
             flip_p = random.uniform(0, 1)
