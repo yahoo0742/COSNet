@@ -329,7 +329,7 @@ def main():
         model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
         args.full_model_name = "added_depth_rgbd"
     elif args.model == "coc" or args.model == "concatenated_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], num_blocks_of_layers_4_depth=None, num_classes=1)
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
         args.full_model_name = "concatenated_depth_rgbd"
         return
     else:
