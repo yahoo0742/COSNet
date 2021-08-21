@@ -479,9 +479,9 @@ class HzFuRGBDVideos(Dataset):
 
     def _augmente_image(self, rgb, depth, gt, seq):
         # for flipping images, we need to keep the frames of a sequence same, flip all frames of a sequence or not flip any frame of the sequence
-        if seq not in self.flip_seq_for_augmentation:
+        if seq not in self.flip_prob_of_seqs_for_augmentation:
             flip_p = random.uniform(0, 1)
-            self.flip_seq_for_augmentation[seq] = flip_p
+            self.flip_prob_of_seqs_for_augmentation[seq] = flip_p
         else:
             flip_p = self.flip_prob_of_seqs_for_augmentation[seq]
         # print("before flip ",flip_p)
