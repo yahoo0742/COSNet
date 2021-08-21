@@ -29,16 +29,20 @@ import matplotlib.pyplot as plt
 import random
 import timeit
 #from psp.model1 import CoattentionNet  #based on pspnet
-# from deeplab.siamese_model_conf import CoattentionNet #siame_model 
+from deeplab.siamese_model_conf import CoattentionNet #siame_model 
 #from deeplab.utils import get_1x_lr_params, get_10x_lr_params#, adjust_learning_rate #, loss_calc
 from deeplab.residual_net import Bottleneck
-# from deeplab.siamese_model import CoattentionSiameseNet
+from deeplab.siamese_model import CoattentionSiameseNet
 from rgbd_segmentation_model import RGBDSegmentationModel
 import datetime
 import gc
 
 start = timeit.default_timer()
 
+log_section_start = "##=="
+log_section_end = "==##"
+timenow = datetime.datetime.now()
+ymd_hms = timenow.strftime("%Y%m%d_%H%M%S")
 
 def logMem(logger, prefix):
     total = torch.cuda.get_device_properties(None).total_memory
@@ -98,7 +102,7 @@ def get_arguments():
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") 
-
+    parser.add_argument("--model", default="coc", help="ori, ref, add, or coc") 
 
     return parser.parse_args()
 
@@ -143,9 +147,7 @@ def configure_dataset_init_model(args):
     
     h, w = map(int, user_config["train"]["dataset"][args.dataset]["output_HW"].split(','))
     args.output_HW = (h, w)
-    timenow = datetime.datetime.now()
-    ymd_hm = timenow.strftime("%Y%m%d_%H%M")
-    args.snapshot_dir = osp.join(user_config["train"]["dataset"][args.dataset]["snapshot_output_path"], 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hm)
+
 
 
 def adjust_learning_rate(optimizer, i_iter, epoch, max_iter):
@@ -316,16 +318,36 @@ def main():
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed) 
 
+    args.full_model_name = ""
+    if args.model == "ori" or args.model == "original_coattention_rgb":
+        model = CoattentionNet(num_classes=args.num_classes)
+        args.full_model_name = "original_coattention_rgb"
+    elif args.model == "ref" or args.model == "refactored_coattention_rgb":
+        model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
+        args.full_model_name = "refactored_coattention_rgb"
+    elif args.model == "add" or args.model == "added_depth_rgbd":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
+        args.full_model_name = "added_depth_rgbd"
+    elif args.model == "coc" or args.model == "concatenated_depth_rgbd":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], num_blocks_of_layers_4_depth=None, num_classes=1)
+        args.full_model_name = "concatenated_depth_rgbd"
+        return
+    else:
+        print("Invalid model name!")
+        return
+
+    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, args.model, 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hms)
+
     if not os.path.exists(args.snapshot_dir):
         os.makedirs(args.snapshot_dir)
 
-    logFileLoc = osp.join(args.snapshot_dir, args.logFile)
-    newLogFile = False
+    logFileLoc = osp.join(args.snapshot_dir, args.dataset+"__"+args.full_model_name+"_"+ymd_hms+"_train_log.txt")
     if os.path.isfile(logFileLoc):
         logger = open(logFileLoc, 'a')
     else:
         logger = open(logFileLoc, 'w')
-        newLogFile = True
+    
+    logger.write(log_section_start+str(args)+log_section_end+"\n")
     logger.flush()
 
     cudnn.enabled = True
@@ -336,9 +358,6 @@ def main():
 
     print("=====> Building network")
 
-    model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=args.num_classes-1)
-    # model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
-    #model = CoattentionNet(num_classes=args.num_classes)
     #print(model)
     print("=====> Restoring initial state")
 
@@ -410,10 +429,9 @@ def main():
     total_paramters = netParams(model)
     print('Total network parameters: ' + str(total_paramters))
  
-    if newLogFile:
-        logger.write("Parameters: %s" % (str(total_paramters)))
-        logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
-        logger.flush()
+    logger.write("Parameters: %s" % (str(total_paramters)))
+    logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
+    logger.flush()
 
     print("=====> Preparing training data")
     db_train = None
