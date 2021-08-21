@@ -113,7 +113,7 @@ def config(args):
 
     h, w = map(int, user_config['test']['dataset'][args.dataset]['image_HW_4_model'].split(','))
     args.image_HW_4_model = (h, w)
-    h, w = map(int, user_config['test']['dataset'][args.dataset]['output_WH'].split(','))
+    w, h = map(int, user_config['test']['dataset'][args.dataset]['output_WH'].split(','))
     args.output_WH = (w, h)
 
 
@@ -218,69 +218,74 @@ def main():
 
     iou_result = 0
     iou_counter = 0
-    for index, batch in enumerate(testloader):
-        print('%d processd'%(index))
-        # current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
-        target = batch['target']
-        target_depth = batch['target_depth']
-        frame_index = batch['frame_index']
-        seqs_name = batch['seq_name']
 
-        output_sum = 0 
-        for i in range(0,args.sample_range):  
-            search_img = batch['search'+'_'+str(i)]
-            search_depth = batch['search_'+str(i)+'_depth']
-            #print(search_img.size())
-            with torch.no_grad():
-                if args.full_model_name == "added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd":
-                    output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
-                else:
-                    output = model(Variable(target).cuda(),Variable(search_img).cuda())
+    ct = 0
+    max_epoch = 10
+    while ct < max_epoch:
+        for index, batch in enumerate(testloader):
+            print('%d processd'%(index))
+            # current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
+            target = batch['target']
+            target_depth = batch['target_depth']
+            frame_index = batch['frame_index']
+            seqs_name = batch['seq_name']
 
-                #print(output[0]) # output有两个
-                # output_sum = output_sum + output[0].data[0,0].cpu().numpy() #分割那个分支的结果
-                output_sum = output_sum + output[0].data.cpu().numpy() #分割那个分支的结果^M
-                #np.save('infer'+str(i)+'.npy',output1)
-                #output2 = output[1].data[0, 0].cpu().numpy() #interp'
-        
-        output1 = output_sum/args.sample_range
-        outputarray = np.array(output1)
+            output_sum = 0 
+            for i in range(0,args.sample_range):  
+                search_img = batch['search'+'_'+str(i)]
+                search_depth = batch['search_'+str(i)+'_depth']
+                #print(search_img.size())
+                with torch.no_grad():
+                    if args.full_model_name == "added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd":
+                        output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
+                    else:
+                        output = model(Variable(target).cuda(),Variable(search_img).cuda())
 
-        # resize
-        output2 = []
-        for idx in range(len(output1)):
-            img = output1[idx, 0]
-            img = cv2.resize(img, args.output_WH)
-            output2.append(img)
-        output1 = np.array(output2)
-
-        # calc IOU and generate the final images
-        masks_data_uint8 = (output1 * 255).astype(np.uint8)
-        masks = []
-        for idx in range(len(masks_data_uint8)):
-            x = masks_data_uint8[idx]
-            iou = compute_iou(x, np.array(batch['target_gt'][idx]))
-            logger.write(log_section_start+" seq: "+ seqs_name[idx]+" frame: "+frame_index[idx]+" IOU: "+str(iou)+log_section_end+"\n")
-            iou_result = iou + iou_result
-            iou_counter = iou_counter + 1
-            mask = Image.fromarray(x, mode='L')
-            masks.append(mask)
-
-        # mask = (output1*255).astype(np.uint8)
-        # #print(mask.shape[0])
-        # mask = Image.fromarray(mask)
-
-        if args.output_img_dir:
+                    #print(output[0]) # output有两个
+                    # output_sum = output_sum + output[0].data[0,0].cpu().numpy() #分割那个分支的结果
+                    output_sum = output_sum + output[0].data.cpu().numpy() #分割那个分支的结果^M
+                    #np.save('infer'+str(i)+'.npy',output1)
+                    #output2 = output[1].data[0, 0].cpu().numpy() #interp'
             
-            for idx in range(len(masks)):
-                mask = masks[idx]
-                save_dir = os.path.join(args.output_img_dir, seqs_name[idx])
-                if not os.path.exists(save_dir):
-                    os.makedirs(save_dir)
-                seg_filename = os.path.join(save_dir, '{}.png'.format(frame_index[idx]))
-                mask.save(seg_filename)
+            output1 = output_sum/args.sample_range
+            outputarray = np.array(output1)
+
+            # resize
+            output2 = []
+            for idx in range(len(output1)):
+                img = output1[idx, 0]
+                img = cv2.resize(img, args.output_WH)
+                output2.append(img)
+            output1 = np.array(output2)
+
+            # calc IOU and generate the final images
+            masks_data_uint8 = (output1 * 255).astype(np.uint8)
+            masks = []
+            for idx in range(len(masks_data_uint8)):
+                x = masks_data_uint8[idx]
+                iou = compute_iou(x, np.array(batch['target_gt'][idx]))
+                logger.write(log_section_start+" seq: "+ seqs_name[idx]+" frame: "+frame_index[idx]+" IOU: "+str(iou)+log_section_end+"\n")
+                iou_result = iou + iou_result
+                iou_counter = iou_counter + 1
+                mask = Image.fromarray(x, mode='L')
+                masks.append(mask)
+
+            # mask = (output1*255).astype(np.uint8)
+            # #print(mask.shape[0])
+            # mask = Image.fromarray(mask)
+
+            if args.output_img_dir:
+                
+                for idx in range(len(masks)):
+                    mask = masks[idx]
+                    save_dir = os.path.join(args.output_img_dir, seqs_name[idx])
+                    if not os.path.exists(save_dir):
+                        os.makedirs(save_dir)
+                    seg_filename = os.path.join(save_dir, '{}.png'.format(frame_index[idx]))
+                    mask.save(seg_filename)
+
     iou_result = iou_result/iou_counter
-    logger.write(log_section_start+" final IOU: "+ iou_result +log_section_end+"\n")
+    logger.write(log_section_start+" final IOU: "+ str(iou_result) +log_section_end+"\n")
 
 
 if __name__ == '__main__':
