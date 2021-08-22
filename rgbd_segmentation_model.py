@@ -6,9 +6,9 @@ from deeplab.deeplabv3_encoder import Encoder, DepthEncoder
 
 class RGBDSegmentationModel(nn.Module):
     '''
-    :param approach_for_depth: add, coc1, coc2, parallel
+    :param approach_for_depth: add, conc1, conc2, parallel
     '''
-    def __init__(self, block, num_blocks_of_layers_4_rgb, num_blocks_of_layers_4_depth, num_classes, all_channel=256, all_dim=60*60, approach_for_depth="coc1"):	#473./8=60	
+    def __init__(self, block, num_blocks_of_layers_4_rgb, num_blocks_of_layers_4_depth, num_classes, all_channel=256, all_dim=60*60, approach_for_depth="conc1"):	#473./8=60	
         super(RGBDSegmentationModel, self).__init__()
 
         self.encoder = Encoder(3, block, num_blocks_of_layers_4_rgb, num_classes) # rgb encoder
@@ -54,10 +54,10 @@ class RGBDSegmentationModel(nn.Module):
             self.forward = self.forward_parallel
         elif approach_for_depth == "add":
             self.forward = self.forward_add
-        elif approach_for_depth == "coc1":
-            self.forward = self.forward_coc1
-        elif approach_for_depth == "coc2":
-            self.forward = self.forward_coc2
+        elif approach_for_depth == "conc1":
+            self.forward = self.forward_concatenate1
+        elif approach_for_depth == "conc2":
+            self.forward = self.forward_concatenate2
 
 
         for m in self.modules():
@@ -197,7 +197,7 @@ class RGBDSegmentationModel(nn.Module):
         return x1, x2, labels  #shape: [N, 1, H, W]
 
 
-    def forward_coc1(self, rgbs_a, rgbs_b, depths_a): # concatenate
+    def forward_concatenate1(self, rgbs_a, rgbs_b, depths_a): # concatenate
         input_size = rgbs_a.size()[2:] # H, W
 
         V_a, labels = self.encoder(rgbs_a)
@@ -257,7 +257,7 @@ class RGBDSegmentationModel(nn.Module):
         return x1, x2, labels  #shape: [N, 1, H, W]
 
 
-    def forward_coc2(self, rgbs_a, rgbs_b, depths_a): # concatenate
+    def forward_concatenate2(self, rgbs_a, rgbs_b, depths_a): # concatenate
         input_size = rgbs_a.size()[2:] # H, W
 
         V_a, labels = self.encoder(rgbs_a)
