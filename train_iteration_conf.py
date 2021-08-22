@@ -236,7 +236,7 @@ def get_1x_lr_params(model):
         b.append(mod.encoder.layer2)
         b.append(mod.encoder.layer3)
         b.append(mod.encoder.layer4)
-        b.append(mod.encoder.aspp)
+        b.append(mod.encoder.layer5)
         b.append(mod.encoder.main_classifier)
     else:
         b.append(mod.encoder.backbone.conv1)
