@@ -5,15 +5,16 @@ import numpy as np
 from deeplab.deeplabv3_encoder import Encoder, DepthEncoder
 
 class RGBDSegmentationModel(nn.Module):
-    def __init__(self, block, num_blocks_of_layers_4_rgb, num_blocks_of_layers_4_depth, num_classes, all_channel=256, all_dim=60*60, parallel_for_depth=False, add_or_conc="conc"):	#473./8=60	
+    '''
+    :param approach_for_depth: add, coc1, coc2, parallel
+    '''
+    def __init__(self, block, num_blocks_of_layers_4_rgb, num_blocks_of_layers_4_depth, num_classes, all_channel=256, all_dim=60*60, approach_for_depth="coc1"):	#473./8=60	
         super(RGBDSegmentationModel, self).__init__()
 
         self.encoder = Encoder(3, block, num_blocks_of_layers_4_rgb, num_classes) # rgb encoder
         self.depth_encoder = DepthEncoder(1, block, num_blocks_of_layers_4_depth, num_classes)
 
-        self.parallel_for_depth = parallel_for_depth
-
-        if parallel_for_depth:
+        if approach_for_depth == "parallel":
             self.linear_e = nn.Linear(all_channel*2, all_channel*2,bias = False)
             self.channel = all_channel
             self.dim = all_dim
@@ -27,7 +28,11 @@ class RGBDSegmentationModel(nn.Module):
             self.dim = all_dim
             self.gate = nn.Conv2d(all_channel, 1, kernel_size  = 1, bias = False)
             self.gate_s = nn.Sigmoid()
-            self.conv1 = nn.Conv2d(all_channel*(2+1), all_channel, kernel_size=3, padding=1, bias = False)
+            if approach_for_depth == "coc1":
+                self.conv1 = nn.Conv2d(all_channel*(2+1), all_channel, kernel_size=3, padding=1, bias = False)
+            else:
+                # for add or coc2
+                self.conv1 = nn.Conv2d(all_channel*2, all_channel, kernel_size=3, padding=1, bias = False)
             self.conv2 = nn.Conv2d(all_channel*2, all_channel, kernel_size=3, padding=1, bias = False)
 
         self.bn1 = nn.BatchNorm2d(all_channel)
@@ -37,14 +42,24 @@ class RGBDSegmentationModel(nn.Module):
         self.main_classifier2 = nn.Conv2d(all_channel, num_classes, kernel_size=1, bias = True)
         self.softmax = nn.Sigmoid()
 
-        self.add_or_conc = add_or_conc
+        self.approach_for_depth = approach_for_depth
 
-        if add_or_conc == "add":
+        if approach_for_depth == "add":
             self.depth_gate = nn.Conv2d(all_channel, 1, kernel_size  = 1, bias = True)
             self.depth_gate_s = nn.Sigmoid()
-        # elif add_or_conc == "conc":
-            # self.depth_conv = nn.Conv2d(all_channel*2, all_channel, kernel_size  = 1, bias = True)
-        
+        elif approach_for_depth == "conc2":
+            self.depth_conv = nn.Conv2d(all_channel*2, all_channel, kernel_size  = 1, bias = True)
+
+        if approach_for_depth == "parallel":
+            self.forward = self.forward_parallel
+        elif approach_for_depth == "add":
+            self.forward = self.forward_add
+        elif approach_for_depth == "coc1":
+            self.forward = self.forward_coc1
+        elif approach_for_depth == "coc2":
+            self.forward = self.forward_coc2
+
+
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 #n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
@@ -121,8 +136,6 @@ class RGBDSegmentationModel(nn.Module):
         return x1, x2, labels  #shape: [N, 1, H, W]
 
 
-
-
     def forward_add(self, rgbs_a, rgbs_b, depths_a):
         input_size = rgbs_a.size()[2:] # H, W
 
@@ -170,7 +183,6 @@ class RGBDSegmentationModel(nn.Module):
         D_a = D_a * depth_mask
         # add weighted depth features to RGB features
         input1_att = torch.add(input1_att, D_a)
-
         # encode(d) * weight + rgb_features
 
         # Segmentation
@@ -185,7 +197,7 @@ class RGBDSegmentationModel(nn.Module):
         return x1, x2, labels  #shape: [N, 1, H, W]
 
 
-    def forward(self, rgbs_a, rgbs_b, depths_a): # concatenate
+    def forward_coc1(self, rgbs_a, rgbs_b, depths_a): # concatenate
         input_size = rgbs_a.size()[2:] # H, W
 
         V_a, labels = self.encoder(rgbs_a)
@@ -232,6 +244,64 @@ class RGBDSegmentationModel(nn.Module):
 
         # V_rgbd_a = torch.cat([input1_att, D_a],1)
         # input1_att = self.depth_conv(V_rgbd_a)
+
+        # Segmentation
+        x1 = self.main_classifier1(input1_att)
+        x2 = self.main_classifier2(input2_att)   
+        x1 = F.upsample(x1, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
+        x2 = F.upsample(x2, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
+        #print("after upsample, tensor size:", x.size())
+        x1 = self.softmax(x1)
+        x2 = self.softmax(x2)
+
+        return x1, x2, labels  #shape: [N, 1, H, W]
+
+
+    def forward_coc2(self, rgbs_a, rgbs_b, depths_a): # concatenate
+        input_size = rgbs_a.size()[2:] # H, W
+
+        V_a, labels = self.encoder(rgbs_a)
+        V_b, labels = self.encoder(rgbs_b) # N, C, H, W
+
+        fea_size = V_b.size()[2:]	# H, W
+        all_dim = fea_size[0]*fea_size[1] #H*W
+        V_a_flat = V_a.view(-1, V_a.size()[1], all_dim) #N,C,H*W
+        V_b_flat = V_b.view(-1, V_b.size()[1], all_dim) #N, C, H*W
+
+        # S = B W A_transform
+        encoder_future_1_flat_t = torch.transpose(V_a_flat,1,2).contiguous()  #N, H*W, C
+        weighted_encoder_feature_1 = self.linear_e(encoder_future_1_flat_t) # weighted_encoder_feature_1 = encoder_future_1_flat_t * W, [N, H*W, C]
+        S = torch.bmm(weighted_encoder_feature_1, V_b_flat) # S = weighted_encoder_feature_1 prod encoder_feature_2_flat, [N, H*W, H*W]
+
+        S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
+        S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
+
+        Z_b = torch.bmm(V_a_flat, S_row).contiguous() #Z_b = V_a_flat prod S_row
+        Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column
+        
+        input1_att = Z_a.view(-1, V_a_flat.size()[1], fea_size[0], fea_size[1]) # [N, C, H, W]
+        input2_att = Z_b.view(-1, V_b_flat.size()[1], fea_size[0], fea_size[1]) # [N, C, H, W]
+        input1_mask = self.gate(input1_att)
+        input2_mask = self.gate(input2_att)
+        input1_mask = self.gate_s(input1_mask)
+        input2_mask = self.gate_s(input2_mask)
+        input1_att = input1_att * input1_mask
+        input2_att = input2_att * input2_mask
+
+        # extract depth features
+        D_a = self.depth_encoder(depths_a) # N, C, H, W
+
+        input1_att = torch.cat([input1_att, V_a],1) 
+        input2_att = torch.cat([input2_att, V_b],1)
+        input1_att  = self.conv1(input1_att )
+        input2_att  = self.conv2(input2_att ) 
+        input1_att  = self.bn1(input1_att )
+        input2_att  = self.bn2(input2_att )
+        input1_att  = self.prelu(input1_att )
+        input2_att  = self.prelu(input2_att )
+
+        V_rgbd_a = torch.cat([input1_att, D_a],1)
+        input1_att = self.depth_conv(V_rgbd_a)
 
         # Segmentation
         x1 = self.main_classifier1(input1_att)

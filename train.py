@@ -102,7 +102,7 @@ def get_arguments():
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") 
-    parser.add_argument("--model", default="coc", help="ori, ref, add, or coc") 
+    parser.add_argument("--model", default="coc", help="ori, ref, add, coc1, or coc2") 
 
     return parser.parse_args()
 
@@ -326,11 +326,14 @@ def main():
         model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
         args.full_model_name = "refactored_coattention_rgb"
     elif args.model == "add" or args.model == "added_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="add")
         args.full_model_name = "added_depth_rgbd"
-    elif args.model == "coc" or args.model == "concatenated_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
+    elif args.model == "coc1" or args.model == "concatenated_depth_rgbd":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="coc1")
         args.full_model_name = "concatenated_depth_rgbd"
+    elif args.model == "coc2" or args.model == "concatenated_depth_rgbd2":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="coc2")
+        args.full_model_name = "concatenated_depth_rgbd2"
     else:
         print("Invalid model name!")
         return
