@@ -38,9 +38,11 @@ from deeplab.siamese_model_conf import CoattentionNet #siame_model 是直接将a
 from deeplab.residual_net import Bottleneck
 from deeplab.siamese_model import CoattentionSiameseNet
 import gc
+import datetime
 
 start = timeit.default_timer()
-
+timenow = datetime.datetime.now()
+ymd_hms = timenow.strftime("%Y%m%d_%H%M%S")
 
 def logMem(logger, prefix):
     total = torch.cuda.get_device_properties(None).total_memory
@@ -439,9 +441,6 @@ def main():
 
     model.train()
     cudnn.benchmark = True
-
-    if not os.path.exists(args.snapshot_dir):
-        os.makedirs(args.snapshot_dir)
     
     print('=====> Computing network parameters')
     total_paramters = netParams(model)
@@ -471,8 +470,12 @@ def main():
     optimizer.zero_grad()
 
 
+    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, 'origin', 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hms)
+
+    if not os.path.exists(args.snapshot_dir):
+        os.makedirs(args.snapshot_dir)
     
-    logFileLoc = args.snapshot_dir + args.logFile
+    logFileLoc = os.path.join(args.snapshot_dir,  args.dataset+"__origin_"+ymd_hms+"_train_log.txt")
     if os.path.isfile(logFileLoc):
         logger = open(logFileLoc, 'a')
     else:
