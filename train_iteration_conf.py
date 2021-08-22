@@ -230,7 +230,14 @@ def get_1x_lr_params(model):
         mod = mod.module
     
     if args.use_original_model:
-       print("get_1x_lr_params TODO")
+        b.append(mod.encoder.conv1)
+        b.append(mod.encoder.bn1)
+        b.append(mod.encoder.layer1)
+        b.append(mod.encoder.layer2)
+        b.append(mod.encoder.layer3)
+        b.append(mod.encoder.layer4)
+        b.append(mod.encoder.aspp)
+        b.append(mod.encoder.main_classifier)
     else:
         b.append(mod.encoder.backbone.conv1)
         b.append(mod.encoder.backbone.bn1)
@@ -261,7 +268,14 @@ def get_10x_lr_params(model):
         mod = model.module
 
     if args.use_original_model:
-        print("get_10x_lr_params TODO")
+        b.append(mod.linear_e.parameters())
+        b.append(mod.conv1.parameters())
+        b.append(mod.conv2.parameters())
+        b.append(mod.gate.parameters())
+        b.append(mod.bn1.parameters())
+        b.append(mod.bn2.parameters())   
+        b.append(mod.main_classifier1.parameters())
+        b.append(mod.main_classifier2.parameters())
     else:
         b.append(mod.linear_e.parameters())
         b.append(mod.conv1.parameters())
@@ -310,7 +324,9 @@ def convert_parameters_for_model(model, saved_state_dict, use_original_model):
     if args.cuda:
         #model.to(device)
         if use_original_model:
-            print("")
+            for i in saved_state_dict["model"]:
+                newKey = i.replace("module.", "encoder.")
+                new_params[newKey] = saved_state_dict["model"][i]
         else:
             for i in saved_state_dict["model"]:
                 if i.startswith("module.layer5."):
@@ -322,8 +338,8 @@ def convert_parameters_for_model(model, saved_state_dict, use_original_model):
                 new_params[newKey] = saved_state_dict["model"][i]
     return new_params
 
+
 def main():
-    
     
     print("=====> Configure dataset and pretrained model:",args)
     configure_dataset_init_model(args)
@@ -354,6 +370,7 @@ def main():
 
     cudnn.enabled = True
 
+
     print("=====> Loading state saved")
 
     saved_state_dict = torch.load(args.restore_from)
@@ -362,7 +379,7 @@ def main():
 
     # model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
     model = CoattentionNet(num_classes=args.num_classes)
-    args.use_original_model = type(model) == CoattentionNet
+    args.use_original_model = True
     #print(model)
     print("=====> Restoring initial state")
     new_params = convert_parameters_for_model(model, saved_state_dict, args.use_original_model)
