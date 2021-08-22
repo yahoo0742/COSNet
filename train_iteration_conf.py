@@ -551,10 +551,10 @@ def main():
 
             del targets
             del targets_gts
-            del target_depth
+            # del target_depth
             del searches
             del searches_gts
-            del search_depth
+            # del search_depth
             del saliency_images
             del saliency_gts
             del batch
