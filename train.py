@@ -215,14 +215,24 @@ def get_1x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = mod.module
 
-    b.append(mod.encoder.backbone.conv1)
-    b.append(mod.encoder.backbone.bn1)
-    b.append(mod.encoder.backbone.layer1)
-    b.append(mod.encoder.backbone.layer2)
-    b.append(mod.encoder.backbone.layer3)
-    b.append(mod.encoder.backbone.layer4)
-    b.append(mod.encoder.aspp)
-    b.append(mod.encoder.main_classifier)
+    if args.full_model_name == "original_coattention_rgb":
+        b.append(mod.encoder.conv)
+        b.append(mod.encoder.bn1)
+        b.append(mod.encoder.layer1)
+        b.append(mod.encoder.layer2)
+        b.append(mod.encoder.layer3)
+        b.append(mod.encoder.layer4)
+        b.append(mod.encoder.layer5)
+        b.append(mod.encoder.main_classifier)
+    else:
+        b.append(mod.encoder.backbone.conv1)
+        b.append(mod.encoder.backbone.bn1)
+        b.append(mod.encoder.backbone.layer1)
+        b.append(mod.encoder.backbone.layer2)
+        b.append(mod.encoder.backbone.layer3)
+        b.append(mod.encoder.backbone.layer4)
+        b.append(mod.encoder.aspp)
+        b.append(mod.encoder.main_classifier)
 
     for i in range(len(b)):
         for j in b[i].modules():
@@ -243,24 +253,36 @@ def get_10x_lr_params(model):
     mod = model
     if torch.cuda.device_count() > 1:
         mod = model.module
-    b.append(mod.depth_encoder.backbone.conv1.parameters())
-    b.append(mod.depth_encoder.backbone.bn1.parameters())
-    b.append(mod.depth_encoder.backbone.layer1.parameters())
-    b.append(mod.depth_encoder.backbone.layer2.parameters())
-    b.append(mod.depth_encoder.backbone.layer3.parameters())
-    b.append(mod.depth_encoder.backbone.layer4.parameters())
-    if False:
-        b.append(mod.depth_encoder.aspp.parameters())
-        b.append(mod.depth_encoder.main_classifier.parameters())
 
-    b.append(mod.linear_e.parameters())
-    b.append(mod.conv1.parameters())
-    b.append(mod.conv2.parameters())
-    b.append(mod.gate.parameters())
-    b.append(mod.bn1.parameters())
-    b.append(mod.bn2.parameters())   
-    b.append(mod.main_classifier1.parameters())
-    b.append(mod.main_classifier2.parameters())
+    if args.full_model_name == "original_coattention_rgb":
+        b.append(mod.linear_e.parameters())
+        b.append(mod.conv1.parameters())
+        b.append(mod.conv2.parameters())
+        b.append(mod.gate.parameters())
+        b.append(mod.bn1.parameters())
+        b.append(mod.bn2.parameters())   
+        b.append(mod.main_classifier1.parameters())
+        b.append(mod.main_classifier2.parameters())
+    else:
+        b.append(mod.depth_encoder.backbone.conv1.parameters())
+        b.append(mod.depth_encoder.backbone.bn1.parameters())
+        b.append(mod.depth_encoder.backbone.layer1.parameters())
+        b.append(mod.depth_encoder.backbone.layer2.parameters())
+        b.append(mod.depth_encoder.backbone.layer3.parameters())
+        b.append(mod.depth_encoder.backbone.layer4.parameters())
+        
+        if False:
+            b.append(mod.depth_encoder.aspp.parameters())
+            b.append(mod.depth_encoder.main_classifier.parameters())
+
+        b.append(mod.linear_e.parameters())
+        b.append(mod.conv1.parameters())
+        b.append(mod.conv2.parameters())
+        b.append(mod.gate.parameters())
+        b.append(mod.bn1.parameters())
+        b.append(mod.bn2.parameters())   
+        b.append(mod.main_classifier1.parameters())
+        b.append(mod.main_classifier2.parameters())
         
     for j in range(len(b)):
         # print("****b[",j,"]: ",b[j])
@@ -369,7 +391,9 @@ def main():
         if args.cuda:
             #model.to(device)
             for i in saved_state_dict["model"]:
-                if True:
+                if args.full_model_name == "original_coattention_rgb":
+                    newKey = i.replace("module.", "encoder.")
+                elif True:
                     if i.startswith("module.layer5."):
                         newKey = i.replace("module.layer5.", "encoder.aspp.")
                     elif i.startswith("module.main_classifier."):
