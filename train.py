@@ -468,6 +468,7 @@ def main():
     elif args.dataset == 'davis':
         db_train = davis_db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
+        db_train.next_batch = None
     else:
         print("dataset error")
 
