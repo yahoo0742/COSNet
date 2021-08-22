@@ -129,7 +129,7 @@ def convert_state_dict(state_dict):
     #print(type(state_dict))
     for k, v in state_dict.items():
         print("state key: ",k)
-        name = k[k.index("."):]
+        name = k[k.index(".")+1:] # k is like module.encoder.backbone.layer2.xxxx
         #name = k # k[7:] # remove the prefix module.
         # My heart is broken, the pytorch have no ability to do with the problem.
         state_dict_new[name] = v
