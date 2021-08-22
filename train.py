@@ -490,12 +490,14 @@ def main():
     loss_history = []
     for epoch in range(start_epoch, int(args.maxEpoches)):
         print("......epoch=", epoch)
-        db_train.next_batch()
+        if db_train.next_batch:
+            db_train.next_batch()
         np.random.seed(args.random_seed + epoch)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
             logMem(logger, " Start batch")
 
-            db_train.next_batch()
+            if db_train.next_batch:
+                db_train.next_batch()
             print("  i_iter=", i_iter)
             current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_gt'],
 
