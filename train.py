@@ -216,7 +216,7 @@ def get_1x_lr_params(model):
         mod = mod.module
 
     if args.full_model_name == "original_coattention_rgb":
-        b.append(mod.encoder.conv)
+        b.append(mod.encoder.conv1)
         b.append(mod.encoder.bn1)
         b.append(mod.encoder.layer1)
         b.append(mod.encoder.layer2)
@@ -270,7 +270,7 @@ def get_10x_lr_params(model):
         b.append(mod.depth_encoder.backbone.layer2.parameters())
         b.append(mod.depth_encoder.backbone.layer3.parameters())
         b.append(mod.depth_encoder.backbone.layer4.parameters())
-        
+
         if False:
             b.append(mod.depth_encoder.aspp.parameters())
             b.append(mod.depth_encoder.main_classifier.parameters())
