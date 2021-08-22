@@ -220,8 +220,9 @@ def main():
     iou_counter = 0
 
     ct = 0
-    max_epoch = 10
+    max_epoch = 1
     while ct < max_epoch:
+        ct = ct + 1
         for index, batch in enumerate(testloader):
             print('%d processd'%(index))
             # current_img, current_depth, current_img_gt, match_img, match_depth, match_img_gt
