@@ -161,11 +161,14 @@ def main():
         model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], 1)
         args.full_model_name = "refactored_coattention_rgb"
     elif args.model == "add" or args.model == "added_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3],  [3, 4, 6, 3], 1)
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3],  [3, 4, 6, 3], 1, approach_for_depth="add")
         args.full_model_name = "added_depth_rgbd"
-    elif args.model == "coc" or args.model == "concatenated_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3],  [3, 4, 6, 3], 1)
+    elif args.model == "conc1" or args.model == "concatenated_depth_rgbd":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], 1, approach_for_depth="conc1")
         args.full_model_name = "concatenated_depth_rgbd"
+    elif args.model == "conc2" or args.model == "concatenated_depth_rgbd2":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc2")
+        args.full_model_name = "concatenated_depth_rgbd2"
     else:
         print("Invalid model name!")
         return
