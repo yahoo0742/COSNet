@@ -50,6 +50,7 @@ class PairwiseImg(Dataset):
                  desired_HW=None,
                  db_root_dir='/DAVIS-2016',
                  img_root_dir = None,
+                 batch_size = 1,
                  transform=None,
                  meanval=(104.00699, 116.66877, 122.67892),
                  seq_name=None, sample_range=10):
@@ -64,6 +65,7 @@ class PairwiseImg(Dataset):
         self.transform = transform
         self.meanval = meanval
         self.seq_name = seq_name
+        self.batch_size = batch_size
 
         self.dataset_config = dataset_config
         self.saliency_dataset_config = saliency_dataset_config
@@ -137,8 +139,11 @@ class PairwiseImg(Dataset):
         self.from_saliency = from_saliency
 
     def __len__(self):
-        print(len(self.video_list), len(self.saliency_images))
-        return len(self.video_list)
+        # print(len(self.video_list), len(self.saliency_images))
+        result = len(self.video_list)
+        if result % self.batch_size != 0:
+            result = result - result % self.batch_size
+        return result
     
     def __getitem__(self, idx):
         '''
