@@ -157,6 +157,9 @@ def main():
     if args.model == "ori" or args.model == "original_coattention_rgb":
         model = CoattentionNet(num_classes=2)
         args.full_model_name = "original_coattention_rgb"
+    elif args.model == "retrain" or args.model == "original_coattention_rgb_retrained":
+        model = CoattentionNet(num_classes=2)
+        args.full_model_name = "original_coattention_rgb_retrained"
     elif args.model == "ref" or args.model == "refactored_coattention_rgb":
         model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], 1)
         args.full_model_name = "refactored_coattention_rgb"

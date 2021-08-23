@@ -60,6 +60,8 @@
     "model":
         "original_coattention_rgb":
             "pretrained_params": "./pretrained/co_attention.pth" # './pretrained/davis_480x854_Aug16.pth'
+        "original_coattention_rgb_retrained":
+            "pretrained_params": "./pretrained/davis_480x854_Aug16.pth"
         "refactored_coattention_rgb":
             "pretrained_params": "./snapshots/davis_480x854s/co_attention_davis_29.pth"
         "added_depth_rgbd":
