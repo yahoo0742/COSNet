@@ -255,7 +255,7 @@ def get_10x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = model.module
 
-    if args.full_model_name == "original_coattention_rgb":
+    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
         b.append(mod.linear_e.parameters())
         b.append(mod.conv1.parameters())
         b.append(mod.conv2.parameters())
