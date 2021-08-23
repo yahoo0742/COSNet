@@ -101,6 +101,7 @@ def get_arguments():
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") #使用3号GPU
     parser.add_argument("--sample_range", type=int, default=5, help="The number of frames sampled to compare with the target frame.")
+    parser.add_argument("--model", type=str, default='ori', help="ori, ref")
 
 
     return parser.parse_args()
@@ -379,9 +380,12 @@ def main():
 
     print("=====> Building network")
 
-    # model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
-    model = CoattentionNet(num_classes=args.num_classes)
-    args.use_original_model = True
+    if args.model == "ori":
+        model = CoattentionNet(num_classes=args.num_classes)
+        args.use_original_model = True
+    else:
+        args.use_original_model = False
+        model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
     #print(model)
     print("=====> Restoring initial state")
     new_params = convert_parameters_for_model(model, saved_state_dict, args.use_original_model)
@@ -470,12 +474,12 @@ def main():
     optimizer.zero_grad()
 
 
-    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, 'origin', 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hms)
+    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, args.model+"_old_train", 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hms)
 
     if not os.path.exists(args.snapshot_dir):
         os.makedirs(args.snapshot_dir)
     
-    logFileLoc = os.path.join(args.snapshot_dir,  args.dataset+"__origin_"+ymd_hms+"_train_log.txt")
+    logFileLoc = os.path.join(args.snapshot_dir,  args.dataset+"_"+args.model+"_old_"+ymd_hms+"_train_log.txt")
     if os.path.isfile(logFileLoc):
         logger = open(logFileLoc, 'a')
     else:
