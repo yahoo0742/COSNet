@@ -103,7 +103,7 @@ def get_arguments():
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") 
-    parser.add_argument("--model", default="conc1", help="ori, ref, add, conc1, or conc2") 
+    parser.add_argument("--model", default="conc1", help="ori, ref, add, conc1, conc2, conv_add, conv_conc2") 
 
     return parser.parse_args()
 
@@ -264,6 +264,18 @@ def get_10x_lr_params(model):
         b.append(mod.bn2.parameters())   
         b.append(mod.main_classifier1.parameters())
         b.append(mod.main_classifier2.parameters())
+    elif args.full_model_name == "convs_depth_addition" or args.full_model_name == "convs_depth_concatenation2":
+        b.append(mod.depth_encoder.conv1.parameters())
+        b.append(mod.depth_encoder.conv2.parameters())
+        b.append(mod.depth_encoder.bn.parameters())
+        b.append(mod.linear_e.parameters())
+        b.append(mod.conv1.parameters())
+        b.append(mod.conv2.parameters())
+        b.append(mod.gate.parameters())
+        b.append(mod.bn1.parameters())
+        b.append(mod.bn2.parameters())   
+        b.append(mod.main_classifier1.parameters())
+        b.append(mod.main_classifier2.parameters())
     else:
         b.append(mod.depth_encoder.backbone.conv1.parameters())
         b.append(mod.depth_encoder.backbone.bn1.parameters())
@@ -357,6 +369,12 @@ def main():
     elif args.model == "conc2" or args.model == "concatenated_depth_rgbd2":
         model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc2")
         args.full_model_name = "concatenated_depth_rgbd2"
+    elif args.model == "conv_add" or args.model == "convs_depth_addition":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conv_add")
+        args.full_model_name = "convs_depth_addition"
+    elif args.model == "conv_conc2" or args.model == "convs_depth_concatenation2":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conv_conc2")
+        args.full_model_name = "convs_depth_concatenation2"
     else:
         print("Invalid model name!")
         return

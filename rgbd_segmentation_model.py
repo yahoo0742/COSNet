@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from deeplab.deeplabv3_encoder import Encoder, DepthEncoder
+from deeplab.deeplabv3_encoder import Encoder, DepthEncoder_ResNet, DepthEncoder_Convs
 
 class RGBDSegmentationModel(nn.Module):
     '''
@@ -12,7 +12,10 @@ class RGBDSegmentationModel(nn.Module):
         super(RGBDSegmentationModel, self).__init__()
 
         self.encoder = Encoder(3, block, num_blocks_of_layers_4_rgb, num_classes) # rgb encoder
-        self.depth_encoder = DepthEncoder(1, block, num_blocks_of_layers_4_depth, num_classes)
+        if approach_for_depth == "conv_add" or approach_for_depth == "conv_conc2":
+            self.depth_encoder = DepthEncoder_Convs(256)
+        else:
+            self.depth_encoder = DepthEncoder_ResNet(1, block, num_blocks_of_layers_4_depth, num_classes)
 
         if approach_for_depth == "parallel":
             self.linear_e = nn.Linear(all_channel*2, all_channel*2,bias = False)
@@ -52,11 +55,11 @@ class RGBDSegmentationModel(nn.Module):
 
         if approach_for_depth == "parallel":
             self.forward = self.forward_parallel
-        elif approach_for_depth == "add":
+        elif approach_for_depth == "add" or approach_for_depth == "conv_add":
             self.forward = self.forward_add
         elif approach_for_depth == "conc1":
             self.forward = self.forward_concatenate1
-        elif approach_for_depth == "conc2":
+        elif approach_for_depth == "conc2" or approach_for_depth == "conv_conc2":
             self.forward = self.forward_concatenate2
 
 

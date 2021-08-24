@@ -122,13 +122,40 @@ class Encoder(nn.Module):
         return features, annotation
 
 
+class DepthEncoder_Convs(nn.Module):
+    def __init__(self, output_channels):
+        self.inner_channels = 64
+        self.output_channels = output_channels
+        super(DepthEncoder_Convs, self).__init__()
+
+        self.conv1 = nn.Conv2d(1, self.inner_channels, kernel_size=3, stride=1)
+        self.conv2 = nn.Conv2d(self.inner_channels, self.output_channels, kernel_size=3, stride=1)
+        self.bn = nn.BatchNorm2d(self.output_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)  # change ceil_mode=True
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                m.weight.data.normal_(0, 0.01)
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+
+    def forward(self, x):
+        features = self.conv1(x)
+
+        features = self.conv2(features)
+        features = self.bn(features)
+        features = self.relu(features)
+        z = self.maxpool(features)
+        return z
 
 
-class DepthEncoder(nn.Module):
+class DepthEncoder_ResNet(nn.Module):
     def __init__(self, input_channels, res_block, num_blocks_of_layers, num_classes):
         self.inner_channels = 64
         self.input_channels = input_channels
-        super(DepthEncoder, self).__init__()
+        super(DepthEncoder_ResNet, self).__init__()
 
         self.backbone = rn.ResNet(input_channels, res_block, num_blocks_of_layers, num_classes)
 
