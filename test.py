@@ -296,6 +296,7 @@ def main():
 
     iou_result = iou_result/iou_counter
     logger.write(log_section_start+" final IOU: "+ str(iou_result) +log_section_end+"\n")
+    logger.flush()
 
 
 if __name__ == '__main__':
