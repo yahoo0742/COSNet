@@ -132,7 +132,7 @@ class DepthEncoder_Convs(nn.Module):
         self.conv2 = nn.Conv2d(self.inner_channels, self.output_channels, kernel_size=3, stride=1)
         self.bn = nn.BatchNorm2d(self.output_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)  # change ceil_mode=True
+        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)  # change ceil_mode=True
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -142,12 +142,16 @@ class DepthEncoder_Convs(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
+        input_size = x.size()[2:]
         features = self.conv1(x)
 
         features = self.conv2(features)
         features = self.bn(features)
         features = self.relu(features)
-        z = self.maxpool(features)
+        # features = self.maxpool(features)
+
+        z = F.upsample(features, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
+
         return z
 
 

@@ -264,7 +264,7 @@ def get_10x_lr_params(model):
         b.append(mod.bn2.parameters())   
         b.append(mod.main_classifier1.parameters())
         b.append(mod.main_classifier2.parameters())
-    elif args.full_model_name == "convs_depth_addition" or args.full_model_name == "convs_depth_concatenation2":
+    elif args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "convs_depth_addition" or args.full_model_name == "convs_depth_concatenation2":
         b.append(mod.depth_encoder.conv1.parameters())
         b.append(mod.depth_encoder.conv2.parameters())
         b.append(mod.depth_encoder.bn.parameters())
@@ -369,11 +369,14 @@ def main():
     elif args.model == "conc2" or args.model == "concatenated_depth_rgbd2":
         model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc2")
         args.full_model_name = "concatenated_depth_rgbd2"
+    elif args.model == "padd" or args.model == "post_added_depth_rgbd":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="padd")
+        args.full_model_name = "post_added_depth_rgbd"
     elif args.model == "conv_add" or args.model == "convs_depth_addition":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conv_add")
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_add")
         args.full_model_name = "convs_depth_addition"
     elif args.model == "conv_conc2" or args.model == "convs_depth_concatenation2":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conv_conc2")
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_conc2")
         args.full_model_name = "convs_depth_concatenation2"
     else:
         print("Invalid model name!")
