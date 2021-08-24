@@ -47,7 +47,7 @@ class RGBDSegmentationModel(nn.Module):
 
         self.approach_for_depth = approach_for_depth
 
-        if approach_for_depth == "add":
+        if approach_for_depth == "add" or approach_for_depth == "conv_add":
             self.depth_gate = nn.Conv2d(all_channel, 1, kernel_size  = 1, bias = True)
             self.depth_gate_s = nn.Sigmoid()
         elif approach_for_depth == "conc2":
