@@ -124,7 +124,7 @@ class Encoder(nn.Module):
 
 class DepthEncoder_Convs(nn.Module):
     def __init__(self, output_channels):
-        self.inner_channels = 64
+        self.inner_channels = 16
         self.output_channels = output_channels
         super(DepthEncoder_Convs, self).__init__()
 

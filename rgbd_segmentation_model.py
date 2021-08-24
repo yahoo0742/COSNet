@@ -13,7 +13,7 @@ class RGBDSegmentationModel(nn.Module):
 
         self.encoder = Encoder(3, block, num_blocks_of_layers_4_rgb, num_classes) # rgb encoder
         if approach_for_depth == "padd":
-            self.depth_encoder = DepthEncoder_Convs(8)
+            self.depth_encoder = DepthEncoder_Convs(output_channels=1)
         elif approach_for_depth == "conv_add" or approach_for_depth == "conv_conc2":
             self.depth_encoder = DepthEncoder_Convs(256)
         else:
