@@ -103,7 +103,7 @@
         "concatenated_depth_rgbd":
             "pretrained_params": "./snapshots/hzfurgbd/coc/H480W640/20210822_113019/snapshot_hzfurgbd_29.pth" #20210822_164649
         "concatenated_depth_rgbd2":
-            "pretrained_params": "./snapshots/hzfurgbd/coc/H480W640/20210822_113019/snapshot_hzfurgbd_29.pth" #20210822_164649
+            "pretrained_params": "./snapshots/hzfurgbd/conc2/H480W640/20210824_121853/snapshot_hzfurgbd_29.pth" #20210824_121853
     "dataset":
         "davis":
             "model":

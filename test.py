@@ -77,7 +77,7 @@ def get_arguments():
     parser.add_argument("--sample_range", default =5)
     parser.add_argument("--epoches", default=0)
     parser.add_argument("--batch_size", default=0)
-    parser.add_argument("--model", default="add", help="ori, ref, add, or coc")
+    parser.add_argument("--model", default="add", help="ori, retrain, ref, add, or coc")
 
     return parser.parse_args()
 
@@ -129,7 +129,10 @@ def convert_state_dict(state_dict):
     #print(type(state_dict))
     for k, v in state_dict.items():
         print("state key: ",k)
-        name = k[k.index(".")+1:] # k is like module.encoder.backbone.layer2.xxxx
+        if k.startswith("module."):
+            name = k[k.index(".")+1:] # k is like module.encoder.backbone.layer2.xxxx
+        else:
+            name = k
         #name = k # k[7:] # remove the prefix module.
         # My heart is broken, the pytorch have no ability to do with the problem.
         state_dict_new[name] = v
