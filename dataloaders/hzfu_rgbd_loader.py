@@ -48,6 +48,9 @@ from scipy.misc import imresize
 from torch.utils.data import Dataset
 from dataloaders import utils
 import torch
+import math
+
+k_method_of_splitting_dataset = 'frame_in_out' #'sequence_in_out'
 
 class Folder:
     def __init__(self, folder_name):
@@ -81,7 +84,8 @@ class HzFuRGBDVideos(Dataset):
                  channels_for_target_frame = 'rgbdt',
                  channels_for_counterpart_frame = 'rgbdt',
                  for_training = True,
-                 percentage_for_training = 0.8,
+                 subset_percentage = 0.8,
+                 subset = None,
                  batch_size = 1,
                  meanval=(104.00699, 116.66877, 122.67892),
                  transform=None
@@ -89,7 +93,7 @@ class HzFuRGBDVideos(Dataset):
         self.dataset_root = dataset_root
         self.sample_range = sample_range
         self.output_HW = output_HW # H W
-        self.percentage_for_training = percentage_for_training
+        self.subset_percentage = subset_percentage
         self.transform = transform
         self.meanval = meanval
         self.stage = 'train' if for_training else 'test'
@@ -128,7 +132,7 @@ class HzFuRGBDVideos(Dataset):
         self.batch_size = batch_size
 
         self._load_meta_data()
-        self._split_dataset()
+        self._split_dataset(subset)
 
 
     def new_training_epoch(self):
@@ -284,30 +288,64 @@ class HzFuRGBDVideos(Dataset):
             self.sets['entire']['names_of_sequences'].remove(seq)
 
 
-    def _split_dataset(self):
-        # sequence based -- all frames of a sequence is randomly chosen for training, or for test
-        for seq in self.sets['entire']['names_of_sequences']:
-            rand = random.random()
-            frames_of_seq = self._get_frames_of_seq('entire', seq)
-            if not frames_of_seq:
-                raise Exception('Cannot find any frame for '+seq)
+    def _split_dataset(self, predefined_subset_dict):
+        if predefined_subset_dict and isinstance(predefined_subset_dict, dict):
+            to_be_in_subset = self.stage
+            for seq in predefined_subset_dict:
+                self.sets[to_be_in_subset]['names_of_sequences'].append(seq)
 
-            if rand < self.percentage_for_training:
-                # train
-                to_be_in_subset = 'train'
-            else:
-                # test
-                to_be_in_subset = 'test'
+                start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
+                num_frames = len(predefined_subset_dict[seq])
+                end_idx = num_frames + start_idx
+                self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
+                self.sets[to_be_in_subset]['names_of_frames'].extend(predefined_subset_dict[seq])
+            return
 
-            seq_index = len(self.sets[to_be_in_subset]['names_of_sequences'])
-            self.sets[to_be_in_subset]['names_of_sequences'].append(seq) # add this sequence to this set
-  
-            start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
-            num_frames = len(frames_of_seq)
-            end_idx = num_frames + start_idx
-            self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
-            self.sets[to_be_in_subset]['names_of_frames'].extend(frames_of_seq)
-            #self.sets[to_be_in_subset]['frame_to_sequence'].extend([seq_index]*num_frames)
+        
+        if k_method_of_splitting_dataset == 'sequence_in_out':
+            for seq in self.sets['entire']['names_of_sequences']:
+                # sequence based -- all frames of a sequence is randomly chosen for training, or for test
+                rand = random.random()
+                frames_of_seq = self._get_frames_of_seq('entire', seq)
+                if not frames_of_seq:
+                    raise Exception('Cannot find any frame for '+seq)
+
+                if rand < self.subset_percentage:
+                    to_be_in_subset = self.stage
+                else:
+                    to_be_in_subset = 'test' if self.stage == 'train' else 'train'
+
+                seq_index = len(self.sets[to_be_in_subset]['names_of_sequences'])
+                self.sets[to_be_in_subset]['names_of_sequences'].append(seq) # add this sequence to this set
+    
+                start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
+                num_frames = len(frames_of_seq)
+                end_idx = num_frames + start_idx
+                self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
+                self.sets[to_be_in_subset]['names_of_frames'].extend(frames_of_seq)
+                #self.sets[to_be_in_subset]['frame_to_sequence'].extend([seq_index]*num_frames)
+        elif k_method_of_splitting_dataset == 'frame_in_out':
+            to_be_in_subset = self.stage
+            for seq in self.sets['entire']['names_of_sequences']:
+                frames_of_seq = self._get_frames_of_seq('entire', seq)
+                if not frames_of_seq:
+                    raise Exception('Cannot find any frame for '+seq)
+                if len(frames_of_seq) < 2 and self.stage == 'train':
+                    print("Sequence "+seq+" only has 1 frame. So it cannot be fed for training.")
+                    continue
+
+                self.sets[to_be_in_subset]['names_of_sequences'].append(seq) # add this sequence to this set
+                start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
+                num_frames = math.floor(len(frames_of_seq) * self.subset_percentage)
+                if num_frames < 2:
+                    if self.stage == 'train':
+                        num_frames = 2 # 2 frames at least for a sequence for co-attention, and here the sequence should have more than 1 frame in total
+                    # for testing, we can accept a sequence having only 1 frame
+                frames_selected = random.sample(frames_of_seq, num_frames)
+                end_idx = num_frames + start_idx
+                self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
+                self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
+
 
     # implementation
     def __len__(self):
