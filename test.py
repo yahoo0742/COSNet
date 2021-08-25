@@ -186,6 +186,7 @@ def main():
     if not os.path.exists(args.result_dir):
         os.makedirs(args.result_dir)
     logFileName = os.path.join(args.result_dir, args.dataset+"__"+args.full_model_name+"_"+ymd_hms+"_test_log.txt")
+    print("Logs will be writen in "+logFileName +" and the test results will be in "+args.result_dir)
     if os.path.isfile(logFileName):
         logger = open(logFileName, 'a')
     else:
