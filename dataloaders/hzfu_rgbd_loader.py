@@ -174,6 +174,12 @@ class HzFuRGBDVideos(Dataset):
             return None
         return self.sets[set_name]['names_of_frames'][frame_index]
 
+    def _get_framename_of_seq_by_id(self, seq, id):
+        for fn in self.sets['entire']['names_of_frames']:
+            if fn.id == id and fn.seq_name == seq:
+                return fn
+        return None
+
     def _load_meta_data(self):
         rgb_data_path = self._get_path_of_rgb_data()
         self.sets['entire']['names_of_sequences'] = os.listdir(rgb_data_path)
@@ -295,10 +301,19 @@ class HzFuRGBDVideos(Dataset):
                 self.sets[to_be_in_subset]['names_of_sequences'].append(seq)
 
                 start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
-                num_frames = len(predefined_subset_dict[seq])
+                # get ids of the frames of the sequence
+                ids_of_frames = [frame[:2] for frame in predefined_subset_dict[seq]] # We know there are duplicate frames (XX is present more than once)
+                # collect information of the frames
+                frames_of_seq = []
+                for id in ids_of_frames:
+                    fn = self._get_framename_of_seq_by_id(seq, id)
+                    if fn:
+                        frames_of_seq.append(fn)
+
+                num_frames = len(frames_of_seq)
                 end_idx = num_frames + start_idx
                 self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
-                self.sets[to_be_in_subset]['names_of_frames'].extend(predefined_subset_dict[seq])
+                self.sets[to_be_in_subset]['names_of_frames'].extend(frames_of_seq)
             return
 
         
@@ -353,7 +368,7 @@ class HzFuRGBDVideos(Dataset):
         result = len(self.sets[set_name]['names_of_frames'])
         if result % self.batch_size != 0:
             result = result - result % self.batch_size
-
+        print("dataset: ", '  '.join(map(str, self.sets[set_name]['names_of_frames'])))
         print("HzFuRGBDVideos length: " , result, " for " + set_name)
         return result
 
