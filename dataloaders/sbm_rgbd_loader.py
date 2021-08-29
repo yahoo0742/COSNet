@@ -155,12 +155,12 @@ class sbm_rgbd(Dataset):
 
     def __init__(
         self,
-        dataset_root: str,
+        dataset_root,
         sample_range,
         output_HW=None,
         channels_for_target_frame = 'rgbdt',
         channels_for_counterpart_frame = 'rgbdt',
-        for_training: bool = True,
+        for_training:= True,
         batch_size = 1,
         subset_percentage = 0.8,
         subset = None,
