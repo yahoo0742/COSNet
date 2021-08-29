@@ -2,10 +2,11 @@ import os
 import sys
 import cv2
 import torch
-import shutil
+from scipy.misc import imresize
+# import shutil
 import random
-import tarfile
-import zipfile
+# import tarfile
+# import zipfile
 import numpy as np
 
 from torch.utils.data import Dataset
