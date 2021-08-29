@@ -178,7 +178,6 @@ class sbm_rgbd(Dataset):
         transformation ends in a tensor, the result will be automatically converted
         to meters
         """
-        super().__init__()
         self.dataset_root = dataset_root
         self.sample_range = sample_range
         self.output_HW = output_HW # H W

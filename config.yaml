@@ -93,6 +93,7 @@
             "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
             "snapshot_output_path": "./snapshots/sbmrgbd/"          #Where to save snapshots of the model
             "checkpoint_file": "./snapshots/sbmrgbd/co_attention_sbmrgbd.pth" #checkpoint log file helping recovering training
+            "subset": None
 
     "saliency_dataset":
         "root_path": "/vol/graphics-solar/fengwenb/vos/saliency_dataset/"
@@ -160,4 +161,5 @@
             "output_WH": "640,480"
             "image_HW_4_model": "480, 640"
             "sample_range": 1
+            "subset": None
 
