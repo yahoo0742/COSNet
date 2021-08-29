@@ -343,6 +343,12 @@ class sbm_rgbd(Dataset):
                 self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
 
 
+    def _get_frames_of_seq(self, set_name, seq_name):
+        seq_offset = self.sets[set_name]['frame_range_of_sequences'][seq_name]
+        if seq_offset:
+            return self.sets[set_name]['names_of_frames'][seq_offset['start']:seq_offset['end']]
+        return None
+
     def _get_framename_by_index(self, set_name, frame_index):
         if frame_index >= len(self.sets[set_name]['names_of_frames']):
             return None
