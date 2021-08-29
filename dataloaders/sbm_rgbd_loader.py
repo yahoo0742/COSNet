@@ -259,7 +259,7 @@ class sbm_rgbd(Dataset):
         for dt in data_types:
             type_path = os.path.join(self.dataset_root, dt)
             seqs = os.listdir(type_path)
-            seqs = [os.path.join(dt, seq) for seqin seqs] # put the data type in front of the name of the sqeuence
+            seqs = [os.path.join(dt, seq) for seq in seqs] # put the data type in front of the name of the sqeuence
             self.sets['entire']['names_of_sequences'].append(seqs)
         
         invalid_seqs = []
