@@ -154,4 +154,10 @@
                 "tracking4": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png"]
                 "zcup_move_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png"]
 
+        "hzfurgbd":
+            "model":
+            "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset"
+            "output_WH": "640,480"
+            "image_HW_4_model": "480, 640"
+            "sample_range": 1
 
