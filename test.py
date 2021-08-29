@@ -25,6 +25,7 @@ import sys
 import os
 import os.path as osp
 from dataloaders import hzfu_rgbd_loader as hzfurgbd_db
+from dataloaders import sbm_rgbd_loader as sbmrgbd_db
 from dataloaders import PairwiseImg_test as db
 #from dataloaders import StaticImg as db #采用voc dataset的数据设置格式方法
 import matplotlib.pyplot as plt
@@ -65,7 +66,7 @@ def get_arguments():
     """
     parser = argparse.ArgumentParser(description="RGBDCoAttention")
     parser.add_argument("--dataset", type=str, default='hzfurgbd',
-                        help="hzfurgb, hzfurgbd, or davis")
+                        help="hzfurgb, hzfurgbd, sbmrgbd, or davis")
 
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
@@ -101,6 +102,16 @@ def config(args):
             args.epoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= epoches*len(train_aug)/batch_size_per_gpu'),
 
         args.ignore_label = 255     #The index of the label to ignore during the training
+        args.num_classes = 2      #Number of classes to predict (including background)
+        args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
+        #args.restore_from = './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+
+    elif args.dataset == 'sbmrgbd': 
+        if not args.batch_size:
+            args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        if not args.epoches:
+            args.epoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= epoches*len(train_aug)/batch_size_per_gpu'),
+
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
         #args.restore_from = './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
@@ -213,6 +224,9 @@ def main():
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'hzfurgbd':
         db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbdt', channels_for_counterpart_frame='rgbd',  subset_percentage=1, subset=user_config["test"]["dataset"]["hzfurgbd"]["subset"], for_training=False, batch_size=args.batch_size)
+        testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
+    elif args.dataset == 'sbmrgbd':
+        db_test = sbmrgbd_db.sbm_rgbd(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbdt', channels_for_counterpart_frame='rgbd',  subset_percentage=1, subset=user_config["test"]["dataset"]["sbmrgbd"]["subset"], for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
