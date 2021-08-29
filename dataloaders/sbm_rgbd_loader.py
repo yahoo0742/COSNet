@@ -170,23 +170,12 @@ class sbm_rgbd(Dataset):
         Will return tuples based on what data source has been enabled (rgb, seg etc).
         :param root: path to root folder (eg /data/sbm-rgbd)
         :param train: whether to load the train or test set
-        :param rgb_transform: the transformation pipeline for rbg images
-        :param seg_transform: the transformation pipeline for segmentation images. If
-        the transformation ends in a tensor, the result will be automatically
-        converted to int in [0, 14)
-        :param depth_transform: the transformation pipeline for depth images. If the
-        transformation ends in a tensor, the result will be automatically converted
-        to meters
         """
         self.dataset_root = dataset_root
         self.sample_range = sample_range
         self.output_HW = output_HW # H W
         self.subset_percentage = subset_percentage
         self.meanval = meanval
-
-        self.rgb_transform = rgb_transform
-        self.seg_transform = seg_transform
-        self.depth_transform = depth_transform
 
         self.batch_size = batch_size
         self.stage = 'train' if for_training else 'test'
