@@ -255,7 +255,12 @@ class sbm_rgbd(Dataset):
         def __get_gt_framename_from_id(id):
             return 'gt'+id+'.png'
 
-        self.sets['entire']['names_of_sequences'] =  os.listdir(self.dataset_root)
+        data_types = os.listdir(self.dataset_root)
+        for dt in data_types:
+            type_path = os.path.join(self.dataset_root, dt)
+            seqs = os.listdir(type_path)
+            seqs = [os.path.join(dt, seq) for seqin seqs] # put the data type in front of the name of the sqeuence
+            self.sets['entire']['names_of_sequences'].append(seqs)
         
         invalid_seqs = []
         for seq in self.sets['entire']['names_of_sequences']:
