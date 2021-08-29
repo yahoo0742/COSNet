@@ -160,7 +160,7 @@ class sbm_rgbd(Dataset):
         output_HW=None,
         channels_for_target_frame = 'rgbdt',
         channels_for_counterpart_frame = 'rgbdt',
-        for_training:= True,
+        for_training = True,
         batch_size = 1,
         subset_percentage = 0.8,
         subset = None,
@@ -199,7 +199,8 @@ class sbm_rgbd(Dataset):
                 'names_of_sequences': [],
                 'frame_range_of_sequences': {},
                 'names_of_frames': []
-            },v
+            },
+            'train': {
                 'names_of_sequences': [],
                 'frame_range_of_sequences': {},
                 'names_of_frames': [] # it is more convenient for iterating frames by organizing all frames of all sequence together 
@@ -349,9 +350,50 @@ class sbm_rgbd(Dataset):
                 self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
 
 
+    def _get_framename_by_index(self, set_name, frame_index):
+        if frame_index >= len(self.sets[set_name]['names_of_frames']):
+            return None
+        return self.sets[set_name]['names_of_frames'][frame_index]
+
     def __getitem__(self, video_idx):
-        if self.train:
+        set_name = self.stage
+        frame_info = self._get_framename_by_index(set_name, frame_index)
+        if frame_info:
+            sample = {
+                'seq_name': frame_info.seq_name, 'frame_index': frame_info.id,
+                'target': None, 'target_depth': None, 'target_gt': None, 
+                'search_0': None, 'search_0_depth': None, 'search_0_gt':None
+            }
+
+            # 1. target frame
+            current_rgb, current_depth, current_gt = self._load_images(frame_info, self.channels_for_target_frame)
+            sample['target'] = current_rgb
+            sample['target_depth'] = current_depth
+            sample['target_gt'] = current_gt
+
+            # 2. (a) counterpart frame(s) for comparison with the target frame
+            frame_range_of_seq = self.sets[set_name]['frame_range_of_sequences'][frame_info.seq_name]
+            frame_indices_for_counterpart = []
+            if self.sample_range >= 1:
+                frame_indices_candidates= list(range(frame_range_of_seq['start'], frame_range_of_seq['end']))
+                frame_indices_for_counterpart = random.sample(frame_indices_candidates, self.sample_range)#min(len(self.img_list)-1, target_id+np.random.randint(1,self.range+1))
+            else:
+                # use the same frame to the target frame as the matching/search frame
+                frame_indices_for_counterpart = [frame_index]
+
+            for i in range(len(frame_indices_for_counterpart)):
+                key = 'search_'+str(i)
+                frame_idx = frame_indices_for_counterpart[i]
+                frame_info_of_cp = self._get_framename_by_index(set_name, frame_idx)
+                cp_rgb, cp_depth, cp_gt = self._load_images(frame_info_of_cp, self.channels_for_counterpart_frame)
+                sample[key] = cp_rgb
+                sample[key+'_depth'] = cp_depth
+                sample[key+'_gt'] = cp_gt
+
+            # print(" ##### sample rgb: ",sample['target'].shape, " gt: ", sample['target_gt'].shape,  " depth: ", sample['target_depth'].shape, " search_rgb: " ,sample['search_0'].shape, " search_0_gt: ",sample['search_0_gt'].shape,  "search_0_depth: ", sample['search_0_depth'].shape)
+            return sample
         else:
+            raise Exception('Cannot find the sequence from frame index ', frame_index)
 
     def __len__(self):
         set_name = self.stage
