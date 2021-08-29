@@ -26,6 +26,7 @@ import os.path as osp
 #from dataloaders import davis_2016 as db
 from dataloaders import PairwiseImg_video as davis_db
 from dataloaders import hzfu_rgbd_loader as rgbddb
+from dataloaders import sbm_rgbd_loader as sbmdb
 import matplotlib.pyplot as plt
 import random
 import timeit
@@ -111,41 +112,23 @@ args = get_arguments()
 
 
 def configure_dataset_init_model(args):
+    args.batch_size = user_config["train"]["dataset"][args.dataset]["batch_size"]# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+    args.maxEpoches = user_config["train"]["dataset"][args.dataset]["max_epoches"] # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
+    args.data_dir = user_config["train"]["dataset"][args.dataset]["data_path"]   # 37572 image pairs
+    args.num_classes = user_config["train"]["dataset"][args.dataset]["num_classes"]      #Number of classes to predict (including background)
+    args.img_mean = np.array(user_config["train"]["dataset"][args.dataset]["img_mean"], dtype=np.float32)
+    pretrained_model_name = user_config["train"]["dataset"][args.dataset]["pretrained_model"]
+    args.restore_from = user_config["train"]["pretrained_models"][pretrained_model_name]["file"]
+    #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+
+    args.snapshot_dir = user_config["train"]["dataset"][args.dataset]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
+    # args.ignore_label = user_config["train"]["dataset"]["hzfurgbd"]["ignore_label"]     #The index of the label to ignore during the training
+    args.resume = user_config["train"]["dataset"][args.dataset]["checkpoint_file"] #'./snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
+    # args.resume = user_config["train"]["dataset"]["hzfurgbd"]["checkpoint_file"] #'./snapshots/hzfurgbd/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
+
     if args.dataset == 'davis': 
-        args.batch_size = user_config["train"]["dataset"]["davis"]["batch_size"]# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
-        args.maxEpoches = user_config["train"]["dataset"]["davis"]["max_epoches"] # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
-        args.data_dir = user_config["train"]["dataset"]["davis"]["data_path"]   # 37572 image pairs
         args.img_dir = user_config["train"]["saliency_dataset"] #'/vol/graphics-solar/fengwenb/vos/saliency_dataset'
-        args.data_list = './dataset/list/VOC2012/train_aug.txt'  # Path to the file listing the images in the dataset
-        args.ignore_label = user_config["train"]["dataset"]["davis"]["ignore_label"]     #The index of the label to ignore during the training
-        # args.input_size = user_config["train"]["dataset"]["davis"]["input_size"] #'854,480' #Comma-separated string with height and width of images
-        args.num_classes = user_config["train"]["dataset"]["davis"]["num_classes"]      #Number of classes to predict (including background)
-        args.img_mean = np.array(user_config["train"]["dataset"]["davis"]["img_mean"], dtype=np.float32)       # saving model file and log record during the process of training
-        #Where restore model pretrained on other dataset, such as COCO.")
-        pretrained_model_name = user_config["train"]["dataset"]["davis"]["pretrained_model"]
-        args.restore_from = user_config["train"]["pretrained_models"][pretrained_model_name]["file"]
-        #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-        args.snapshot_dir = user_config["train"]["dataset"]["davis"]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
-        args.resume = user_config["train"]["dataset"]["davis"]["checkpoint_file"] #'./snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
-		
-    elif args.dataset == 'hzfurgbd':
-        args.batch_size = user_config["train"]["dataset"]["hzfurgbd"]["batch_size"]# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
-        args.maxEpoches = user_config["train"]["dataset"]["hzfurgbd"]["max_epoches"] # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
-        args.data_dir = user_config["train"]["dataset"]["hzfurgbd"]["data_path"]   # 37572 image pairs
-        args.ignore_label = user_config["train"]["dataset"]["hzfurgbd"]["ignore_label"]     #The index of the label to ignore during the training
-        # args.input_size = user_config["train"]["dataset"]["hzfurgbd"]["input_size"] #'854,480' #Comma-separated string with height and width of images
-        args.num_classes = user_config["train"]["dataset"]["hzfurgbd"]["num_classes"]      #Number of classes to predict (including background)
-        args.img_mean = np.array(user_config["train"]["dataset"]["hzfurgbd"]["img_mean"], dtype=np.float32)       # saving model file and log record during the process of training
-        #Where restore model pretrained on other dataset, such as COCO.")
-        pretrained_model_name = user_config["train"]["dataset"]["hzfurgbd"]["pretrained_model"]
-        args.restore_from = user_config["train"]["pretrained_models"][pretrained_model_name]["file"]
-        #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/hzfurgbd/psp_davis_0.pth' #
-        args.snapshot_dir = user_config["train"]["dataset"]["hzfurgbd"]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
-        args.resume = user_config["train"]["dataset"]["hzfurgbd"]["checkpoint_file"] #'./snapshots/hzfurgbd/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
-    else:
-        print("dataset error")
-        return
-    
+
     h, w = map(int, user_config["train"]["dataset"][args.dataset]["output_HW"].split(','))
     args.output_HW = (h, w)
 
@@ -485,6 +468,9 @@ def main():
     db_train = None
     if args.dataset == 'hzfurgbd':
         db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["hzfurgbd"]["subset"],transform=None, for_training=True, batch_size=args.batch_size)
+        trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
+    elif args.dataset == 'sbmrgbd':
+        db_train = sbmdb.sbm_rgbd(user_config["train"]["dataset"]["sbmrgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["sbmrgbd"]["subset"],transform=None, for_training=True, batch_size=args.batch_size)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'davis':
         db_train = davis_db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
