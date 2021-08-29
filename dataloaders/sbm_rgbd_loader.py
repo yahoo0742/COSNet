@@ -255,7 +255,7 @@ class sbm_rgbd(Dataset):
         def __get_gt_framename_from_id(id):
             return 'gt'+id+'.png'
 
-        self.sets['entire']['names_of_sequences'] =  os.listdir(dataset_root)
+        self.sets['entire']['names_of_sequences'] =  os.listdir(self.dataset_root)
         
         invalid_seqs = []
         for seq in self.sets['entire']['names_of_sequences']:
