@@ -176,6 +176,8 @@ class sbm_rgbd(Dataset):
         self.output_HW = output_HW # H W
         self.subset_percentage = subset_percentage
         self.meanval = meanval
+        self.channels_for_target_frame = channels_for_target_frame
+        self.channels_for_counterpart_frame = channels_for_counterpart_frame
 
         self.batch_size = batch_size
         self.stage = 'train' if for_training else 'test'
@@ -332,12 +334,15 @@ class sbm_rgbd(Dataset):
 
                 self.sets[to_be_in_subset]['names_of_sequences'].append(seq) # add this sequence to this set
                 start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
-                num_frames = math.floor(len(frames_of_seq) * self.subset_percentage)
+                num_frames = int(math.floor(len(frames_of_seq) * self.subset_percentage))
                 if num_frames < 2:
                     if self.stage == 'train':
                         num_frames = 2 # 2 frames at least for a sequence for co-attention, and here the sequence should have more than 1 frame in total
                     # for testing, we can accept a sequence having only 1 frame
-                frames_selected = random.sample(frames_of_seq, num_frames)
+                if num_frames == len(frames_of_seq):
+                    frames_selected = frames_of_seq
+                else:
+                    frames_selected = random.sample(frames_of_seq, num_frames)
                 end_idx = num_frames + start_idx
                 self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
@@ -354,7 +359,7 @@ class sbm_rgbd(Dataset):
             return None
         return self.sets[set_name]['names_of_frames'][frame_index]
 
-    def __getitem__(self, video_idx):
+    def __getitem__(self, frame_index):
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
         if frame_info:
