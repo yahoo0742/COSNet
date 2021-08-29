@@ -263,7 +263,7 @@ class sbm_rgbd(Dataset):
             names_of_depth_frames_of_seq = __check_framenames_of_sequence(EContentInfo.depth, seq)
             names_of_gt_frames_of_seq = __check_framenames_of_sequence(EContentInfo.groundtruth, seq)
             if names_of_gt_frames_of_seq == None or names_of_depth_frames_of_seq == None or names_of_rgb_frames_of_seq == None:
-                invalid_seq.append(seq)
+                invalid_seqs.append(seq)
                 continue
             names_of_rgb_frames_of_seq.sort()
             names_of_depth_frames_of_seq.sort()
