@@ -451,6 +451,7 @@ class sbm_rgbd(Dataset):
             if depth_path:
                 depth_img = cv2.imread(depth_path, cv2.IMREAD_GRAYSCALE)
                 depth_img = depth_img[None, :,:] # 1, H, W
+                depth_img = np.array(depth_img, dtype=np.float32)
                 if self.stage == 'train':
                     depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
             else:
