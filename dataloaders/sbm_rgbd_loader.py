@@ -247,7 +247,7 @@ class sbm_rgbd(Dataset):
             return framenames_of_seq
         
         def __get_id_from_framename(name):
-            if name[-4:] != '.png'
+            if name[-4:] != '.png':
                 return None
             return name[2:-4]
         
