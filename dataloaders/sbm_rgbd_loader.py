@@ -285,14 +285,14 @@ class sbm_rgbd(Dataset):
                 if gt_frame_id == None:
                     continue
                 rgb_framename = __get_rgb_framename_from_id(gt_frame_id)
-                assert(rgb_framename in names_of_rgb_frames_of_seq, 'RGB frame '+rgb_framename+' of '+seq+' does not exist.')
-
+                if not rgb_framename in names_of_rgb_frames_of_seq:
+                    continue
                 depth_framename = __get_depth_framename_from_id(gt_frame_id)
-                assert(depth_framename in names_of_depth_frames_of_seq, 'Depth frame '+depth_framename+' of '+seq+' does not exist.')
-
+                if not depth_framename in names_of_depth_frames_of_seq:
+                    continue
                 gt_framename = __get_gt_framename_from_id(gt_frame_id)
-                assert(gt_framename in names_of_gt_frames_of_seq, 'GT frame '+gt_framename+' of '+seq+' does not exist.')
-
+                if not gt_framename in names_of_gt_frames_of_seq:
+                    continue
                 videoFrameInfo = VideoFrameInfo(seq, gt_frame_id, rgb_framename, depth_framename, gt_framename)
                 labelled_frames_of_seq.append(videoFrameInfo)
 
