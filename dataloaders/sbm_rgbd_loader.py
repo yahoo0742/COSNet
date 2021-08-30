@@ -247,6 +247,8 @@ class sbm_rgbd(Dataset):
             return framenames_of_seq
         
         def __get_id_from_framename(name):
+            if name[-4:] != '.png'
+                return None
             return name[2:-4]
         
         def __get_rgb_framename_from_id(id):
@@ -280,6 +282,8 @@ class sbm_rgbd(Dataset):
             # the name of a ground truth frame is like gtXXXXXX.png, XXXXXX is the id of the gt frame, and it is also the id of a corresponding frame under RGB_data
             ids_of_gt_frames = [__get_id_from_framename(frame) for frame in names_of_gt_frames_of_seq]
             for gt_frame_id in ids_of_gt_frames:
+                if gt_frame_id == None:
+                    continue
                 rgb_framename = __get_rgb_framename_from_id(gt_frame_id)
                 assert(rgb_framename in names_of_rgb_frames_of_seq, 'RGB frame '+rgb_framename+' of '+seq+' does not exist.')
 
