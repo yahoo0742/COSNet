@@ -85,6 +85,8 @@ in000005.png
 Some of the code were copied from https://github.com/xapharius/pytorch-nyuv2
 """
 
+ROI_file_name = "ROI.bmp"
+
 class SequenceInfo:
     def __init__(self):
         self.root = ""
@@ -337,7 +339,7 @@ class sbm_rgbd(Dataset):
                 continue
 
             # load ROI image and find ROI
-            seq_path = self._get_path(None, seq)
+            seq_path = self._get_path(None, seq, ROI_file_name)
             roi_img = cv2.imread(seq_path, cv2.IMREAD_GRAYSCALE)
             if roi_img:
                 roi_boundary = find_roi(roi_img)
