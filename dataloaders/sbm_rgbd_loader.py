@@ -269,11 +269,10 @@ class sbm_rgbd(Dataset):
     def _get_path(self, content_type, seq_name=None, frame_name=None): #(self, content_type:Folder, seq_name=None, frame_name=None):
         if seq_name == None or seq_name not in self.sets['entire']['names_of_sequences']:
             raise Exception('Cannot find sequence ' + seq_name)
-        if frame_name == None:
-            return os.path.join(self.dataset_root, seq_name, content_type.folder_name)
-        
         if content_type == None:
             return os.path.join(self.dataset_root, seq_name)
+        if frame_name == None:
+            return os.path.join(self.dataset_root, seq_name, content_type.folder_name)
 
         # frames_of_seq = self._get_frames_of_seq(seq_name)
         # if frames_of_seq == None:
