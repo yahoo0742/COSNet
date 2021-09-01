@@ -128,6 +128,7 @@ class EContentInfo:
     groundtruth = Folder('groundtruth', 'png')
     all_folders = [rgb, depth, groundtruth]
 
+
 class VideoFrameInfo:
     def __init__(self, seq_name, id, name_rgb_frame, name_depth_frame, name_gt_frame):
         self.id = id
@@ -137,6 +138,54 @@ class VideoFrameInfo:
         self.seq_name = seq_name
     def __str__(self):
         return self.seq_name+"/["+self.id+"]:"+self.name_of_rgb_frame+","+self.name_of_groundtruth_frame
+
+
+def find_boundary_from_center(ary1d):
+    half = int(math.floor(len(ary1d)/2))
+    left = 0
+    right = len(ary1d) -1
+
+    l = half
+    while l >=0:
+        if ary1d[l] == 0:
+            left = l+1
+            break
+        l -= 1
+
+    r = half
+    while r < len(ary1d):
+        if ary1d[r] == 0:
+            right = r-1
+            break
+        r += 1
+    return [l,r] # both left and right are included
+
+
+def find_roi(img2d):
+  rows = img2d.shape[0]
+  cols = img2d.shape[1]
+  step_for_speed_up = 2
+
+  x_boundary = [-1, 0xFFFFFFFF]
+  y_boundary = [-1, 0xFFFFFFFF]
+  for r in range(0, rows, step_for_speed_up):
+    _x_boundary = find_boundary_from_center(img2d[r])
+    if _x_boundary[0] < _x_boundary[1]:
+      # valid boundary
+      if _x_boundary[0] > x_boundary[0]:
+          x_boundary[0] = _x_boundary[0]
+      if _x_boundary[1] < x_boundary[1]:
+          x_boundary[1] = _x_boundary[1]
+
+  for c in range(0, cols, step_for_speed_up):
+    _y_boundary = find_boundary_from_center(img2d[:,c])
+    if _y_boundary[0] < _y_boundary[1]:
+      # valid boundary
+      if _y_boundary[0] > y_boundary[0]:
+          y_boundary[0] = _y_boundary[0]
+      if _y_boundary[1] < y_boundary[1]:
+          y_boundary[1] = _y_boundary[1]
+  return (x_boundary, y_boundary) # ([x_min, x_max], [y_min, y_max]) x_max, y_max are included
 
 
 class sbm_rgbd(Dataset):
@@ -208,6 +257,10 @@ class sbm_rgbd(Dataset):
             }
         }
 
+        self.ROI = {
+            # seq_name: ([x_min, x_max], [y_min, y_max])
+        }
+
         self._collect_file_list()
         self._split_dataset(subset)
 
@@ -218,6 +271,9 @@ class sbm_rgbd(Dataset):
             raise Exception('Cannot find sequence ' + seq_name)
         if frame_name == None:
             return os.path.join(self.dataset_root, seq_name, content_type.folder_name)
+        
+        if content_type == None:
+            return os.path.join(self.dataset_root, seq_name)
 
         # frames_of_seq = self._get_frames_of_seq(seq_name)
         # if frames_of_seq == None:
@@ -236,6 +292,11 @@ class sbm_rgbd(Dataset):
     def _get_path_of_groundtruth_data(self, seq_name=None, frame_name=None):
         return self._get_path(EContentInfo.groundtruth, seq_name, frame_name)
 
+    def _get_content_in_roi(self, img2d, seq):
+        roi_boundary = self.ROI[seq]
+        if roi_boundary:
+            return img2d[roi_boundary[1][0]: roi_boundary[1][1]+1, roi_boundary[0][0]:roi_boundary[0][1]+1]
+        return None
 
     def _collect_file_list(self):
         def __check_framenames_of_sequence(folder, seq): #(folder:Folder, seq):
@@ -275,6 +336,14 @@ class sbm_rgbd(Dataset):
             if names_of_gt_frames_of_seq == None or names_of_depth_frames_of_seq == None or names_of_rgb_frames_of_seq == None:
                 invalid_seqs.append(seq)
                 continue
+
+            # load ROI image and find ROI
+            seq_path = self._get_path(None, seq)
+            roi_img = cv2.imread(seq_path, cv2.IMREAD_GRAYSCALE)
+            if roi_img:
+                roi_boundary = find_roi(roi_img)
+                self.ROI[seq] = roi_boundary
+
             names_of_rgb_frames_of_seq.sort()
             names_of_depth_frames_of_seq.sort()
             names_of_gt_frames_of_seq.sort()
@@ -412,7 +481,6 @@ class sbm_rgbd(Dataset):
         print("dataset: ", '  '.join(map(str, self.sets[set_name]['names_of_frames'])))
         print("SBM length: " , result, " for " + set_name)
         return result
-    
 
     def _load_images(self, frame_info, channels='rgbdt'):
         '''
@@ -433,11 +501,14 @@ class sbm_rgbd(Dataset):
             rgb_path = self._get_path_of_rgb_data(frame_info.seq_name, frame_info.name_of_rgb_frame)
             if rgb_path:
                 rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
-                if self.output_HW is not None:
-                    rgb_img = imresize(rgb_img, self.output_HW)
                 rgb_img = np.array(rgb_img, dtype=np.float32)
                 rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
                 rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
+                # get content in ROI
+                for i in range(len(rgb_img)):
+                    rgb_img[i] = self._get_content_in_roi(rgb_img[i], frame_info.seq_name)
+                if self.output_HW is not None:
+                    rgb_img = imresize(rgb_img, self.output_HW)
                 if self.stage == 'train':
                     rgb_img, crop_offset = self._augmente_image(rgb_img, frame_info.seq_name, crop_offset, True)
             else:
@@ -452,6 +523,10 @@ class sbm_rgbd(Dataset):
                 depth_img = cv2.imread(depth_path, cv2.IMREAD_GRAYSCALE)
                 depth_img = depth_img[None, :,:] # 1, H, W
                 depth_img = np.array(depth_img, dtype=np.float32)
+                # get content in ROI
+                depth_img[0] = self._get_content_in_roi(depth_img[0], frame_info.seq_name)
+                if self.output_HW is not None:
+                    depth_img = imresize(depth_img, self.output_HW)
                 if self.stage == 'train':
                     depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
             else:
@@ -464,10 +539,12 @@ class sbm_rgbd(Dataset):
             gt_path = self._get_path_of_groundtruth_data(frame_info.seq_name, frame_info.name_of_groundtruth_frame)
             if gt_path:
                 gt_img = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
-                if self.output_HW is not None:
-                    gt_img = imresize(gt_img, self.output_HW, interp='nearest')
                 gt_img[gt_img!=0]=1 # H, W with values in {0, 1}
                 gt_img = np.array(gt_img, dtype=np.uint8)
+                # get content in ROI
+                gt_img = self._get_content_in_roi(gt_img, frame_info.seq_name)
+                if self.output_HW is not None:
+                    gt_img = imresize(gt_img, self.output_HW, interp='nearest')
                 # print("gt shape: ",gt_img.shape)
                 if self.stage == 'train':
                     gt_img, crop_offset = self._augmente_image(gt_img, frame_info.seq_name, crop_offset, False)
