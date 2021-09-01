@@ -339,9 +339,10 @@ class sbm_rgbd(Dataset):
                 continue
 
             # load ROI image and find ROI
-            seq_path = self._get_path(None, seq, ROI_file_name)
+            seq_path = self._get_path(None, seq)
+            seq_path = os.path.join(seq_path, ROI_file_name)
             roi_img = cv2.imread(seq_path, cv2.IMREAD_GRAYSCALE)
-            if roi_img:
+            if roi_img != None:
                 roi_boundary = find_roi(roi_img)
                 self.ROI[seq] = roi_boundary
 
@@ -506,8 +507,10 @@ class sbm_rgbd(Dataset):
                 rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
                 rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
                 # get content in ROI
+                new_rgb_img = []
                 for i in range(len(rgb_img)):
-                    rgb_img[i] = self._get_content_in_roi(rgb_img[i], frame_info.seq_name)
+                    new_rgb_img.append(self._get_content_in_roi(rgb_img[i], frame_info.seq_name))
+                rgb_img = np.array(new_rgb_img)
                 if self.output_HW is not None:
                     rgb_img = imresize(rgb_img, self.output_HW)
                 if self.stage == 'train':
@@ -522,12 +525,12 @@ class sbm_rgbd(Dataset):
             depth_path = self._get_path_of_depth_data(frame_info.seq_name, frame_info.name_of_depth_frame)
             if depth_path:
                 depth_img = cv2.imread(depth_path, cv2.IMREAD_GRAYSCALE)
-                depth_img = depth_img[None, :,:] # 1, H, W
                 depth_img = np.array(depth_img, dtype=np.float32)
                 # get content in ROI
-                depth_img[0] = self._get_content_in_roi(depth_img[0], frame_info.seq_name)
+                depth_img = self._get_content_in_roi(depth_img[0], frame_info.seq_name)
                 if self.output_HW is not None:
                     depth_img = imresize(depth_img, self.output_HW)
+                depth_img = depth_img[None, :,:] # 1, H, W
                 if self.stage == 'train':
                     depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
             else:
