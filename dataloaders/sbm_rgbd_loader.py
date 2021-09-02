@@ -503,16 +503,17 @@ class sbm_rgbd(Dataset):
             rgb_path = self._get_path_of_rgb_data(frame_info.seq_name, frame_info.name_of_rgb_frame)
             if rgb_path:
                 rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
-                rgb_img = np.array(rgb_img, dtype=np.float32)
-                rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
-                rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
+                rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32))  #HWC
                 # get content in ROI
                 new_rgb_img = []
-                for i in range(len(rgb_img)):
-                    new_rgb_img.append(self._get_content_in_roi(rgb_img[i], frame_info.seq_name))
-                rgb_img = np.array(new_rgb_img)
+                for i in range(rgb_img.shape[2]):
+                    new_rgb_img.append(self._get_content_in_roi(rgb_img[:,:,i], frame_info.seq_name))
+                rgb_img = np.array(new_rgb_img, dtype=np.float32) #HWC
+
                 if self.output_HW is not None:
-                    rgb_img = imresize(rgb_img, self.output_HW)
+                    rgb_img = cv2.resize(rgb_img, (self.output_HW[1], self.output_HW[0])) #HWC
+                rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
+
                 if self.stage == 'train':
                     rgb_img, crop_offset = self._augmente_image(rgb_img, frame_info.seq_name, crop_offset, True)
             else:
@@ -527,9 +528,9 @@ class sbm_rgbd(Dataset):
                 depth_img = cv2.imread(depth_path, cv2.IMREAD_GRAYSCALE)
                 depth_img = np.array(depth_img, dtype=np.float32)
                 # get content in ROI
-                depth_img = self._get_content_in_roi(depth_img[0], frame_info.seq_name)
+                depth_img = self._get_content_in_roi(depth_img, frame_info.seq_name)
                 if self.output_HW is not None:
-                    depth_img = imresize(depth_img, self.output_HW)
+                    depth_img = cv2.resize(depth_img, (self.output_HW[1], self.output_HW[0]))
                 depth_img = depth_img[None, :,:] # 1, H, W
                 if self.stage == 'train':
                     depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
@@ -548,7 +549,7 @@ class sbm_rgbd(Dataset):
                 # get content in ROI
                 gt_img = self._get_content_in_roi(gt_img, frame_info.seq_name)
                 if self.output_HW is not None:
-                    gt_img = imresize(gt_img, self.output_HW, interp='nearest')
+                    gt_img = cv2.resize(gt_img, (self.output_HW[1],self.output_HW[0]) , interp='nearest')
                 # print("gt shape: ",gt_img.shape)
                 if self.stage == 'train':
                     gt_img, crop_offset = self._augmente_image(gt_img, frame_info.seq_name, crop_offset, False)
