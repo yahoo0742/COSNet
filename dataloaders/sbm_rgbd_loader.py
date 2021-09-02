@@ -507,12 +507,13 @@ class sbm_rgbd(Dataset):
                 # get content in ROI
                 new_rgb_img = []
                 for i in range(rgb_img.shape[2]):
-                    new_rgb_img.append(self._get_content_in_roi(rgb_img[:,:,i], frame_info.seq_name))
-                rgb_img = np.array(new_rgb_img, dtype=np.float32) #HWC
+                    new_rgb_img.append(self._get_content_in_roi(rgb_img[:,:,i], frame_info.seq_name)) #CHW
+                rgb_img = np.array(new_rgb_img, dtype=np.float32) #CHW
 
                 if self.output_HW is not None:
+                    rgb_img = rgb_img.transpose((1, 2, 0))  # CHW -> HWC
                     rgb_img = cv2.resize(rgb_img, (self.output_HW[1], self.output_HW[0])) #HWC
-                rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
+                    rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
 
                 if self.stage == 'train':
                     rgb_img, crop_offset = self._augmente_image(rgb_img, frame_info.seq_name, crop_offset, True)
