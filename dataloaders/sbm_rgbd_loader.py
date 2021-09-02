@@ -550,7 +550,7 @@ class sbm_rgbd(Dataset):
                 # get content in ROI
                 gt_img = self._get_content_in_roi(gt_img, frame_info.seq_name)
                 if self.output_HW is not None:
-                    gt_img = cv2.resize(gt_img, (self.output_HW[1],self.output_HW[0]) , interp='nearest')
+                    gt_img = cv2.resize(gt_img, (self.output_HW[1],self.output_HW[0]) , interpolation=cv2.INTER_NEAREST)
                 # print("gt shape: ",gt_img.shape)
                 if self.stage == 'train':
                     gt_img, crop_offset = self._augmente_image(gt_img, frame_info.seq_name, crop_offset, False)
