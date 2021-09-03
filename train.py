@@ -152,12 +152,14 @@ def calc_loss_BCE(pred, label):
     """
     This function returns cross entropy loss for semantic segmentation
     """
-    labels = torch.ge(label, 0.5).float()
+    labels = torch.ge(label, 0.5).int()
 #    
     label_size = label.size() # N x C x H x W
     #print(batch_size)
     num_labels_pos = torch.sum(labels) # how many entries are labeled GE than 0.5
 #    
+    if torch.any(num_labels_pos, 0):
+        num_labels_pos = torch.add(num_labels_pos, 1)
     total_label_entries =  label_size[0]* label_size[2] * label_size[3]
     positive_ratio = torch.div(total_label_entries, num_labels_pos)
     # positive_ratio = torch.div(num_labels_pos, total_label_entries) # pos ratio
