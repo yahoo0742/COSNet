@@ -156,10 +156,10 @@ def calc_loss_BCE(pred, label):
 #    
     label_size = label.size() # N x C x H x W
     #print(batch_size)
-    num_labels_pos = torch.sum(labels) # how many entries are labeled GE than 0.5
+    num_labels_pos = torch.sum(labels).item() # how many entries are labeled GE than 0.5
 #    
-    if torch.any(num_labels_pos, 0):
-        num_labels_pos = torch.add(num_labels_pos, 1)
+    if num_labels_pos == 0:
+        num_labels_pos = 1
     total_label_entries =  label_size[0]* label_size[2] * label_size[3]
     positive_ratio = torch.div(total_label_entries, num_labels_pos)
     # positive_ratio = torch.div(num_labels_pos, total_label_entries) # pos ratio
@@ -540,7 +540,7 @@ def main():
 
             optimizer.step()
 
-            loss_history.append(loss.data)
+            loss_history.append((float)(loss.item()))
 
             print("===> Epoch[{}]({}/{}): Loss: {:.10f}  lr: {:.5f}".format(epoch, i_iter, train_len, loss.data, lr))
             logger.write("Epoch[{}]({}/{}):     Loss: {:.10f}      lr: {:.5f}\n".format(epoch, i_iter, train_len, loss.data, lr))
@@ -552,6 +552,7 @@ def main():
             del counterpart_rgb
             del counterpart_gt
             del batch
+            del pred1, pred2, pred3
             gc.collect()
             torch.cuda.empty_cache()
             logMem(logger, " After GC")
