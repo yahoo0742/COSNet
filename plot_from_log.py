@@ -12,8 +12,9 @@ def readlog(filename):
     lines = f.readlines()
     result = []
     for line in lines:
+        if not line.startswith("Epoch["):
+            continue
         parts = line.split("     ")
-        print("**line:",line," parts: ",len(parts))
         if parts and len(parts) > 2 and parts[1].startswith("Loss: "):
             loss = parts[1].replace("Loss: ", "")
             floatloss = float(loss)
