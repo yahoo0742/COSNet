@@ -339,7 +339,7 @@ def Res_Deeplab(num_classes=2): # not used
     return model
 
 def CoattentionNet(num_classes=2):
-    num_blocks_of_resnet_layers = [3, 4, 23, 3]
+    num_blocks_of_resnet_layers = [3, 4, 23, 3] #resnet 101
     model = CoattentionModel(Bottleneck, num_blocks_of_resnet_layers, num_classes-1)
-	
+
     return model
