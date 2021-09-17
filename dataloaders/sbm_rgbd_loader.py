@@ -141,6 +141,12 @@ class VideoFrameInfo:
     def __str__(self):
         return self.seq_name+"/["+self.id+"]:"+self.name_of_rgb_frame+","+self.name_of_groundtruth_frame
 
+def _VFIs_to_str(frameinfo_iter, joint=None):
+    def to_str(fi):
+        if joint:
+            return str(fi) + joint
+        return str(fi)
+    return map(to_str, frameinfo_iter)
 
 def find_boundary_from_center(ary1d):
     half = int(math.floor(len(ary1d)/2))
