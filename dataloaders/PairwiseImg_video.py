@@ -10,8 +10,8 @@ from __future__ import division
 import os
 import numpy as np
 import cv2
-from scipy.misc import imresize
-import scipy.misc 
+# from scipy.misc import imresize
+# import scipy.misc 
 import random
 
 #from dataloaders.helpers import *
@@ -213,12 +213,14 @@ class PairwiseImg(Dataset):
              label = gt_temp
              
         if self.desired_HW is not None:
-            img = imresize(img, self.desired_HW)
+            # img = imresize(img, self.desired_HW) # bilinear by default
+            img = cv2.resize(img, (self.desired_HW[1], self.desired_HW[0])) # INTER_LINEAR by default, actually bilinear
             #print('ok1')
             #scipy.misc.imsave('label.png',label)
             #scipy.misc.imsave('img.png',img)
             if self.labels[idx] is not None and self.train:
-                label = imresize(label, self.desired_HW, interp='nearest')
+                # label = imresize(label, self.desired_HW, interp='nearest')
+                label = cv2.resize(label, (self.desired_HW[1], self.desired_HW[0]), interpolation=cv2.INTER_NEAREST)
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
@@ -250,9 +252,12 @@ class PairwiseImg(Dataset):
             gt = np.zeros(img.shape[:-1], dtype=np.uint8)
             
         if self.desired_HW is not None:            
-            img = imresize(img, self.desired_HW)
+            # img = imresize(img, self.desired_HW)
+            img = cv2.resize(img, (self.desired_HW[1], self.desired_HW[0]))
             if self.saliency_labels[idx] is not None and self.train:
-                label = imresize(label, self.desired_HW, interp='nearest')
+                # label = imresize(label, self.desired_HW, interp='nearest')
+                label = cv2.resize(label, (self.desired_HW[1], self.desired_HW[0]), interpolation=cv2.INTER_NEAREST)
+
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]

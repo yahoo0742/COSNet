@@ -2,7 +2,7 @@ import os
 import sys
 import cv2
 import torch
-from scipy.misc import imresize
+# from scipy.misc import imresize
 # import shutil
 import random
 # import tarfile
@@ -348,7 +348,7 @@ class sbm_rgbd(Dataset):
             seq_path = self._get_path(None, seq)
             seq_path = os.path.join(seq_path, ROI_file_name)
             roi_img = cv2.imread(seq_path, cv2.IMREAD_GRAYSCALE)
-            if roi_img != None:
+            if roi_img.all() != None:
                 roi_boundary = find_roi(roi_img)
                 self.ROI[seq] = roi_boundary
 

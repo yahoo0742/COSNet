@@ -44,7 +44,7 @@ import numpy as np
 import random
 import cv2
 import h5py
-from scipy.misc import imresize
+# from scipy.misc import imresize
 from torch.utils.data import Dataset
 from dataloaders import utils
 import torch
@@ -458,7 +458,8 @@ class HzFuRGBDVideos(Dataset):
 
             # resize to the expected size
             if self.output_HW is not None:
-                result = imresize(result, self.output_HW)
+                # result = imresize(result, self.output_HW)
+                result = cv2.resize(result,(self.output_HW[1], self.output_HW[0]),interpolation = cv2.INTER_NEAREST)
             result = np.array(result, dtype=np.float32)
 
             # normalize
@@ -480,7 +481,8 @@ class HzFuRGBDVideos(Dataset):
             if rgb_path:
                 rgb_img = cv2.imread(rgb_path, cv2.IMREAD_COLOR)
                 if self.output_HW is not None:
-                    rgb_img = imresize(rgb_img, self.output_HW)
+                    rgb_img = cv2.resize(rgb_img,(self.output_HW[1], self.output_HW[0]))
+
                 rgb_img = np.array(rgb_img, dtype=np.float32)
                 rgb_img = np.subtract(rgb_img, np.array(self.meanval, dtype=np.float32)) 
                 rgb_img = rgb_img.transpose((2, 0, 1))  # HWC -> CHW
@@ -511,7 +513,10 @@ class HzFuRGBDVideos(Dataset):
             if gt_path:
                 gt_img = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
                 if self.output_HW is not None:
-                    gt_img = imresize(gt_img, self.output_HW, interp='nearest')
+                    # gt_img = imresize(gt_img, self.output_HW, interp='nearest')
+                    gt_img = cv2.resize(gt_img,(self.output_HW[1], self.output_HW[0]),interpolation = cv2.INTER_NEAREST)
+
+                    
                 gt_img[gt_img!=0]=1 # H, W with values in {0, 1}
                 gt_img = np.array(gt_img, dtype=np.uint8)
                 # print("gt shape: ",gt_img.shape)
