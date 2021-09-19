@@ -73,7 +73,7 @@ class PairwiseImg(Dataset):
         else:
             fname = 'val'
 
-	    print("seq name: ",self.seq_name, " root: ",db_root_dir, " fname: ",fname)
+        print("seq name: ",self.seq_name, " root: ",db_root_dir, " fname: ",fname)
 
         if self.seq_name is None: #所有的数据集都参与训练
             with open(os.path.join(db_root_dir, 'ImageSets', '480p', fname + '.txt')) as f:
