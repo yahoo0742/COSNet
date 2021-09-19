@@ -46,11 +46,13 @@ log_section_end = "==##"
 timenow = datetime.datetime.now()
 ymd_hms = timenow.strftime("%Y%m%d_%H%M%S")
 
+print("Training starts at ", ymd_hms)
+
 def logMem(logger, prefix):
     total = torch.cuda.get_device_properties(None).total_memory
     mem_alloc = torch.cuda.memory_allocated()
     mem_cache = torch.cuda.memory_cached()
-    msg = prefix + " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)+ "\n"
+    msg = prefix + " GPU: " + str(torch.cuda.current_device())+ " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)+ "\n"
     print(msg)
     if logger:
         logger.write(msg)
@@ -160,6 +162,7 @@ def calc_loss_BCE(pred, label):
 #    
     if num_labels_pos == 0:
         num_labels_pos = 1
+        print("!!!!!!!!!!! empty GT ")
     total_label_entries =  label_size[0]* label_size[2] * label_size[3]
     positive_ratio = torch.div(total_label_entries, num_labels_pos)
     # positive_ratio = torch.div(num_labels_pos, total_label_entries) # pos ratio
@@ -531,6 +534,11 @@ def main():
             #print(images.size())
             logMem(logger, " After feeding data to GPU")
 
+
+            if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
+                pred1, pred2, pred3 = model(current_rgb, counterpart_rgb)
+            else:
+                pred1, pred2, pred3 = model(current_rgb, counterpart_rgb, current_depth)
 
             pred1, pred2, pred3 = model(current_rgb, counterpart_rgb, current_depth)
             loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt) + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
