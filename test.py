@@ -78,7 +78,7 @@ def get_arguments():
     parser.add_argument("--sample_range", default =5)
     parser.add_argument("--epoches", default=0)
     parser.add_argument("--batch_size", default=0)
-    parser.add_argument("--model", default="add", help="ori, retrain, ref, add, padd, or coc")
+    parser.add_argument("--model", default="add", help="ori, retrain, ref, add, padd, conv_add, or coc")
 
     return parser.parse_args()
 
@@ -189,6 +189,9 @@ def main():
     elif args.model == "padd" or args.model == "post_added_depth_rgbd":
         model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="padd")
         args.full_model_name = "post_added_depth_rgbd"
+    elif args.model == "conv_add" or args.model == "convs_depth_addition":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_add")
+        args.full_model_name = "convs_depth_addition"
     else:
         print("Invalid model name!")
         return
@@ -264,7 +267,7 @@ def main():
                 search_depth = batch['search_'+str(i)+'_depth']
                 #print(search_img.size())
                 with torch.no_grad():
-                    if args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2":
+                    if args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
                         output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
                     else:
                         output = model(Variable(target).cuda(),Variable(search_img).cuda())
