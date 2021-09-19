@@ -110,13 +110,15 @@
 "test":
     "model":
         "original_coattention_rgb":
-            "pretrained_params": "./pretrained/co_attention.pth" # './pretrained/davis_480x854_Aug16.pth'
+            "pretrained_params": "./pretrained/co_attention.pth" # './pretrained/davis_480x854_Aug16.pth' #  "./snapshots/sbmrgbd/ori/H480W640/20210907_154910/snapshot_sbmrgbd_29.pth" #"./pretrained/co_attention.pth" # './pretrained/davis_480x854_Aug16.pth'
         "original_coattention_rgb_retrained":
             "pretrained_params": "./snapshots/davis/origin/H480W854/20210823_110140/co_attention_davis_29.pth" # "./pretrained/davis_480x854_Aug16.pth"
         "refactored_coattention_rgb":
             "pretrained_params": "./snapshots/davis_480x854s/co_attention_davis_29.pth"
         "added_depth_rgbd":
-            "pretrained_params": "./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth" #'./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth' #'./snapshots/hzfurgbd_iteration/H120W160/20210814_2145/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/hzfurgbd_iteration/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth'
+            "pretrained_params": "./snapshots/sbmrgbd/add/H480W640/20210917_145359/snapshot_sbmrgbd_29.pth" # "./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth" #'./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth' #'./snapshots/hzfurgbd_iteration/H120W160/20210814_2145/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/hzfurgbd_iteration/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' 
+        "convs_depth_addition":
+            "pretrained_params": "./snapshots/sbmrgbd/conv_add/H480W640/20210919_152755/snapshot_sbmrgbd_58.pth"
         "post_added_depth_rgbd":
             "pretrained_params": "./snapshots/hzfurgbd/padd/H480W640/20210824_225825/snapshot_hzfurgbd_29.pth" #'./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth' #'./snapshots/hzfurgbd_iteration/H120W160/20210814_2145/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/hzfurgbd_iteration/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth'
         "concatenated_depth_rgbd":
