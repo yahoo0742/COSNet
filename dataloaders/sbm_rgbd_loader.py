@@ -281,7 +281,7 @@ class sbm_rgbd(Dataset):
     Check whether the ground truth is empty
     """
     def __validate_frame_empty(self, frame_info, channels='dt'):
-        is_empty = { "depth": (False, False, False), "gt": (False) }
+        is_empty = { "depth": [False, False, False], "gt": [False] }
         _, depth, gt = self._load_images(frame_info, channels)
         # depth is in the shape of (1, H, W)
         depth = depth[0]
