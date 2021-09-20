@@ -281,7 +281,7 @@ class sbm_rgbd(Dataset):
     Check whether the ground truth is empty
     """
     def __validate_frame_empty(self, frame_info, channels='dt'):
-        is_empty = { "depth": (False, False, False), "gt": False }
+        is_empty = { "depth": (False, False, False), "gt": (False) }
         _, depth, gt = self._load_images(frame_info, channels)
         # depth is in the shape of (1, H, W)
         depth = depth[0]
@@ -291,7 +291,7 @@ class sbm_rgbd(Dataset):
         load_groundtruth = 't' in channels
         if load_groundtruth:
             none0_percentage = np.count_nonzero(gt) * 1.0 / gt.shape[0] / gt.shape[1]
-            is_empty["gt"] = none0_percentage < 0.01 or none0_percentage > 0.9 #only 1% of pixels belong to the foreground object or 90% of pixels belong to the foreground object
+            is_empty["gt"][0] = none0_percentage < 0.01 or none0_percentage > 0.9 #only 1% of pixels belong to the foreground object or 90% of pixels belong to the foreground object
         
         # check whether depth of every pixel are all same values or similar values
         load_depth = 'd' in channels
@@ -299,7 +299,7 @@ class sbm_rgbd(Dataset):
             # check 0 values
             area = depth.shape[0] * depth.shape[1]
             none0_percentage = np.count_nonzero(depth) * 1.0 / area
-            is_empty["depth"] = none0_percentage < 0.01 # 99% values of depth are 0
+            is_empty["depth"][0] = none0_percentage < 0.01 # 99% values of depth are 0
 
             # check histogram to find noises
             min_depth = torch.min(depth).item()
@@ -314,12 +314,12 @@ class sbm_rgbd(Dataset):
             # if least_occurance < 1:
             #     least_occurance = 1
             percentage_of_min_occurance = min_occu * 1.0 / total_occu
-            is_empty["depth"] = is_empty["depth"] or percentage_of_min_occurance <= percentage_threashold
+            is_empty["depth"][1] = percentage_of_min_occurance <= percentage_threashold
 
             # check range of values
             # if is_empty["depth"] == False:
             _range = max_depth - min_depth
-            is_empty["depth"] = is_empty["depth"] or _range < 20
+            is_empty["depth"][2] = _range < 20
         return is_empty
 
 
@@ -335,7 +335,7 @@ class sbm_rgbd(Dataset):
                     print("!!! empty depth with some noises: ", str(frame_info))
                 if is_empty["depth"][2]:
                     print("!!! empty depth with a narrow range: ", str(frame_info))
-                if is_empty["gt"]:
+                if is_empty["gt"][0]:
                     print("!!! empty gt: ", str(frame_info))
 
 
