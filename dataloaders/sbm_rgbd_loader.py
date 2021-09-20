@@ -281,26 +281,47 @@ class sbm_rgbd(Dataset):
     Check whether the ground truth is empty
     """
     def __validate_frame_empty(self, frame_info, channels='dt'):
-        is_empty = { "depth": False, "gt": False }
+        is_empty = { "depth": (False, False, False), "gt": False }
         _, depth, gt = self._load_images(frame_info, channels)
-        # check whether depth of every pixel are all same values or similar values
+        # depth is in the shape of (1, H, W)
+        depth = depth[0]
+        # gt is in the shape of (H, W)
+
         # check gt whether is empty
         load_groundtruth = 't' in channels
         if load_groundtruth:
-            none0 = np.count_nonzero(gt)
-            is_empty["gt"] = none0 < 0.01 or none0 > 0.9 #only 1% of pixels belong to the foreground object or 90% of pixels belong to the foreground object
-
+            none0_percentage = np.count_nonzero(gt) * 1.0 / gt.shape[0] / gt.shape[1]
+            is_empty["gt"] = none0_percentage < 0.01 or none0_percentage > 0.9 #only 1% of pixels belong to the foreground object or 90% of pixels belong to the foreground object
+        
+        # check whether depth of every pixel are all same values or similar values
         load_depth = 'd' in channels
         if load_depth:
-            none0 = np.count_nonzero(depth)
-            is_empty["depth"] = none0 < 0.01
-            if not is_empty["depth"]:
-                min_depth = min(depth)
-                max_depth = max(depth)
-                gap = max_depth - min_depth
-                is_empty["depth"] = gap < 20
-        
+            # check 0 values
+            area = depth.shape[0] * depth.shape[1]
+            none0_percentage = np.count_nonzero(depth) * 1.0 / area
+            is_empty["depth"] = none0_percentage < 0.01 # 99% values of depth are 0
+
+            # check histogram to find noises
+            min_depth = torch.min(depth).item()
+            max_depth = torch.max(depth).item()
+            bins = (int)(max_depth - min_depth)
+            hist = np.histogram(depth, bins) #tuple
+            occurance = hist[0]
+            min_occu = occurance.min()
+            total_occu = occurance.sum()
+            percentage_threashold = 0.0005 #1/(256*8) 
+            # least_occurance = (int)(total_occu * percentage_threashold)
+            # if least_occurance < 1:
+            #     least_occurance = 1
+            percentage_of_min_occurance = min_occu * 1.0 / total_occu
+            is_empty["depth"] = is_empty["depth"] or percentage_of_min_occurance <= percentage_threashold
+
+            # check range of values
+            # if is_empty["depth"] == False:
+            _range = max_depth - min_depth
+            is_empty["depth"] = is_empty["depth"] or _range < 20
         return is_empty
+
 
     def _validate_frames(self):
         num_frames = len(self.sets["entire"]['names_of_frames'])
@@ -308,8 +329,12 @@ class sbm_rgbd(Dataset):
             frame_info = self._get_framename_by_index("entire", idx)
             if frame_info != None:
                 is_empty = self.__validate_frame_empty(frame_info)
-                if is_empty["depth"]:
-                    print("!!! empty depth: ", str(frame_info))
+                if is_empty["depth"][0]:
+                    print("!!! empty depth with 99'%' 0s: ", str(frame_info))
+                if is_empty["depth"][1]:
+                    print("!!! empty depth with some noises: ", str(frame_info))
+                if is_empty["depth"][2]:
+                    print("!!! empty depth with a narrow range: ", str(frame_info))
                 if is_empty["gt"]:
                     print("!!! empty gt: ", str(frame_info))
 
