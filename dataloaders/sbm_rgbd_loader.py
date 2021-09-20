@@ -237,9 +237,6 @@ class sbm_rgbd(Dataset):
         self.channels_for_target_frame = channels_for_target_frame
         self.channels_for_counterpart_frame = channels_for_counterpart_frame
 
-        self.batch_size = batch_size
-        self.stage = 'train' if for_training else 'test'
-
         self.flip_prob_of_seqs_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
 
         self.sets = {
@@ -269,9 +266,52 @@ class sbm_rgbd(Dataset):
             # seq_name: ([x_min, x_max], [y_min, y_max])
         }
 
+        self.batch_size = 1
+        self.stage = 'initing'
+
         self._collect_file_list()
+        self._validate_frames()
+
+        self.batch_size = batch_size
+        self.stage = 'train' if for_training else 'test'
         self._split_dataset(subset)
 
+
+    """
+    Check whether the ground truth is empty
+    """
+    def __validate_frame_empty(self, frame_info, channels='dt'):
+        is_empty = { "depth": False, "gt": False }
+        _, depth, gt = self._load_images(frame_info, channels)
+        # check whether depth of every pixel are all same values or similar values
+        # check gt whether is empty
+        load_groundtruth = 't' in channels
+        if load_groundtruth:
+            none0 = np.count_nonzero(gt)
+            is_empty["gt"] = none0 < 0.01 or none0 > 0.9 #only 1% of pixels belong to the foreground object or 90% of pixels belong to the foreground object
+
+        load_depth = 'd' in channels
+        if load_depth:
+            none0 = np.count_nonzero(depth)
+            is_empty["depth"] = none0 < 0.01
+            if not is_empty["depth"]:
+                min_depth = min(depth)
+                max_depth = max(depth)
+                gap = max_depth - min_depth
+                is_empty["depth"] = gap < 20
+        
+        return is_empty
+
+    def _validate_frames(self):
+        num_frames = len(self.sets["entire"]['names_of_frames'])
+        for idx in range(0, num_frames):
+            frame_info = self._get_framename_by_index("entire", idx)
+            if frame_info != None:
+                is_empty = self.__validate_frame_empty(frame_info)
+                if is_empty["depth"]:
+                    print("!!! empty depth: ", str(frame_info))
+                if is_empty["gt"]:
+                    print("!!! empty gt: ", str(frame_info))
 
 
     def _get_path(self, content_type, seq_name=None, frame_name=None): #(self, content_type:Folder, seq_name=None, frame_name=None):
