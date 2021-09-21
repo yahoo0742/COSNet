@@ -156,26 +156,28 @@ def calc_loss_BCE(pred, label):
     """
     labels = torch.ge(label, 0.5).int()
 #    
-    label_size = label.size() # N x C x H x W
     #print(batch_size)
     num_labels_pos = torch.sum(labels).item() # how many entries are labeled GE than 0.5
 #    
     if num_labels_pos == 0:
-        num_labels_pos = 1
+        criterion = torch.nn.BCELoss()
         print("!!!!!!!!!!! empty GT ")
-    total_label_entries =  label_size[0]* label_size[2] * label_size[3]
-    positive_ratio = torch.div(total_label_entries, num_labels_pos)
-    # positive_ratio = torch.div(num_labels_pos, total_label_entries) # pos ratio
-    # positive_ratio = torch.reciprocal(positive_ratio)
+    else:
+        label_size = label.size() # N x C x H x W
 
-    #print(num_labels_pos, total_label_entries)
-    #negative_ratio = torch.div(total_label_entries-num_labels_pos, total_label_entries)
-    #print('postive ratio', negative_ratio, positive_ratio)
-    positive_label_impact = torch.mul(positive_ratio,  torch.ones(label_size[0], label_size[1], label_size[2], label_size[3]).cuda())
-    #weight_11 = torch.mul(weight_1,  torch.ones(batch_size[0], batch_size[1], batch_size[2]).cuda())
-    # binary cross entropy, weight indicates that the less the positive label entries, the more impact the difference between the prediction and the label can have
-    criterion = torch.nn.BCELoss(weight = positive_label_impact)#weight = torch.Tensor([0,1]) .cuda() #torch.nn.CrossEntropyLoss(ignore_index=args.ignore_label).cuda()
-    #loss = class_balanced_cross_entropy_loss(pred, label).cuda()
+        total_label_entries =  label_size[0]* label_size[2] * label_size[3]
+        positive_ratio = torch.div(total_label_entries, num_labels_pos)
+        # positive_ratio = torch.div(num_labels_pos, total_label_entries) # pos ratio
+        # positive_ratio = torch.reciprocal(positive_ratio)
+
+        #print(num_labels_pos, total_label_entries)
+        #negative_ratio = torch.div(total_label_entries-num_labels_pos, total_label_entries)
+        #print('postive ratio', negative_ratio, positive_ratio)
+        positive_label_impact = torch.mul(positive_ratio,  torch.ones(label_size[0], label_size[1], label_size[2], label_size[3]).cuda())
+        #weight_11 = torch.mul(weight_1,  torch.ones(batch_size[0], batch_size[1], batch_size[2]).cuda())
+        # binary cross entropy, weight indicates that the less the positive label entries, the more impact the difference between the prediction and the label can have
+        criterion = torch.nn.BCELoss(weight = positive_label_impact)#weight = torch.Tensor([0,1]) .cuda() #torch.nn.CrossEntropyLoss(ignore_index=args.ignore_label).cuda()
+        #loss = class_balanced_cross_entropy_loss(pred, label).cuda()
         
     return criterion(pred, label)
 
@@ -214,14 +216,23 @@ def get_1x_lr_params(model):
         b.append(mod.encoder.layer5)
         b.append(mod.encoder.main_classifier)
     else:
-        b.append(mod.encoder.backbone.conv1)
-        b.append(mod.encoder.backbone.bn1)
-        b.append(mod.encoder.backbone.layer1)
-        b.append(mod.encoder.backbone.layer2)
-        b.append(mod.encoder.backbone.layer3)
-        b.append(mod.encoder.backbone.layer4)
-        b.append(mod.encoder.aspp)
-        b.append(mod.encoder.main_classifier)
+        # b.append(mod.encoder.backbone.conv1)
+        # b.append(mod.encoder.backbone.bn1)
+        # b.append(mod.encoder.backbone.layer1)
+        # b.append(mod.encoder.backbone.layer2)
+        # b.append(mod.encoder.backbone.layer3)
+        # b.append(mod.encoder.backbone.layer4)
+        # b.append(mod.encoder.aspp)
+        # b.append(mod.encoder.main_classifier)
+
+        b.append(mod.linear_e)
+        b.append(mod.conv1)
+        b.append(mod.conv2)
+        b.append(mod.gate)
+        b.append(mod.bn1)
+        b.append(mod.bn2)
+        b.append(mod.main_classifier1)
+        b.append(mod.main_classifier2)
 
     for i in range(len(b)):
         for j in b[i].modules():
@@ -255,15 +266,20 @@ def get_10x_lr_params(model):
     elif args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "convs_depth_addition" or args.full_model_name == "convs_depth_concatenation2":
         b.append(mod.depth_encoder.conv1.parameters())
         b.append(mod.depth_encoder.conv2.parameters())
-        b.append(mod.depth_encoder.bn.parameters())
-        b.append(mod.linear_e.parameters())
-        b.append(mod.conv1.parameters())
-        b.append(mod.conv2.parameters())
-        b.append(mod.gate.parameters())
-        b.append(mod.bn1.parameters())
-        b.append(mod.bn2.parameters())   
-        b.append(mod.main_classifier1.parameters())
-        b.append(mod.main_classifier2.parameters())
+        b.append(mod.depth_encoder.bn1.parameters())
+        b.append(mod.depth_encoder.bn2.parameters())
+        b.append(mod.depth_gate.parameters())
+        b.append(mod.depth_weight.parameters())
+        # b.append(mod.depth_encoder.bn.parameters())
+        # b.append(mod.linear_e.parameters())
+        # b.append(mod.conv1.parameters())
+        # b.append(mod.conv2.parameters())
+        # b.append(mod.gate.parameters())
+        # b.append(mod.bn1.parameters())
+        # b.append(mod.bn2.parameters())   
+        # b.append(mod.main_classifier1.parameters())
+        # b.append(mod.main_classifier2.parameters())
+
     else:
         b.append(mod.depth_encoder.backbone.conv1.parameters())
         b.append(mod.depth_encoder.backbone.bn1.parameters())
@@ -536,11 +552,10 @@ def main():
 
 
             if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
-                pred1, pred2, pred3 = model(current_rgb, counterpart_rgb)
+                pred1, pred2, obj_label = model(current_rgb, counterpart_rgb)
             else:
-                pred1, pred2, pred3 = model(current_rgb, counterpart_rgb, current_depth)
+                pred1, pred2, obj_label = model(current_rgb, counterpart_rgb, current_depth)
 
-            pred1, pred2, pred3 = model(current_rgb, counterpart_rgb, current_depth)
             loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt) + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
             logMem(logger, " After forward")
             loss.backward()
@@ -560,7 +575,7 @@ def main():
             del counterpart_rgb
             del counterpart_gt
             del batch
-            del pred1, pred2, pred3
+            del pred1, pred2, obj_label
             gc.collect()
             torch.cuda.empty_cache()
             logMem(logger, " After GC")
