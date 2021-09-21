@@ -336,7 +336,7 @@ class sbm_rgbd(Dataset):
                 if is_empty["depth"][0]:
                     print("!!! Abnormal depth having >=90'%' 0s: ", is_empty["depth"][0], str(frame_info))
                 if is_empty["depth"][1]:
-                    print("!!! Abnormal depth having ${} noises: ", is_empty["depth"][1], str(frame_info))
+                    print("!!! Abnormal depth having noises: ", is_empty["depth"][1], str(frame_info))
                 if is_empty["depth"][2]:
                     print("!!! Abnormal depth having a narrow range: ", is_empty["depth"][2], str(frame_info))
                 if is_empty["gt"][0]:
