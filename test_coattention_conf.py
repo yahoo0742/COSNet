@@ -168,7 +168,14 @@ def main():
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
         #voc_colorize = VOCColorize()
     elif args.dataset == 'hzfud':
-        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='dt', channels_for_counterpart_frame='d', subset_percentage=1, subset=user_config["test"]["dataset"]["hzfurgb"]["subset"], for_training=False, batch_size=args.batch_size)
+        subset = {
+            "child_no1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png"],
+            "dog_no_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png"],
+            "toy_wg_occ": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png","46_obj_1.png","51_obj_1.png"],
+            "tracking4": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png"],
+            "zcup_move_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png"]
+        }
+        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='dt', channels_for_counterpart_frame='d', subset_percentage=1, subset=subset, for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
