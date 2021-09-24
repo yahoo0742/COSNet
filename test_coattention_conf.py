@@ -213,10 +213,10 @@ def main():
 
         if frame_index:
             for i in range(len(target)):
-                save_dir = os.path.join(args.seg_save_dir, seqs_name[idx], "rgb")
+                save_dir = os.path.join(args.seg_save_dir, seqs_name[i], "rgb")
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
-                seg_filename = os.path.join(save_dir, '{}.png'.format(frame_index[idx]))
+                seg_filename = os.path.join(save_dir, '{}.png'.format(frame_index[i]))
                 target[i].save(seg_filename)
                 
         if old_temp==args.seq_name:
