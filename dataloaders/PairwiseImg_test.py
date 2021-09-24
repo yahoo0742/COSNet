@@ -10,8 +10,8 @@ from __future__ import division
 import os
 import numpy as np
 import cv2
-from scipy.misc import imresize
-import scipy.misc 
+# from scipy.misc import imresize
+# import scipy.misc 
 import random
 
 #from dataloaders.helpers import *
@@ -199,12 +199,16 @@ class PairwiseImg(Dataset):
              label = gt_temp
              
         if self.output_HW is not None:
-            img = imresize(img, self.output_HW)
+            #img = imresize(img, self.output_HW)
+            img = cv2.resize(img, (self.output_HW[1], self.output_HW[0]))
+
             #print('ok1')
             #scipy.misc.imsave('label.png',label)
             #scipy.misc.imsave('img.png',img)
             if need_gt:
-                label = imresize(label, self.output_HW, interp='nearest')
+                # label = imresize(label, self.output_HW, interp='nearest')
+                label = cv2.resize(label, (self.output_HW[1],self.output_HW[0]) , interpolation=cv2.INTER_NEAREST)
+
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
