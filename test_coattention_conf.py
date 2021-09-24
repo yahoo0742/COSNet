@@ -217,7 +217,8 @@ def main():
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
                 seg_filename = os.path.join(save_dir, '{}.png'.format(frame_index[i]))
-                target[i].save(seg_filename)
+                img = Image.fromarray(target[i].transpose(1, 2, 0), 'RGB')
+                img.save(seg_filename)
                 
         if old_temp==args.seq_name:
             my_index = my_index+1
