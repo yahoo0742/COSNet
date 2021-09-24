@@ -84,8 +84,17 @@ def get_arguments():
 
 
 def config(args):
+    if args.dataset == 'hzfud':
+        if not args.batch_size:
+            args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        if not args.epoches:
+            args.epoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= epoches*len(train_aug)/batch_size_per_gpu'),
+        args.ignore_label = 255     #The index of the label to ignore during the training
+        args.num_classes = 2      #Number of classes to predict (including background)
+        args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
+        #args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
 
-    if args.dataset == 'hzfurgb':
+    elif args.dataset == 'hzfurgb':
         if not args.batch_size:
             args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         if not args.epoches:
@@ -222,6 +231,9 @@ def main():
         db_test = db.PairwiseImg(train=False, output_HW=(854,480), db_root_dir=args.data_path,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=False, num_workers=0)
         #voc_colorize = VOCColorize()
+    elif args.dataset == 'hzfud':
+        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='dt', channels_for_counterpart_frame='d', subset_percentage=1, subset=user_config["test"]["dataset"]["hzfurgb"]["subset"], for_training=False, batch_size=args.batch_size)
+        testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'hzfurgb':
         db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbt', channels_for_counterpart_frame='rgb', subset_percentage=1, subset=user_config["test"]["dataset"]["hzfurgb"]["subset"], for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
