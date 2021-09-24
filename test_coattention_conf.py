@@ -208,9 +208,17 @@ def main():
         if 'target_depth' in batch:
             target_depth = batch['target_depth']
         seqs_name = batch['seq_name']
-
         args.seq_name=temp[0]
         print(args.seq_name)
+
+        if frame_index:
+            for i in range(len(target)):
+                save_dir = os.path.join(args.seg_save_dir, seqs_name[idx], "rgb")
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)
+                seg_filename = os.path.join(save_dir, '{}.png'.format(frame_index[idx]))
+                target[i].save(seg_filename)
+                
         if old_temp==args.seq_name:
             my_index = my_index+1
         else:
@@ -222,6 +230,7 @@ def main():
             if depth_key in batch:
                 search_depth = batch[depth_key]
             search_im = search
+
             #print(search_im.size())
             with torch.no_grad():
                 output = model(Variable(target).cuda(),Variable(search_im, volatile=True).cuda())
