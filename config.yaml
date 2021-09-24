@@ -84,7 +84,7 @@
         "sbmrgbd":
             "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/sbm-rgbd/AllSequences/"
             "batch_size": 4 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
-            "max_epoches": 30 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
+            "max_epoches": 50 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
             "input_size": '640,480' #'640,480'  #Comma-separated string with height and width of images
             "output_HW": '480,640'
@@ -118,7 +118,7 @@
         "added_depth_rgbd":
             "pretrained_params": "./snapshots/sbmrgbd/add/H480W640/20210917_145359/snapshot_sbmrgbd_29.pth" # "./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth" #'./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth' #'./snapshots/hzfurgbd_iteration/H120W160/20210814_2145/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/hzfurgbd_iteration/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' 
         "convs_depth_addition":
-            "pretrained_params": "./snapshots/sbmrgbd/conv_add/H480W640/20210919_152755/snapshot_sbmrgbd_58.pth"
+            "pretrained_params": "./snapshots/sbmrgbd/conv_add/H480W640/20210920_232012/snapshot_sbmrgbd_49.pth" #"./snapshots/sbmrgbd/conv_add/H480W640/20210919_152755/snapshot_sbmrgbd_58.pth"
         "post_added_depth_rgbd":
             "pretrained_params": "./snapshots/hzfurgbd/padd/H480W640/20210824_225825/snapshot_hzfurgbd_29.pth" #'./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth' #'./snapshots/hzfurgbd_iteration/H120W160/20210814_2145/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/hzfurgbd_iteration/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth'
         "concatenated_depth_rgbd":
@@ -131,6 +131,18 @@
             "subset_file": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/val.txt"
             "path": ""
             "output_WH": ""
+        "hzfud":
+            "model":
+            "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset"
+            "output_WH": "640,480"
+            "image_HW_4_model": "480, 640"
+            "sample_range": 1
+            "subset":
+                "child_no1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png"]
+                "dog_no_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png"]
+                "toy_wg_occ": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png","46_obj_1.png","51_obj_1.png"]
+                "tracking4": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png"]
+                "zcup_move_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png"]
         "hzfurgb":
             "model":
             "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset"
