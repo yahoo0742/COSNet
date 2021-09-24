@@ -196,6 +196,8 @@ def main():
     print("======> test set size:", len(testloader))
     my_index = 0
     old_temp=''
+    iou_result = 0
+    iou_counter = 0
     for index, batch in enumerate(testloader):
         print('%d processd'%(index))
         target = batch['target']
@@ -284,6 +286,9 @@ def main():
         else:
             print("dataset error")
     
+    iou_result = iou_result/iou_counter
+    logger.write(log_section_start+" final IOU: "+ str(iou_result) +log_section_end+"\n")
+    logger.flush()
 
 if __name__ == '__main__':
     main()
