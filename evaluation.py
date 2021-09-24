@@ -1,7 +1,7 @@
 import numpy as np
 
 def compute_iou(prediction01, gt01):
-    prediction = prediction01 * 255
+    prediction = prediction01 #* 255
     prediction = prediction.astype(np.int16)
     gt = gt01 * 255
     gt = gt.astype(np.int16)
