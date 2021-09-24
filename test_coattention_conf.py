@@ -24,6 +24,7 @@ import torch.backends.cudnn as cudnn
 import sys
 import os
 import os.path as osp
+from dataloaders import hzfu_rgbd_loader as hzfurgbd_db
 from dataloaders import PairwiseImg_test as db
 #from dataloaders import StaticImg as db #采用voc dataset的数据设置格式方法
 import matplotlib.pyplot as plt
@@ -38,6 +39,14 @@ import torch.nn as nn
 #from pydensecrf.utils import unary_from_softmax, create_pairwise_bilateral, create_pairwise_gaussian
 from deeplab.siamese_model_conf import CoattentionNet
 from torchvision.utils import save_image
+from evaluation import compute_iou
+import datetime
+
+timenow = datetime.datetime.now()
+ymd_hms = timenow.strftime("%Y%m%d_%H%M%S")
+
+log_section_start = "##=="
+log_section_end = "==##"
 
 def get_arguments():
     """Parse all the arguments provided from the CLI.
@@ -87,6 +96,21 @@ def configure_dataset_model(args):
         args.seg_save_dir = "./result/test/davis_iteration_conf"
         args.vis_save_dir = "./result/test/davis_vis"
         args.corp_size =(473, 473) #didn't see reference
+
+    elif args.dataset == 'hzfud': 
+        args.batch_size = 10# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
+        args.data_path = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'  #/DAVIS-2016'   # 37572 image pairs
+        args.ignore_label = 255     #The index of the label to ignore during the training
+        args.num_classes = 2      #Number of classes to predict (including background)
+        args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
+        args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.save_segimage = True
+        args.seg_save_dir = "./vos_test_results/hzfud/original_coattention_rgb/"+ymd_hms
+        args.corp_size =(473, 473) #didn't see reference
+        args.sample_range = 1
+        args.image_HW_4_model = (480, 640)
+        args.output_WH = (640,480)
         
     else:
         print("dataset error")
@@ -137,15 +161,25 @@ def main():
         db_test = db.PairwiseImg(train=False, inputRes=(854,480), db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
         #voc_colorize = VOCColorize()
+    elif args.dataset == 'hzfud':
+        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='dt', channels_for_counterpart_frame='d', subset_percentage=1, subset=user_config["test"]["dataset"]["hzfurgb"]["subset"], for_training=False, batch_size=args.batch_size)
+        testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
 
     data_list = []
 
     if args.save_segimage:
-        if not os.path.exists(args.seg_save_dir) and not os.path.exists(args.vis_save_dir):
+        if not os.path.exists(args.seg_save_dir):
             os.makedirs(args.seg_save_dir)
-            os.makedirs(args.vis_save_dir)
+
+    logFileName = os.path.join(args.seg_save_dir, args.dataset+"__ori"+"_"+ymd_hms+"_test_log.txt")
+    print("Logs will be writen in "+logFileName +" and the test results will be in "+args.seg_save_dir)
+    if os.path.isfile(logFileName):
+        logger = open(logFileName, 'a')
+    else:
+        logger = open(logFileName, 'w')
+
     print("======> test set size:", len(testloader))
     my_index = 0
     old_temp=''
@@ -154,6 +188,12 @@ def main():
         target = batch['target']
         #search = batch['search']
         temp = batch['seq_name']
+        if 'frame_index' in batch:
+            frame_index = batch['frame_index']
+        if 'target_depth' in batch:
+            target_depth = batch['target_depth']
+        seqs_name = batch['seq_name']
+
         args.seq_name=temp[0]
         print(args.seq_name)
         if old_temp==args.seq_name:
@@ -163,25 +203,37 @@ def main():
         output_sum = 0   
         for i in range(0,args.sample_range):  
             search = batch['search'+'_'+str(i)]
+            depth_key = 'search_'+str(i)+'_depth'
+            if depth_key in batch:
+                search_depth = batch[depth_key]
             search_im = search
             #print(search_im.size())
             with torch.no_grad():
-	        output = model(Variable(target).cuda(),Variable(search_im, volatile=True).cuda())
+                output = model(Variable(target).cuda(),Variable(search_im, volatile=True).cuda())
                 #print(output[0]) # output有两个
-            	output_sum = output_sum + output[0].data[0,0].cpu().numpy() #分割那个分支的结果
-            	#np.save('infer'+str(i)+'.npy',output1)
-            	#output2 = output[1].data[0, 0].cpu().numpy() #interp'
+                output_sum = output_sum + output[0].data[0,0].cpu().numpy() #分割那个分支的结果
+                #np.save('infer'+str(i)+'.npy',output1)
+                #output2 = output[1].data[0, 0].cpu().numpy() #interp'
         
         output1 = output_sum/args.sample_range
      
-        first_image = np.array(Image.open(args.data_dir+'/JPEGImages/480p/blackswan/00000.jpg'))
-        original_shape = first_image.shape 
-        output1 = cv2.resize(output1, (original_shape[1],original_shape[0]))
+        # first_image = np.array(Image.open(args.data_dir+'/JPEGImages/480p/blackswan/00000.jpg'))
+        # original_shape = first_image.shape 
+        output1 = cv2.resize(output1, args.output_WH)
 
-        mask = (output1*255).astype(np.uint8)
+        masks_data_uint8 = (output1*255).astype(np.uint8)
+        masks = []
+        for idx in range(len(masks_data_uint8)):
+            x = masks_data_uint8[idx]
+            iou = compute_iou(x, np.array(batch['target_gt'][idx]))
+            logger.write(log_section_start+" seq: "+ seqs_name[idx]+" frame: "+frame_index[idx]+" IOU: "+str(iou)+log_section_end+"\n")
+            iou_result = iou + iou_result
+            iou_counter = iou_counter + 1
+            mask = Image.fromarray(x, mode='L')
+            masks.append(mask)
+
         #print(mask.shape[0])
-        mask = Image.fromarray(mask)
-        
+        # mask = Image.fromarray(masks_data_uint8)
 
         if args.dataset == 'voc12':
             print(output.shape)
@@ -204,9 +256,18 @@ def main():
                 my_index1 = str(my_index).zfill(5)
                 seg_filename = os.path.join(save_dir_res, '{}.png'.format(my_index1))
                 #color_file = Image.fromarray(voc_colorize(output).transpose(1, 2, 0), 'RGB')
-                mask.save(seg_filename)
+                masks.save(seg_filename)
                 #np.concatenate((torch.zeros(1, 473, 473), mask, torch.zeros(1, 512, 512)),axis = 0)
                 #save_image(output1 * 0.8 + target.data, args.vis_save_dir, normalize=True)
+        elif args.dataset == 'hzfud':
+            if args.save_segimage:
+                for idx in range(len(masks)):
+                    mask = masks[idx]
+                    save_dir = os.path.join(args.seg_save_dir, seqs_name[idx])
+                    if not os.path.exists(save_dir):
+                        os.makedirs(save_dir)
+                    seg_filename = os.path.join(save_dir, '{}.png'.format(frame_index[idx]))
+                    mask.save(seg_filename)
         else:
             print("dataset error")
     
