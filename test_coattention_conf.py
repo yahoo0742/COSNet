@@ -226,7 +226,7 @@ def main():
             with torch.no_grad():
                 output = model(Variable(target).cuda(),Variable(search_im, volatile=True).cuda())
                 #print(output[0]) # output有两个
-                output_sum = output_sum + output[0].data[0,0].cpu().numpy() #分割那个分支的结果
+                output_sum = output_sum + output[0].data.cpu().numpy() #分割那个分支的结果
                 #np.save('infer'+str(i)+'.npy',output1)
                 #output2 = output[1].data[0, 0].cpu().numpy() #interp'
         
@@ -234,7 +234,14 @@ def main():
      
         # first_image = np.array(Image.open(args.data_dir+'/JPEGImages/480p/blackswan/00000.jpg'))
         # original_shape = first_image.shape 
-        output1 = cv2.resize(output1, args.output_WH)
+        # output1 = cv2.resize(output1, args.output_WH)
+        # resize
+        output2 = []
+        for idx in range(len(output1)):
+            img = output1[idx, 0]
+            img = cv2.resize(img, args.output_WH)
+            output2.append(img)
+        output1 = np.array(output2)
 
         masks_data_uint8 = (output1*255).astype(np.uint8)
         masks = []
