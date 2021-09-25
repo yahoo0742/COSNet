@@ -356,8 +356,11 @@ class HzFuRGBDVideos(Dataset):
                     if self.stage == 'train':
                         num_frames = 2 # 2 frames at least for a sequence for co-attention, and here the sequence should have more than 1 frame in total
                     # for testing, we can accept a sequence having only 1 frame
-                frames_selected = random.sample(frames_of_seq, num_frames)
-                end_idx = num_frames + start_idx
+                if num_frames == len(frames_of_seq):
+                    frames_selected = frames_of_seq
+                else:
+                    frames_selected = random.sample(frames_of_seq, num_frames)
+                end_idx = (int)(num_frames + start_idx)
                 self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
 
@@ -453,8 +456,8 @@ class HzFuRGBDVideos(Dataset):
             : return: a 2d array in the shape of (output_HW[0], outputHW[1]) with values in [0,255]
             '''
             f = h5py.File(path, 'r')
-            result = np.array(f['depth'], dtype=np.float32)
-            # print("depth shape: ",result.shape)
+            result = np.array(f['depth'], dtype=np.float32) # need to be transposed. An image in the size of w:640, h:480, will get w:480, h:640 (transposed, but reshaped) here
+            result = result.transpose() # now it is in the same shape with the original image
 
             # resize to the expected size
             if self.output_HW is not None:
@@ -465,7 +468,6 @@ class HzFuRGBDVideos(Dataset):
             # normalize
             result = (result - result.min()) * 255 / (result.max() - result.min())
             # print(" after depth shape: ",result.shape, result.dtype)
-            # result = result.transpose() 
             return result
 
         load_rgb = 'rgb' in channels
