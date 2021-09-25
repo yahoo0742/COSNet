@@ -49,6 +49,7 @@ from torch.utils.data import Dataset
 from dataloaders import utils
 import torch
 import math
+# from PIL import Image
 
 k_method_of_splitting_dataset = 'frame_in_out' #'sequence_in_out'
 
@@ -505,6 +506,9 @@ class HzFuRGBDVideos(Dataset):
             depth_path = self._get_path_of_depth_data(frame_info.seq_name, frame_info.name_of_depth_frame)
             if depth_path:
                 depth_img, depth_min, depth_max = __load_mat(depth_path)
+
+                # img = Image.fromarray(np.uint8(depth_img), 'L')
+                # img.save(depth_img_filename)
 
                 if frame_info.seq_name not in self.depth_min_max:
                     self.depth_min_max[frame_info.seq_name] = [depth_min, depth_max]
