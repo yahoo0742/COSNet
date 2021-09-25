@@ -99,6 +99,7 @@ class HzFuRGBDVideos(Dataset):
         self.stage = 'train' if for_training else 'test'
         self.channels_for_target_frame = channels_for_target_frame
         self.channels_for_counterpart_frame = channels_for_counterpart_frame
+        self.depth_min_max = {}
         
         self.flip_prob_of_seqs_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
 
@@ -465,10 +466,13 @@ class HzFuRGBDVideos(Dataset):
                 result = cv2.resize(result,(self.output_HW[1], self.output_HW[0]),interpolation = cv2.INTER_NEAREST)
             result = np.array(result, dtype=np.float32)
 
+            depth_min = result.min()
+            depth_max = result.max()
+
             # normalize
-            result = (result - result.min()) * 255 / (result.max() - result.min())
+            result = (result - depth_min) * 255 / (depth_max - depth_min)
             # print(" after depth shape: ",result.shape, result.dtype)
-            return result
+            return result, depth_min, depth_max
 
         load_rgb = 'rgb' in channels
         load_depth = 'd' in channels
@@ -500,7 +504,16 @@ class HzFuRGBDVideos(Dataset):
             # load depth
             depth_path = self._get_path_of_depth_data(frame_info.seq_name, frame_info.name_of_depth_frame)
             if depth_path:
-                depth_img = __load_mat(depth_path)
+                depth_img, depth_min, depth_max = __load_mat(depth_path)
+
+                if frame_info.seq_name not in self.depth_min_max:
+                    self.depth_min_max[frame_info.seq_name] = [depth_min, depth_max]
+                else:
+                    if self.depth_min_max[frame_info.seq_name][0] < depth_min:
+                        self.depth_min_max[frame_info.seq_name][0] = depth_min
+                    if self.depth_min_max[frame_info.seq_name][1] > depth_max:
+                        self.depth_min_max[frame_info.seq_name][1] = depth_max
+
                 depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
                 if self.stage == 'train':
                     depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
