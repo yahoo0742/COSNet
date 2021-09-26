@@ -49,6 +49,14 @@ ymd_hms = timenow.strftime("%Y%m%d_%H%M%S")
 log_section_start = "##=="
 log_section_end = "==##"
 
+def logMem(logger, prefix):
+    total = torch.cuda.get_device_properties(None).total_memory
+    mem_alloc = torch.cuda.memory_allocated()
+    mem_cache = torch.cuda.memory_cached()
+    msg = prefix + " GPU: " + str(torch.cuda.current_device())+ " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)+ "\n"
+    print(msg)
+    if logger:
+        logger.write(msg)
 
 def get_arguments():
     """Parse all the arguments provided from the CLI.
@@ -148,7 +156,10 @@ def configure_dataset_init_model(args):
         args.resume = './snapshots/cityscapes/psp_cityscapes_12_3.pth' #checkpoint log file, helping recovering training
        
     elif args.dataset == 'hzfurgb': 
-        args.batch_size = 10# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        if torch.cuda.device_count() > 1:
+            args.batch_size = 4
+        else:
+            args.batch_size = 2# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         args.maxEpoches = 30 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
         args.data_path = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'  #/DAVIS-2016'   # 37572 image pairs
         args.ignore_label = 255     #The index of the label to ignore during the training
@@ -161,6 +172,9 @@ def configure_dataset_init_model(args):
         args.sample_range = 1
         args.image_HW_4_model = (480, 640)
         args.output_WH = (640,480)
+        args.input_size = '480,640'
+        args.input_size = '480,640'
+        args.resume = None
 
     else:
         print("dataset error")
@@ -224,23 +238,18 @@ def get_1x_lr_params(model):
     any batchnorm parameter
     """
     b = []
-    if torch.cuda.device_count() == 1:
-        #b.append(model.encoder.conv1)
-        #b.append(model.encoder.bn1)
-        #b.append(model.encoder.layer1)
-        #b.append(model.encoder.layer2)
-        #b.append(model.encoder.layer3)
-        #b.append(model.encoder.layer4)
-        b.append(model.encoder.layer5)
-    else:
-        b.append(model.module.encoder.conv1)
-        b.append(model.module.encoder.bn1)
-        b.append(model.module.encoder.layer1)
-        b.append(model.module.encoder.layer2)
-        b.append(model.module.encoder.layer3)
-        b.append(model.module.encoder.layer4)
-        b.append(model.module.encoder.layer5)
-        b.append(model.module.encoder.main_classifier)
+    mod = model
+    if torch.cuda.device_count() > 1:
+        mod = model.module
+
+    b.append(mod.encoder.conv1)
+    b.append(mod.encoder.bn1)
+    b.append(mod.encoder.layer1)
+    b.append(mod.encoder.layer2)
+    b.append(mod.encoder.layer3)
+    b.append(mod.encoder.layer4)
+    b.append(mod.encoder.layer5)
+    b.append(mod.encoder.main_classifier)
     for i in range(len(b)):
         for j in b[i].modules():
             jj = 0
@@ -256,19 +265,19 @@ def get_10x_lr_params(model):
     which does the classification of pixel into classes
     """
     b = []
-    if torch.cuda.device_count() == 1:
-        b.append(model.linear_e.parameters())
-        b.append(model.main_classifier.parameters())
-    else:
-        #b.append(model.module.encoder.layer5.parameters())
-        b.append(model.module.linear_e.parameters())
-        b.append(model.module.conv1.parameters())
-        b.append(model.module.conv2.parameters())
-        b.append(model.module.gate.parameters())
-        b.append(model.module.bn1.parameters())
-        b.append(model.module.bn2.parameters())   
-        b.append(model.module.main_classifier1.parameters())
-        b.append(model.module.main_classifier2.parameters())
+    mod = model
+    if torch.cuda.device_count() > 1:
+        mod = model.module
+
+    #b.append(model.module.encoder.layer5.parameters())
+    b.append(mod.linear_e.parameters())
+    b.append(mod.conv1.parameters())
+    b.append(mod.conv2.parameters())
+    b.append(mod.gate.parameters())
+    b.append(mod.bn1.parameters())
+    b.append(mod.bn2.parameters())   
+    b.append(mod.main_classifier1.parameters())
+    b.append(mod.main_classifier2.parameters())
         
     for j in range(len(b)):
         for i in b[j]:
@@ -341,7 +350,7 @@ def main():
         #i_parts.pop(1)
         #print('i_parts:  ', '.'.join(i_parts[1:-1]))
         #if  not i_parts[1]=='main_classifier': #and not '.'.join(i_parts[1:-1]) == 'layer5.bottleneck' and not '.'.join(i_parts[1:-1]) == 'layer5.bn':  #init model pretrained on COCO, class name=21, layer5 is ASPP
-        new_params['encoder'+'.'+'.'.join(i_parts[1:])] = saved_state_dict["model"][i]
+        new_params['.'.join(i_parts[1:])] = saved_state_dict["model"][i]
             #print('copy {}'.format('.'.join(i_parts[1:])))
     
    
@@ -373,9 +382,6 @@ def main():
 
     model.train()
     cudnn.benchmark = True
-
-    if not os.path.exists(args.snapshot_dir):
-        os.makedirs(args.snapshot_dir)
     
     print('=====> Computing network parameters')
     total_paramters = netParams(model)
@@ -418,7 +424,7 @@ def main():
         os.makedirs(args.snapshot_dir)
 
     logFileName = os.path.join(args.snapshot_dir, args.dataset+"__ori"+"_"+ymd_hms+"_train_log.txt")
-    print("Logs will be writen in "+logFileName +" and the test results will be in "+args.seg_save_dir)
+    print("Logs will be writen in "+logFileName)
     if os.path.isfile(logFileName):
         logger = open(logFileName, 'a')
     else:
@@ -491,7 +497,7 @@ def main():
             
             optimizer.step()
             
-            loss_history.append(loss.data)
+            loss_history.append((float)(loss.item()))
 
             print("===> Epoch[{}]({}/{}): Loss: {:.10f}  lr: {:.5f}".format(epoch, i_iter, train_len, loss.data, lr))
             logger.write("Epoch[{}]({}/{}):     Loss: {:.10f}      lr: {:.5f}\n".format(epoch, i_iter, train_len, loss.data, lr))
@@ -506,6 +512,7 @@ def main():
             # del saliency_images
             # del saliency_gts
             del batch
+            del loss
             gc.collect()
             torch.cuda.empty_cache()
 
