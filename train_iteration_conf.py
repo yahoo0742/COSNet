@@ -102,8 +102,13 @@ args = get_arguments()
 
 
 def configure_dataset_init_model(args):
-    if args.dataset == 'voc12':
+    if args.cuda:
+        print("====> Use gpu id: '{}'".format(args.gpus))
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
+        if not torch.cuda.is_available():
+            raise Exception("No GPU found or Wrong gpu id, please run without --cuda")
 
+    if args.dataset == 'voc12':
         args.batch_size = 10# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
         args.data_dir = '/home/wty/AllDataSet/VOC2012'   # Path to the directory containing the PASCAL VOC dataset
@@ -320,12 +325,7 @@ def main():
 
     print("    current dataset:  ", args.dataset)
     print("    init model: ", args.restore_from)
-    print("=====> Set GPU for training")
-    if args.cuda:
-        print("====> Use gpu id: '{}'".format(args.gpus))
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
-        if not torch.cuda.is_available():
-            raise Exception("No GPU found or Wrong gpu id, please run without --cuda")
+    
     # Select which GPU, -1 if CPU
     #gpu_id = args.gpus
     #device = torch.device("cuda:"+str(gpu_id) if torch.cuda.is_available() else "cpu")
