@@ -28,6 +28,7 @@ import os
 import os.path as osp
 #from psp.model import PSPNet
 #from dataloaders import davis_2016 as db
+from dataloaders import hzfu_rgbd_loader as hzfurgbd_db
 from dataloaders import PairwiseImg_video as db #采用voc dataset的数据设置格式方法
 import matplotlib.pyplot as plt
 import random
@@ -38,6 +39,15 @@ from deeplab.siamese_model_conf import CoattentionNet #siame_model 是直接将a
 start = timeit.default_timer()
 
 
+from evaluation import compute_iou
+import datetime
+import gc
+
+timenow = datetime.datetime.now()
+ymd_hms = timenow.strftime("%Y%m%d_%H%M%S")
+
+log_section_start = "##=="
+log_section_end = "==##"
 
 
 def get_arguments():
@@ -137,6 +147,21 @@ def configure_dataset_init_model(args):
         args.snapshot_dir = './snapshots/cityscapes/'          #Where to save snapshots of the model
         args.resume = './snapshots/cityscapes/psp_cityscapes_12_3.pth' #checkpoint log file, helping recovering training
        
+    elif args.dataset == 'hzfurgb': 
+        args.batch_size = 10# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        args.maxEpoches = 30 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
+        args.data_path = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'  #/DAVIS-2016'   # 37572 image pairs
+        args.ignore_label = 255     #The index of the label to ignore during the training
+        args.num_classes = 2      #Number of classes to predict (including background)
+        args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
+        args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.save_segimage = True
+        args.seg_save_dir = "./vos_test_results/hzfurgb/original_coattention_rgb/"+ymd_hms
+        args.corp_size =(473, 473) #didn't see reference
+        args.sample_range = 1
+        args.image_HW_4_model = (480, 640)
+        args.output_WH = (640,480)
+
     else:
         print("dataset error")
 
@@ -368,6 +393,16 @@ def main():
     elif args.dataset == 'davis':  #for davis 2016
         db_train = db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, inputRes=input_size, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
+    elif args.dataset == 'hzfurgb':
+        subset = {
+            "child_no1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png"],
+            "dog_no_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png"],
+            "toy_wg_occ": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png","46_obj_1.png","51_obj_1.png"],
+            "tracking4": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png"],
+            "zcup_move_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png"]
+        }
+        db_train = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbt', channels_for_counterpart_frame='rgbt', subset_percentage=1, subset=subset, for_training=True, batch_size=args.batch_size)
+        trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
 
@@ -377,14 +412,28 @@ def main():
     optimizer.zero_grad()
 
 
-    
-    logFileLoc = args.snapshot_dir + args.logFile
-    if os.path.isfile(logFileLoc):
-        logger = open(logFileLoc, 'a')
+
+    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, "ori", 'H'+str(args.output_WH[1])+'W'+str(args.output_WH[0]), ymd_hms)
+    if not os.path.exists(args.snapshot_dir):
+        os.makedirs(args.snapshot_dir)
+
+    logFileName = os.path.join(args.snapshot_dir, args.dataset+"__ori"+"_"+ymd_hms+"_train_log.txt")
+    print("Logs will be writen in "+logFileName +" and the test results will be in "+args.seg_save_dir)
+    if os.path.isfile(logFileName):
+        logger = open(logFileName, 'a')
     else:
-        logger = open(logFileLoc, 'w')
+        logger = open(logFileName, 'w')
         logger.write("Parameters: %s" % (str(total_paramters)))
         logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
+
+    
+    # logFileLoc = args.snapshot_dir + args.logFile
+    # if os.path.isfile(logFileLoc):
+    #     logger = open(logFileLoc, 'a')
+    # else:
+    #     logger = open(logFileLoc, 'w')
+    #     logger.write("Parameters: %s" % (str(total_paramters)))
+    #     logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
     logger.flush()
 
     print("=====> Begin to train")
@@ -393,23 +442,33 @@ def main():
     print("  epoch num: ", args.maxEpoches)
     print("  max iteration: ", args.maxEpoches*train_len)
     
+    loss_history = []
     for epoch in range(start_epoch, int(args.maxEpoches)):
-        
+         if db_train.next_batch:
+            db_train.next_batch()
         np.random.seed(args.random_seed + epoch)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
             #print("i_iter=", i_iter, "epoch=", epoch)
-            target, target_gt, search, search_gt = batch['target'], batch['target_gt'], batch['search'], batch['search_gt']
-            images, labels = batch['img'], batch['img_gt']
+             if db_train.next_batch:
+                db_train.next_batch()
+
+            target, target_gt, search, search_gt = batch['target'], batch['target_gt'], batch['search_0'], batch['search_0_gt']
+            # images, labels = batch['img'], batch['img_gt']
+            if 'frame_index' in batch:
+                frame_index = batch['frame_index']
+            if 'target_depth' in batch:
+                target_depth = batch['target_depth']
+            seqs_name = batch['seq_name']
             #print(labels.size())
-            images.requires_grad_()
-            images = Variable(images).cuda()
-            labels = Variable(labels.float().unsqueeze(1)).cuda()
+            # images.requires_grad_()
+            # images = Variable(images).cuda()
+            # labels = Variable(labels.float().unsqueeze(1)).cuda()
             
-            target.requires_grad_()
+            # target.requires_grad_()
             target = Variable(target).cuda()
             target_gt = Variable(target_gt.float().unsqueeze(1)).cuda()
             
-            search.requires_grad_()
+            # search.requires_grad_()
             search = Variable(search).cuda()
             search_gt = Variable(search_gt.float().unsqueeze(1)).cuda()
             
@@ -431,11 +490,25 @@ def main():
                 loss.backward()
             
             optimizer.step()
-                
+            
+            loss_history.append(loss.data)
+
             print("===> Epoch[{}]({}/{}): Loss: {:.10f}  lr: {:.5f}".format(epoch, i_iter, train_len, loss.data, lr))
             logger.write("Epoch[{}]({}/{}):     Loss: {:.10f}      lr: {:.5f}\n".format(epoch, i_iter, train_len, loss.data, lr))
             logger.flush()
-                
+
+            del target
+            del target_gt
+            # del target_depth
+            del search
+            del search_gt
+            # del search_depth
+            # del saliency_images
+            # del saliency_gts
+            del batch
+            gc.collect()
+            torch.cuda.empty_cache()
+
         print("=====> saving model")
         state={"epoch": epoch+1, "model": model.state_dict()}
         torch.save(state, osp.join(args.snapshot_dir, 'co_attention_'+str(args.dataset)+"_"+str(epoch)+'.pth'))
