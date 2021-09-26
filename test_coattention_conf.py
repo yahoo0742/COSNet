@@ -111,7 +111,22 @@ def configure_dataset_model(args):
         args.sample_range = 1
         args.image_HW_4_model = (480, 640)
         args.output_WH = (640,480)
-        
+
+    elif args.dataset == 'hzfurgb': 
+        args.batch_size = 10# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
+        args.data_path = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'  #/DAVIS-2016'   # 37572 image pairs
+        args.ignore_label = 255     #The index of the label to ignore during the training
+        args.num_classes = 2      #Number of classes to predict (including background)
+        args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
+        args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        args.save_segimage = True
+        args.seg_save_dir = "./vos_test_results/hzfurgb/original_coattention_rgb/"+ymd_hms
+        args.corp_size =(473, 473) #didn't see reference
+        args.sample_range = 1
+        args.image_HW_4_model = (480, 640)
+        args.output_WH = (640,480)
+
     else:
         print("dataset error")
 
@@ -167,6 +182,9 @@ def main():
         db_test = db.PairwiseImg(train=False, inputRes=(854,480), db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         testloader = data.DataLoader(db_test, batch_size= 10, shuffle=False, num_workers=0)
         #voc_colorize = VOCColorize()
+    elif args.dataset == 'hzfurgb':
+        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbt', channels_for_counterpart_frame='rgbt', subset_percentage=1, subset=None, for_training=False, batch_size=args.batch_size, output_dir_for_debug=os.path.join(args.seg_save_dir,"debug"))
+        testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'hzfud':
         subset = {
             "child_no1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png"],
@@ -175,7 +193,7 @@ def main():
             "tracking4": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png"],
             "zcup_move_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png"]
         }
-        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='dt', channels_for_counterpart_frame='d', subset_percentage=1, subset=subset, for_training=False, batch_size=args.batch_size)
+        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='dt', channels_for_counterpart_frame='d', subset_percentage=1, subset=None, for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
@@ -209,17 +227,7 @@ def main():
             target_depth = batch['target_depth']
         seqs_name = batch['seq_name']
         args.seq_name=temp[0]
-        print(args.seq_name)
 
-        if frame_index:
-            for i in range(len(target)):
-                save_dir = os.path.join(args.seg_save_dir, seqs_name[i], "rgb")
-                if not os.path.exists(save_dir):
-                    os.makedirs(save_dir)
-                seg_filename = os.path.join(save_dir, '{}.png'.format(frame_index[i]))
-                img = Image.fromarray(target[i].transpose(1, 2, 0), 'RGB')
-                img.save(seg_filename)
-                
         if old_temp==args.seq_name:
             my_index = my_index+1
         else:
@@ -291,7 +299,7 @@ def main():
                 masks.save(seg_filename)
                 #np.concatenate((torch.zeros(1, 473, 473), mask, torch.zeros(1, 512, 512)),axis = 0)
                 #save_image(output1 * 0.8 + target.data, args.vis_save_dir, normalize=True)
-        elif args.dataset == 'hzfud':
+        elif args.dataset == 'hzfud' or args.dataset == 'hzfurgb':
             if args.save_segimage:
                 for idx in range(len(masks)):
                     mask = masks[idx]
