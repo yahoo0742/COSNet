@@ -49,7 +49,7 @@ from torch.utils.data import Dataset
 from dataloaders import utils
 import torch
 import math
-# from PIL import Image
+from PIL import Image
 
 k_method_of_splitting_dataset = 'frame_in_out' #'sequence_in_out'
 
@@ -89,7 +89,8 @@ class HzFuRGBDVideos(Dataset):
                  subset = None,
                  batch_size = 1,
                  meanval=(104.00699, 116.66877, 122.67892),
-                 transform=None
+                 transform=None,
+                 output_dir_for_debug=None
                  ):
         self.dataset_root = dataset_root
         self.sample_range = sample_range
@@ -101,7 +102,8 @@ class HzFuRGBDVideos(Dataset):
         self.channels_for_target_frame = channels_for_target_frame
         self.channels_for_counterpart_frame = channels_for_counterpart_frame
         self.depth_min_max = {}
-        
+        self.output_dir_for_debug = output_dir_for_debug
+
         self.flip_prob_of_seqs_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
 
         self.sets = {
@@ -401,6 +403,25 @@ class HzFuRGBDVideos(Dataset):
                     rgb = _use_depth_as_rgb(depth[0])
                 else:
                     raise Exception("Invalid 'channels' parameter, which should be 'd' or 'rgb' or 'rgbd'.")
+            
+            if self.output_dir_for_debug != None:
+                save_dir = os.path.join(self.output_dir_for_debug, frame_info.seq_name)
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)
+
+                filename = os.path.join(save_dir, '{}_rgb.png'.format(frame_info.id))
+                img = Image.fromarray(np.uint8(rgb.transpose(1, 2, 0)), 'RGB') #(rows, columns, channels)
+                img.save(filename)
+
+                filename = os.path.join(save_dir, '{}_depth.png'.format(frame_info.id))
+                img = Image.fromarray(np.uint8(depth), 'L')
+                img.save(filename)
+
+                filename = os.path.join(save_dir, '{}_gt.png'.format(frame_info.id))
+                img = Image.fromarray(np.uint8(gt*255), 'L')
+                img.save(filename)
+                del img
+            
             return rgb, depth, gt
 
 
