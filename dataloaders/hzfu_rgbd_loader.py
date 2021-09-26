@@ -410,12 +410,16 @@ class HzFuRGBDVideos(Dataset):
                     os.makedirs(save_dir)
 
                 filename = os.path.join(save_dir, '{}_rgb.png'.format(frame_info.id))
-                img = Image.fromarray(np.uint8(np.add(rgb.numpy().transpose(1, 2, 0), self.meanval)), 'RGB') #(rows, columns, channels)
+                if type(rgb) != np.ndarray:
+                    rgb_npary = rgb.numpy()
+                else:
+                    rgb_npary = rgb
+                img = Image.fromarray(np.uint8(np.add(rgb_npary.transpose(1, 2, 0), self.meanval)), 'RGB') #(rows, columns, channels)
                 img.save(filename)
 
                 if 'd' in channels_to_load:
                     filename = os.path.join(save_dir, '{}_depth.png'.format(frame_info.id))
-                    img = Image.fromarray(np.uint8(depth), 'L')
+                    img = Image.fromarray(np.uint8(depth[0]), 'L')
                     img.save(filename)
 
                 if 't' in channels_to_load:
