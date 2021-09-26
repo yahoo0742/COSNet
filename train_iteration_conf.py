@@ -449,7 +449,7 @@ def main():
             db_train.next_batch()
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
             #print("i_iter=", i_iter, "epoch=", epoch)
-             if db_train.next_batch:
+            if db_train.next_batch:
                 db_train.next_batch()
 
             target, target_gt, search, search_gt = batch['target'], batch['target_gt'], batch['search_0'], batch['search_0_gt']
@@ -477,7 +477,7 @@ def main():
             lr = adjust_learning_rate(optimizer, i_iter+epoch*train_len, epoch,
                     max_iter = args.maxEpoches * train_len)
             #print(images.size())
-            if i_iter%3 ==0: #对于静态图片的训练
+            if False and i_iter%3 ==0: #对于静态图片的训练
                 
                 pred1, pred2, pred3 = model(images, images)
                 loss = 0.1*(loss_calc1(pred3, labels) + 0.8* loss_calc2(pred3, labels) )
