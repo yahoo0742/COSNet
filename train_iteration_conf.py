@@ -323,6 +323,19 @@ def main():
     configure_dataset_init_model(args)
     print(args)
 
+    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, "ori", 'H'+str(args.output_WH[1])+'W'+str(args.output_WH[0]), ymd_hms)
+    if not os.path.exists(args.snapshot_dir):
+        os.makedirs(args.snapshot_dir)
+
+    logFileName = os.path.join(args.snapshot_dir, args.dataset+"__ori"+"_"+ymd_hms+"_train_log.txt")
+    print("Logs will be writen in "+logFileName)
+    if os.path.isfile(logFileName):
+        logger = open(logFileName, 'a')
+    else:
+        logger = open(logFileName, 'w')
+
+    logMem(logger, "Init")
+
     print("    current dataset:  ", args.dataset)
     print("    init model: ", args.restore_from)
     
@@ -339,9 +352,14 @@ def main():
 
     cudnn.enabled = True
 
+    logMem(logger, "Attempting to load state")
     print("=====> Building network")
     saved_state_dict = torch.load(args.restore_from)
+    logMem(logger, "After loading state")
+    logMem(logger, "Attempting to create model")
+
     model = CoattentionNet(num_classes=args.num_classes)
+    logMem(logger, "After creating model")
     #print(model)
     new_params = model.state_dict().copy()
     for i in saved_state_dict["model"]:
@@ -356,8 +374,11 @@ def main():
    
     print("=====> Loading init weights,  pretrained COCO for VOC2012, and pretrained Coarse cityscapes for cityscapes")
  
-            
+    logMem(logger, "Attempting to init parameters of model")
     model.load_state_dict(new_params) #只用到resnet的第5个卷积层的参数
+    logMem(logger, "After initing parameters of model")
+    logMem(logger, "Attempting to set model to GPU")
+
     #print(model.keys())
     if args.cuda:
         #model.to(device)
@@ -368,7 +389,8 @@ def main():
             print("single GPU for training")
             model = model.cuda()  #1-card data parallel
     start_epoch=0
-    
+    logMem(logger, "After setting model to GPU")
+
     print("=====> Whether resuming from a checkpoint, for continuing training")
     if args.resume:
         if os.path.isfile(args.resume):
@@ -382,7 +404,7 @@ def main():
 
     model.train()
     cudnn.benchmark = True
-    
+    logMem(logger, "Attempting to create dataloader")
     print('=====> Computing network parameters')
     total_paramters = netParams(model)
     print('Total network parameters: ' + str(total_paramters))
@@ -411,6 +433,7 @@ def main():
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
+    logMem(logger, "After creating dataloader")
 
     optimizer = optim.SGD([{'params': get_1x_lr_params(model), 'lr': 1*args.learning_rate },  #针对特定层进行学习，有些层不学习
                 {'params': get_10x_lr_params(model), 'lr': 10*args.learning_rate}], 
@@ -418,19 +441,12 @@ def main():
     optimizer.zero_grad()
 
 
+        
 
-    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, "ori", 'H'+str(args.output_WH[1])+'W'+str(args.output_WH[0]), ymd_hms)
-    if not os.path.exists(args.snapshot_dir):
-        os.makedirs(args.snapshot_dir)
+    logger.write("Parameters: %s" % (str(total_paramters)))
+    logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
 
-    logFileName = os.path.join(args.snapshot_dir, args.dataset+"__ori"+"_"+ymd_hms+"_train_log.txt")
-    print("Logs will be writen in "+logFileName)
-    if os.path.isfile(logFileName):
-        logger = open(logFileName, 'a')
-    else:
-        logger = open(logFileName, 'w')
-        logger.write("Parameters: %s" % (str(total_paramters)))
-        logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
+    logMem(logger, "Attempting to train")
 
     
     # logFileLoc = args.snapshot_dir + args.logFile
@@ -454,6 +470,8 @@ def main():
         if db_train.next_batch:
             db_train.next_batch()
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
+            logMem(logger, "Attempting to train iter: "+str(i_iter)+" of "+str(epoch))
+
             #print("i_iter=", i_iter, "epoch=", epoch)
             if db_train.next_batch:
                 db_train.next_batch()
