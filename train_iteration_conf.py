@@ -376,6 +376,8 @@ def main():
  
     logMem(logger, "Attempting to init parameters of model")
     model.load_state_dict(new_params) #只用到resnet的第5个卷积层的参数
+    del saved_state_dict
+    del new_params
     logMem(logger, "After initing parameters of model")
     logMem(logger, "Attempting to set model to GPU")
 
