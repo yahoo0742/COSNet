@@ -65,6 +65,8 @@ def get_arguments():
     parser.add_argument("--seq_name", default = 'bmx-bumps')
     parser.add_argument("--use_crf", default = 'True')
     parser.add_argument("--sample_range", default =5)
+    parser.add_argument("--model", default ='ori', help='ori, ori[hzfurgb]')
+
     
     return parser.parse_args()
 
@@ -119,7 +121,10 @@ def configure_dataset_model(args):
         args.ignore_label = 255     #The index of the label to ignore during the training
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
-        args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
+        if args.model == 'ori[hzfurgb]':
+            args.restore_from = './snapshots/hzfurgb/ori/H480W640/20210927_095945/co_attention_hzfurgb_48.pth'
+        else:
+            args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
         args.save_segimage = True
         args.seg_save_dir = "./vos_test_results/hzfurgb/original_coattention_rgb/"+ymd_hms
         args.corp_size =(473, 473) #didn't see reference
@@ -142,7 +147,13 @@ def convert_state_dict(state_dict):
     #print(type(state_dict))
     for k, v in state_dict.items():
         #print(k)
-        name = k[7:] # remove the prefix module.
+        parts = k.split('.')
+        if parts[0] == 'module':
+            # the state was trained from multiple GPUS
+            name = '.'.join(parts[1:]) remove the prefix module.
+        else:
+            # the state was trained from a single GPU
+            name = k
         # My heart is broken, the pytorch have no ability to do with the problem.
         state_dict_new[name] = v
         if name == 'linear_e.weight':
