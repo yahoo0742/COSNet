@@ -150,7 +150,7 @@ def convert_state_dict(state_dict):
         parts = k.split('.')
         if parts[0] == 'module':
             # the state was trained from multiple GPUS
-            name = '.'.join(parts[1:]) remove the prefix module.
+            name = '.'.join(parts[1:]) #remove the prefix module.
         else:
             # the state was trained from a single GPU
             name = k
