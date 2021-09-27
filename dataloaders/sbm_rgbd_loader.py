@@ -280,8 +280,8 @@ class sbm_rgbd(Dataset):
     """
     Check whether the ground truth is empty
     """
-    def __validate_frame_empty(self, frame_info, channels='dt'):
-        is_empty = { "depth": [None, None, None], "gt": [None] }
+    def __validate_frame(self, frame_info, channels='dt'):
+        is_invalid = { "depth": [None, None, None], "gt": [None] }
         _, depth, gt = self._load_images(frame_info, channels)
         # depth is in the shape of (1, H, W)
         depth = depth[0]
@@ -292,7 +292,7 @@ class sbm_rgbd(Dataset):
         if load_groundtruth:
             none0_percentage = np.count_nonzero(gt) * 1.0 / gt.shape[0] / gt.shape[1]
             if none0_percentage < 0.01 or none0_percentage > 0.9:
-                is_empty["gt"][0] = none0_percentage #only 1% of pixels belong to the foreground object or 90% of pixels belong to the foreground object
+                is_invalid["gt"][0] = none0_percentage #only 1% of pixels belong to the foreground object or 90% of pixels belong to the foreground object
         
         # check whether depth of every pixel are all same values or similar values
         load_depth = 'd' in channels
@@ -301,7 +301,7 @@ class sbm_rgbd(Dataset):
             area = depth.shape[0] * depth.shape[1]
             none0_percentage = np.count_nonzero(depth) * 1.0 / area
             if none0_percentage < 0.1:
-                is_empty["depth"][0] = none0_percentage # 90% values of depth are 0
+                is_invalid["depth"][0] = none0_percentage # 90% values of depth are 0
 
             # check histogram to find noises
             min_depth = torch.min(depth).item()
@@ -317,14 +317,14 @@ class sbm_rgbd(Dataset):
             #     least_occurance = 1
             percentage_of_min_occurance = min_occu * 1.0 / total_occu
             if percentage_of_min_occurance <= percentage_threashold:
-                is_empty["depth"][1] = percentage_of_min_occurance
+                is_invalid["depth"][1] = percentage_of_min_occurance
 
             # check range of values
-            # if is_empty["depth"] == False:
+            # if not is_invalid["depth"][2]:
             _range = max_depth - min_depth
             if _range < 20:
-                is_empty["depth"][2] = _range
-        return is_empty
+                is_invalid["depth"][2] = _range
+        return is_invalid
 
 
     def _validate_frames(self):
@@ -332,7 +332,7 @@ class sbm_rgbd(Dataset):
         for idx in range(0, num_frames):
             frame_info = self._get_framename_by_index("entire", idx)
             if frame_info != None:
-                is_empty = self.__validate_frame_empty(frame_info)
+                is_empty = self.__validate_frame(frame_info)
                 if is_empty["depth"][0]:
                     print("!!! Abnormal depth having >=90'%' 0s: ", is_empty["depth"][0], str(frame_info))
                 if is_empty["depth"][1]:
