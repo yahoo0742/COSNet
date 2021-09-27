@@ -65,7 +65,7 @@ def get_arguments():
     parser.add_argument("--seq_name", default = 'bmx-bumps')
     parser.add_argument("--use_crf", default = 'True')
     parser.add_argument("--sample_range", default =5)
-    parser.add_argument("--model", default ='ori', help='ori, ori[hzfurgb]')
+    parser.add_argument("--model", default ='ori', help='ori, ori__hzfurgb')
 
     
     return parser.parse_args()
@@ -100,7 +100,7 @@ def configure_dataset_model(args):
         args.corp_size =(473, 473) #didn't see reference
 
     elif args.dataset == 'hzfud': 
-        args.batch_size = 10# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
         args.data_path = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'  #/DAVIS-2016'   # 37572 image pairs
         args.ignore_label = 255     #The index of the label to ignore during the training
@@ -108,25 +108,25 @@ def configure_dataset_model(args):
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
         args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
         args.save_segimage = True
-        args.seg_save_dir = "./vos_test_results/hzfud/original_coattention_rgb/"+ymd_hms
+        args.seg_save_dir = os.path.join("./vos_test_results/hzfud/", args.model, ymd_hms)
         args.corp_size =(473, 473) #didn't see reference
         args.sample_range = 1
         args.image_HW_4_model = (480, 640)
         args.output_WH = (640,480)
 
     elif args.dataset == 'hzfurgb': 
-        args.batch_size = 10# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
+        args.batch_size = 1# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
         args.maxEpoches = 15 # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
         args.data_path = '/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset'  #/DAVIS-2016'   # 37572 image pairs
         args.ignore_label = 255     #The index of the label to ignore during the training
         args.num_classes = 2      #Number of classes to predict (including background)
         args.img_mean = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)       # saving model file and log record during the process of training
-        if args.model == 'ori[hzfurgb]':
+        if args.model == 'ori__hzfurgb':
             args.restore_from = './snapshots/hzfurgb/ori/H480W640/20210927_095945/co_attention_hzfurgb_48.pth'
         else:
             args.restore_from = './pretrained/co_attention.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
         args.save_segimage = True
-        args.seg_save_dir = "./vos_test_results/hzfurgb/original_coattention_rgb/"+ymd_hms
+        args.seg_save_dir = os.path.join("./vos_test_results/hzfurgb/", args.model, ymd_hms)
         args.corp_size =(473, 473) #didn't see reference
         args.sample_range = 1
         args.image_HW_4_model = (480, 640)
