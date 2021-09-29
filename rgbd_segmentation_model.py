@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from deeplab.deeplabv3_encoder import Encoder, DepthEncoder_ResNet, DepthEncoder_Convs
+from deeplab.deeplabv3_encoder import Encoder, DepthEncoder_ResNet
+# , DepthEncoder_Convs
 
 class RGBDSegmentationModel(nn.Module):
     '''
@@ -12,12 +13,12 @@ class RGBDSegmentationModel(nn.Module):
         super(RGBDSegmentationModel, self).__init__()
 
         self.encoder = Encoder(3, block, num_blocks_of_layers_4_rgb, num_classes) # rgb encoder
-        if approach_for_depth == "padd":
-            self.depth_encoder = DepthEncoder_Convs(output_channels=1)
-        elif approach_for_depth == "conv_add" or approach_for_depth == "conv_conc2":
-            self.depth_encoder = DepthEncoder_Convs(256)
-        else:
-            self.depth_encoder = DepthEncoder_ResNet(1, block, num_blocks_of_layers_4_depth, num_classes)
+        # if approach_for_depth == "padd":
+        #     self.depth_encoder = DepthEncoder_Convs(output_channels=1)
+        # elif approach_for_depth == "conv_add" or approach_for_depth == "conv_conc2":
+        #     self.depth_encoder = DepthEncoder_Convs(256)
+        # else:
+        self.depth_encoder = DepthEncoder_ResNet(1, block, num_blocks_of_layers_4_depth, num_classes)
 
         if approach_for_depth == "parallel":
             self.linear_e = nn.Linear(all_channel*2, all_channel*2,bias = False)
