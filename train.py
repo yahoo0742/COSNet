@@ -36,6 +36,7 @@ from deeplab.siamese_model_conf import CoattentionNet #siame_model
 from deeplab.residual_net import Bottleneck
 from deeplab.siamese_model import CoattentionSiameseNet
 from rgbd_segmentation_model import RGBDSegmentationModel
+from rgbd_segmentation_RAA import RGBDSegmentation_RAA
 import datetime
 import gc
 
@@ -113,26 +114,46 @@ def get_arguments():
 args = get_arguments()
 
 
+def get_fullname_of_model(model_abbr):
+    if model_abbr == "ori" or model_abbr == "original_coattention_rgb":
+        return  "original_coattention_rgb"
+    elif model_abbr == 'raa' or model_abbr == "resnet_aspp_add":
+        return  "resnet_aspp_add"
+    elif model_abbr == "ref" or model_abbr == "refactored_coattention_rgb":
+        return  "refactored_coattention_rgb"
+    # elif model_abbr == "add" or model_abbr == "added_depth_rgbd":
+    #     return  "added_depth_rgbd"
+    # elif model_abbr == "conc1" or model_abbr == "concatenated_depth_rgbd":
+    #     return  "concatenated_depth_rgbd"
+    # elif model_abbr == "conc2" or model_abbr == "concatenated_depth_rgbd2":
+    #     return  "concatenated_depth_rgbd2"
+    # elif model_abbr == "padd" or model_abbr == "post_added_depth_rgbd":
+    #     return  "post_added_depth_rgbd"
+    # elif model_abbr == "conv_add" or model_abbr == "convs_depth_addition":
+    #     return  "convs_depth_addition"
+    # elif model_abbr == "conv_conc2" or model_abbr == "convs_depth_concatenation2":
+    #     return  "convs_depth_concatenation2"
+    else:
+        raise Exception(model_abbr, "Invalid model name!")
+        return
+
+
 def configure_dataset_init_model(args):
     args.batch_size = user_config["train"]["dataset"][args.dataset]["batch_size"]# 1 card: 5, 2 cards: 10 Number of images sent to the network in one step, 16 on paper
     args.maxEpoches = user_config["train"]["dataset"][args.dataset]["max_epoches"] # 1 card: 15, 2 cards: 15 epoches, equal to 30k iterations, max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu'),
     args.data_dir = user_config["train"]["dataset"][args.dataset]["data_path"]   # 37572 image pairs
     args.num_classes = user_config["train"]["dataset"][args.dataset]["num_classes"]      #Number of classes to predict (including background)
     args.img_mean = np.array(user_config["train"]["dataset"][args.dataset]["img_mean"], dtype=np.float32)
-    pretrained_model_name = user_config["train"]["dataset"][args.dataset]["pretrained_model"]
-    args.restore_from = user_config["train"]["pretrained_models"][pretrained_model_name]["file"]
+    args.full_model_name = get_fullname_of_model(args.model)
+    args.restore_from = user_config["train"]["model"][args.full_model_name]["initial_params"]
     #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-
-    args.snapshot_dir = user_config["train"]["dataset"][args.dataset]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
     # args.ignore_label = user_config["train"]["dataset"]["hzfurgbd"]["ignore_label"]     #The index of the label to ignore during the training
     args.resume = user_config["train"]["dataset"][args.dataset]["checkpoint_file"] #'./snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
     # args.resume = user_config["train"]["dataset"]["hzfurgbd"]["checkpoint_file"] #'./snapshots/hzfurgbd/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
-
-    if args.dataset == 'davis': 
-        args.img_dir = user_config["train"]["saliency_dataset"] #'/vol/graphics-solar/fengwenb/vos/saliency_dataset'
-
+    args.saliency_dataset_path = user_config["train"]["saliency_dataset"] #'/vol/graphics-solar/fengwenb/vos/saliency_dataset'
     h, w = map(int, user_config["train"]["dataset"][args.dataset]["output_HW"].split(','))
     args.output_HW = (h, w)
+    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, args.full_model_name, 'H'+str(h)+'W'+str(w), ymd_hms)
 
 
 
@@ -335,11 +356,48 @@ def netParams(model):
     return total_paramters
 
 
+def create_model(model_name):
+    if args.model == "original_coattention_rgb":
+        model = CoattentionNet(num_classes=args.num_classes)
+    elif args.model == "resnet_aspp_add":
+        model = RGBDSegmentation_RAA(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
+    elif args.model == "refactored_coattention_rgb":
+        model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
+    # elif args.model == "added_depth_rgbd":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="add")
+    # elif args.model == "concatenated_depth_rgbd":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc1")
+    # elif args.model == "concatenated_depth_rgbd2":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc2")
+    # elif args.model == "post_added_depth_rgbd":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="padd")
+    # elif args.model == "convs_depth_addition":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_add")
+    # elif args.model == "convs_depth_concatenation2":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_conc2")
+    else:
+        raise Exception(model_name, "Invalid model name!")
+    return model
+
+
 def main():
     
     print("=====> Configure dataset and pretrained model:",args)
     configure_dataset_init_model(args)
     print(args)
+
+    if not os.path.exists(args.snapshot_dir):
+        os.makedirs(args.snapshot_dir)
+
+    logFileLoc = osp.join(args.snapshot_dir, args.dataset+"__"+args.full_model_name+"_"+ymd_hms+"_train_log.txt")
+    if os.path.isfile(logFileLoc):
+        logger = open(logFileLoc, 'a')
+    else:
+        logger = open(logFileLoc, 'w')
+    
+    logger.write(log_section_start+str(args)+log_section_end+"\n")
+    logger.flush()
+
 
     print("    current dataset:  ", args.dataset)
     print("    init model: ", args.restore_from)
@@ -357,50 +415,7 @@ def main():
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed) 
 
-    args.full_model_name = ""
-    if args.model == "ori" or args.model == "original_coattention_rgb":
-        model = CoattentionNet(num_classes=args.num_classes)
-        args.full_model_name = "original_coattention_rgb"
-    elif args.model == 'raa' or args.model == "resnet_aspp_add":
-        args.full_model_name = "resnet_aspp_add"
-    elif args.model == "ref" or args.model == "refactored_coattention_rgb":
-        model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
-        args.full_model_name = "refactored_coattention_rgb"
-    elif args.model == "add" or args.model == "added_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="add")
-        args.full_model_name = "added_depth_rgbd"
-    elif args.model == "conc1" or args.model == "concatenated_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc1")
-        args.full_model_name = "concatenated_depth_rgbd"
-    elif args.model == "conc2" or args.model == "concatenated_depth_rgbd2":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc2")
-        args.full_model_name = "concatenated_depth_rgbd2"
-    elif args.model == "padd" or args.model == "post_added_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="padd")
-        args.full_model_name = "post_added_depth_rgbd"
-    elif args.model == "conv_add" or args.model == "convs_depth_addition":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_add")
-        args.full_model_name = "convs_depth_addition"
-    elif args.model == "conv_conc2" or args.model == "convs_depth_concatenation2":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_conc2")
-        args.full_model_name = "convs_depth_concatenation2"
-    else:
-        print("Invalid model name!")
-        return
-
-    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, args.model, 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hms)
-
-    if not os.path.exists(args.snapshot_dir):
-        os.makedirs(args.snapshot_dir)
-
-    logFileLoc = osp.join(args.snapshot_dir, args.dataset+"__"+args.full_model_name+"_"+ymd_hms+"_train_log.txt")
-    if os.path.isfile(logFileLoc):
-        logger = open(logFileLoc, 'a')
-    else:
-        logger = open(logFileLoc, 'w')
-    
-    logger.write(log_section_start+str(args)+log_section_end+"\n")
-    logger.flush()
+    model = create_model(args.full_model_name)
 
     cudnn.enabled = True
 
@@ -500,7 +515,7 @@ def main():
         db_train = sbmdb.sbm_rgbd(user_config["train"]["dataset"]["sbmrgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["sbmrgbd"]["subset"],for_training=True, batch_size=args.batch_size)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'davis':
-        db_train = davis_db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        db_train = davis_db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.saliency_dataset_path,  transform=None, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
         db_train.next_batch = None
     else:

@@ -1,49 +1,40 @@
 'pretrained_params':
     "deep_labv3_davis":
-        "from_param": ""
+        "initial_params": ""
         "by_model": "deep_labv3"
-        "file": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
+        "file_of_output_params": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
     "original_coattention_rgb":
-        "from_param": "deep_labv3_davis"
+        "initial_params": "deep_labv3_davis"
         "by_model": "original_coattention_rgb"
-        "file": "./pretrained/co_attention.pth"
+        "file_of_output_params": "./pretrained/co_attention.pth" #"./pretrained/davis_480x854_Aug16.pth"
     "original_coattention_rgb_retrained":
-        "from_param": "deep_labv3_davis"
+        "initial_params": "deep_labv3_davis"
         "by_model": "original_coattention_rgb"
         "dataset": ["davis", "DUTS-TR", "MSRA10K_Imgs_GT"]
-        "file": ""
+        "file_of_output_params": ""
     "co_attention_refactored":
-        "from_param": "deep_labv3_davis"
+        "initial_params": "deep_labv3_davis"
         "by_model": "refactored_coattention_rgb"
         "dataset": ["davis", "DUTS-TR", "MSRA10K_Imgs_GT"]
-        "file": ""
-    "added_depth_rgbd":
-        "from_param": ""
-        "by_model": "added_depth_rgbd"
-        "dataset": "hzfurgbd"
-        "file": ""
-    "concatenated_depth_rgbd":
-        "from_param": ""
-        "by_model": "concatenated_depth_rgbd"
-        "file": ""
-    "concatenated_depth_rgbd2":
-        "from_param": ""
-        "by_model": "concatenated_depth_rgbd2"
-        "file": ""
-
+        "file_of_output_params": ""
+    "resnet_aspp_add_hzfurgbd":
+        "initial_params": "deep_labv3_davis"
+        "by_model": "resnet_aspp_add"
+        "dataset": ["hzfurgbd"]
+        "file_of_output_params": ""
+    "resnet101_cityscapes":
+        "model": "resnet101"
+        "dataset": "cityscapes"
+        "path": ""
 
 "train":
-    "pretrained_models":
-        "deep_labv3_davis":
-            "model": "deep_labv3"
-            "dataset": "davis"
-            "file": "./pretrained/deep_labv3/deeplab_davis_12_0.pth" #"./pretrained/davis_480x854_Aug16.pth"
-        
-        "resnet101_cityscapes":
-            "model": "resnet101"
-            "dataset": "cityscapes"
-            "path": ""
-
+    "model":
+        "original_coattention_rgb_retrained":
+            "initial_params": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
+        "co_attention_refactored":
+            "initial_params": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
+        "resnet_aspp_add":
+            "initial_params": "./pretrained/co_attention.pth" #"./pretrained/davis_480x854_Aug16.pth"
     "dataset":
         "davis":
             "img_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/JPEGImages/480p/"

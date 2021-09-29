@@ -140,8 +140,7 @@ def configure_dataset_init_model(args):
         args.num_classes = user_config["train"]["dataset"]["davis"]["num_classes"]      #Number of classes to predict (including background)
         args.img_mean = np.array(user_config["train"]["dataset"]["davis"]["img_mean"], dtype=np.float32)       # saving model file and log record during the process of training
         #Where restore model pretrained on other dataset, such as COCO.")
-        pretrained_model_name = user_config["train"]["dataset"]["davis"]["pretrained_model"]
-        args.restore_from = user_config["train"]["pretrained_models"][pretrained_model_name]["file"]
+        args.restore_from = user_config["train"]["model"]["original_coattention_rgb_retrained"]["initial_params"] #"./pretrained/deep_labv3/deeplab_davis_12_0.pth"
         #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
         args.snapshot_dir = user_config["train"]["dataset"]["davis"]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
         args.resume = user_config["train"]["dataset"]["davis"]["checkpoint_file"] #'./snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
