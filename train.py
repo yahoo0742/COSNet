@@ -106,7 +106,7 @@ def get_arguments():
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") 
-    parser.add_argument("--model", default="conc1", help="ori, ref, add, conc1, conc2, conv_add, conv_conc2") 
+    parser.add_argument("--model", default="ori", help="ori, raa, ref, add, conc1, conc2, conv_add, conv_conc2") 
 
     return parser.parse_args()
 
@@ -361,6 +361,8 @@ def main():
     if args.model == "ori" or args.model == "original_coattention_rgb":
         model = CoattentionNet(num_classes=args.num_classes)
         args.full_model_name = "original_coattention_rgb"
+    elif args.model == 'raa' or args.model == "resnet_aspp_add":
+        args.full_model_name = "resnet_aspp_add"
     elif args.model == "ref" or args.model == "refactored_coattention_rgb":
         model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
         args.full_model_name = "refactored_coattention_rgb"
@@ -414,10 +416,14 @@ def main():
 
     def convert_parameters_for_model(model, saved_state_dict):
         new_params = model.state_dict().copy()
+        print("Model: ",new_params)
         if args.cuda:
             #model.to(device)
             for i in saved_state_dict["model"]:
-                if args.full_model_name == "original_coattention_rgb":
+                if args.full_model_name == "resnet_aspp_add":
+                    print("state key: ",i)
+
+                elif args.full_model_name == "original_coattention_rgb":
                     newKey = i.replace("module.", "encoder.")
                 elif True:
                     if i.startswith("module.layer5."):
