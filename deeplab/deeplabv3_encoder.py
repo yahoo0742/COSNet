@@ -114,6 +114,7 @@ class Encoder(nn.Module):
         modules_with_params = []
         if level == "none":
             # nothing
+            pass
         elif level == "backbone":
             modules_with_params.append(self.backbone.conv1)
             modules_with_params.append(self.backbone.bn1)
