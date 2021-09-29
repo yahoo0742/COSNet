@@ -24,27 +24,32 @@ import os
 import os.path as osp
 #from psp.model import PSPNet
 #from dataloaders import davis_2016 as db
+from dataloaders import PairwiseImg_video as davis_db
 from dataloaders import hzfu_rgbd_loader as rgbddb
 import matplotlib.pyplot as plt
 import random
 import timeit
 #from psp.model1 import CoattentionNet  #based on pspnet
-# from deeplab.siamese_model_conf import CoattentionNet #siame_model 
+from deeplab.siamese_model_conf import CoattentionNet #siame_model 
 #from deeplab.utils import get_1x_lr_params, get_10x_lr_params#, adjust_learning_rate #, loss_calc
 from deeplab.residual_net import Bottleneck
-# from deeplab.siamese_model import CoattentionSiameseNet
+from deeplab.siamese_model import CoattentionSiameseNet
 from rgbd_segmentation_model import RGBDSegmentationModel
 import datetime
 import gc
 
 start = timeit.default_timer()
 
+log_section_start = "##=="
+log_section_end = "==##"
+timenow = datetime.datetime.now()
+ymd_hms = timenow.strftime("%Y%m%d_%H%M%S")
 
 def logMem(logger, prefix):
     total = torch.cuda.get_device_properties(None).total_memory
     mem_alloc = torch.cuda.memory_allocated()
     mem_cache = torch.cuda.memory_cached()
-    msg = prefix + " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)
+    msg = prefix + " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)+ "\n"
     print(msg)
     if logger:
         logger.write(msg)
@@ -98,7 +103,7 @@ def get_arguments():
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") 
-
+    parser.add_argument("--model", default="conc1", help="ori, ref, add, conc1, conc2, conv_add, conv_conc2") 
 
     return parser.parse_args()
 
@@ -143,9 +148,7 @@ def configure_dataset_init_model(args):
     
     h, w = map(int, user_config["train"]["dataset"][args.dataset]["output_HW"].split(','))
     args.output_HW = (h, w)
-    timenow = datetime.datetime.now()
-    ymd_hm = timenow.strftime("%Y%m%d_%H%M")
-    args.snapshot_dir = osp.join(user_config["train"]["dataset"][args.dataset]["snapshot_output_path"], 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hm)
+
 
 
 def adjust_learning_rate(optimizer, i_iter, epoch, max_iter):
@@ -213,14 +216,24 @@ def get_1x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = mod.module
 
-    b.append(mod.encoder.backbone.conv1)
-    b.append(mod.encoder.backbone.bn1)
-    b.append(mod.encoder.backbone.layer1)
-    b.append(mod.encoder.backbone.layer2)
-    b.append(mod.encoder.backbone.layer3)
-    b.append(mod.encoder.backbone.layer4)
-    b.append(mod.encoder.aspp)
-    b.append(mod.encoder.main_classifier)
+    if args.full_model_name == "original_coattention_rgb":
+        b.append(mod.encoder.conv1)
+        b.append(mod.encoder.bn1)
+        b.append(mod.encoder.layer1)
+        b.append(mod.encoder.layer2)
+        b.append(mod.encoder.layer3)
+        b.append(mod.encoder.layer4)
+        b.append(mod.encoder.layer5)
+        b.append(mod.encoder.main_classifier)
+    else:
+        b.append(mod.encoder.backbone.conv1)
+        b.append(mod.encoder.backbone.bn1)
+        b.append(mod.encoder.backbone.layer1)
+        b.append(mod.encoder.backbone.layer2)
+        b.append(mod.encoder.backbone.layer3)
+        b.append(mod.encoder.backbone.layer4)
+        b.append(mod.encoder.aspp)
+        b.append(mod.encoder.main_classifier)
 
     for i in range(len(b)):
         for j in b[i].modules():
@@ -241,24 +254,48 @@ def get_10x_lr_params(model):
     mod = model
     if torch.cuda.device_count() > 1:
         mod = model.module
-    b.append(mod.depth_encoder.backbone.conv1.parameters())
-    b.append(mod.depth_encoder.backbone.bn1.parameters())
-    b.append(mod.depth_encoder.backbone.layer1.parameters())
-    b.append(mod.depth_encoder.backbone.layer2.parameters())
-    b.append(mod.depth_encoder.backbone.layer3.parameters())
-    b.append(mod.depth_encoder.backbone.layer4.parameters())
-    if False:
-        b.append(mod.depth_encoder.aspp.parameters())
-        b.append(mod.depth_encoder.main_classifier.parameters())
 
-    b.append(mod.linear_e.parameters())
-    b.append(mod.conv1.parameters())
-    b.append(mod.conv2.parameters())
-    b.append(mod.gate.parameters())
-    b.append(mod.bn1.parameters())
-    b.append(mod.bn2.parameters())   
-    b.append(mod.main_classifier1.parameters())
-    b.append(mod.main_classifier2.parameters())
+    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
+        b.append(mod.linear_e.parameters())
+        b.append(mod.conv1.parameters())
+        b.append(mod.conv2.parameters())
+        b.append(mod.gate.parameters())
+        b.append(mod.bn1.parameters())
+        b.append(mod.bn2.parameters())   
+        b.append(mod.main_classifier1.parameters())
+        b.append(mod.main_classifier2.parameters())
+    elif args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "convs_depth_addition" or args.full_model_name == "convs_depth_concatenation2":
+        b.append(mod.depth_encoder.conv1.parameters())
+        b.append(mod.depth_encoder.conv2.parameters())
+        b.append(mod.depth_encoder.bn.parameters())
+        b.append(mod.linear_e.parameters())
+        b.append(mod.conv1.parameters())
+        b.append(mod.conv2.parameters())
+        b.append(mod.gate.parameters())
+        b.append(mod.bn1.parameters())
+        b.append(mod.bn2.parameters())   
+        b.append(mod.main_classifier1.parameters())
+        b.append(mod.main_classifier2.parameters())
+    else:
+        b.append(mod.depth_encoder.backbone.conv1.parameters())
+        b.append(mod.depth_encoder.backbone.bn1.parameters())
+        b.append(mod.depth_encoder.backbone.layer1.parameters())
+        b.append(mod.depth_encoder.backbone.layer2.parameters())
+        b.append(mod.depth_encoder.backbone.layer3.parameters())
+        b.append(mod.depth_encoder.backbone.layer4.parameters())
+
+        if False:
+            b.append(mod.depth_encoder.aspp.parameters())
+            b.append(mod.depth_encoder.main_classifier.parameters())
+
+        b.append(mod.linear_e.parameters())
+        b.append(mod.conv1.parameters())
+        b.append(mod.conv2.parameters())
+        b.append(mod.gate.parameters())
+        b.append(mod.bn1.parameters())
+        b.append(mod.bn2.parameters())   
+        b.append(mod.main_classifier1.parameters())
+        b.append(mod.main_classifier2.parameters())
         
     for j in range(len(b)):
         # print("****b[",j,"]: ",b[j])
@@ -316,16 +353,47 @@ def main():
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed) 
 
+    args.full_model_name = ""
+    if args.model == "ori" or args.model == "original_coattention_rgb":
+        model = CoattentionNet(num_classes=args.num_classes)
+        args.full_model_name = "original_coattention_rgb"
+    elif args.model == "ref" or args.model == "refactored_coattention_rgb":
+        model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
+        args.full_model_name = "refactored_coattention_rgb"
+    elif args.model == "add" or args.model == "added_depth_rgbd":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="add")
+        args.full_model_name = "added_depth_rgbd"
+    elif args.model == "conc1" or args.model == "concatenated_depth_rgbd":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc1")
+        args.full_model_name = "concatenated_depth_rgbd"
+    elif args.model == "conc2" or args.model == "concatenated_depth_rgbd2":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc2")
+        args.full_model_name = "concatenated_depth_rgbd2"
+    elif args.model == "padd" or args.model == "post_added_depth_rgbd":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="padd")
+        args.full_model_name = "post_added_depth_rgbd"
+    elif args.model == "conv_add" or args.model == "convs_depth_addition":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_add")
+        args.full_model_name = "convs_depth_addition"
+    elif args.model == "conv_conc2" or args.model == "convs_depth_concatenation2":
+        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_conc2")
+        args.full_model_name = "convs_depth_concatenation2"
+    else:
+        print("Invalid model name!")
+        return
+
+    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, args.model, 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hms)
+
     if not os.path.exists(args.snapshot_dir):
         os.makedirs(args.snapshot_dir)
 
-    logFileLoc = osp.join(args.snapshot_dir, args.logFile)
-    newLogFile = False
+    logFileLoc = osp.join(args.snapshot_dir, args.dataset+"__"+args.full_model_name+"_"+ymd_hms+"_train_log.txt")
     if os.path.isfile(logFileLoc):
         logger = open(logFileLoc, 'a')
     else:
         logger = open(logFileLoc, 'w')
-        newLogFile = True
+    
+    logger.write(log_section_start+str(args)+log_section_end+"\n")
     logger.flush()
 
     cudnn.enabled = True
@@ -336,9 +404,6 @@ def main():
 
     print("=====> Building network")
 
-    model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=args.num_classes-1)
-    # model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
-    #model = CoattentionNet(num_classes=args.num_classes)
     #print(model)
     print("=====> Restoring initial state")
 
@@ -348,12 +413,25 @@ def main():
         if args.cuda:
             #model.to(device)
             for i in saved_state_dict["model"]:
-                if i.startswith("module.layer5."):
-                    newKey = i.replace("module.layer5.", "encoder.aspp.")
-                elif i.startswith("module.main_classifier."):
-                    newKey = i.replace("module.main_classifier.", "encoder.main_classifier.")
+                if args.full_model_name == "original_coattention_rgb":
+                    newKey = i.replace("module.", "encoder.")
+                elif True:
+                    if i.startswith("module.layer5."):
+                        newKey = i.replace("module.layer5.", "encoder.aspp.")
+                    elif i.startswith("module.main_classifier."):
+                        newKey = i.replace("module.main_classifier.", "encoder.main_classifier.")
+                    else:
+                        newKey = i.replace("module.", "encoder.backbone.")
                 else:
-                    newKey = i.replace("module.", "encoder.backbone.")
+                    if i.startswith("module.encoder.layer5."):
+                        newKey = i.replace("module.encoder.layer5.", "encoder.aspp.")
+                    elif i.startswith("module.encoder.main_classifier."):
+                        newKey = i.replace("module.encoder.main_classifier.", "encoder.main_classifier.")
+                    elif i.startswith("module.encoder."):
+                        newKey = i.replace("module.encoder.", "encoder.backbone.")
+                    else:
+                        newKey = i.replace("module.", "")
+                    print("key ", i, " NEW: ",newKey)
                 new_params[newKey] = saved_state_dict["model"][i]
         return new_params
         
@@ -399,18 +477,19 @@ def main():
     total_paramters = netParams(model)
     print('Total network parameters: ' + str(total_paramters))
  
-    if newLogFile:
-        logger.write("Parameters: %s" % (str(total_paramters)))
-        logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
-        logger.flush()
+    logger.write("Parameters: %s" % (str(total_paramters)))
+    logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
+    logger.flush()
 
     print("=====> Preparing training data")
     db_train = None
     if args.dataset == 'hzfurgbd':
-        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, transform=None)
-        db_train.set_for_train()
-        db_train.set_batch_size(args.batch_size)
+        db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["hzfurgbd"]["subset"],transform=None, for_training=True, batch_size=args.batch_size)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
+    elif args.dataset == 'davis':
+        db_train = davis_db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
+        db_train.next_batch = None
     else:
         print("dataset error")
 
@@ -433,12 +512,14 @@ def main():
     loss_history = []
     for epoch in range(start_epoch, int(args.maxEpoches)):
         print("......epoch=", epoch)
-        db_train.next_batch()
+        if db_train.next_batch:
+            db_train.next_batch()
         np.random.seed(args.random_seed + epoch)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
             logMem(logger, " Start batch")
 
-            db_train.next_batch()
+            if db_train.next_batch:
+                db_train.next_batch()
             print("  i_iter=", i_iter)
             current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_gt'],
 
@@ -498,7 +579,7 @@ def main():
     logger.write("total training time: {:.2f} h\n".format(float(end-start)/3600))
     logger.close()
 
-    plot2d(np.arange(args.maxEpoches), loss_history, "epoch", "loss", "training_loss_"+args.dataset)
+    plot2d(np.arange(len(loss_history)), loss_history, "epoch", "loss", "training_loss_"+args.dataset)
 
 
 if __name__ == '__main__':

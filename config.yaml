@@ -1,9 +1,43 @@
+'pretrained_params':
+    "deep_labv3_davis":
+        "from_param": ""
+        "by_model": "deep_labv3"
+        "file": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
+    "original_coattention_rgb":
+        "from_param": "deep_labv3_davis"
+        "by_model": "original_coattention_rgb"
+        "file": "./pretrained/co_attention.pth"
+    "original_coattention_rgb_retrained":
+        "from_param": "deep_labv3_davis"
+        "by_model": "original_coattention_rgb"
+        "dataset": ["davis", "DUTS-TR", "MSRA10K_Imgs_GT"]
+        "file": ""
+    "co_attention_refactored":
+        "from_param": "deep_labv3_davis"
+        "by_model": "refactored_coattention_rgb"
+        "dataset": ["davis", "DUTS-TR", "MSRA10K_Imgs_GT"]
+        "file": ""
+    "added_depth_rgbd":
+        "from_param": ""
+        "by_model": "added_depth_rgbd"
+        "dataset": "hzfurgbd"
+        "file": ""
+    "concatenated_depth_rgbd":
+        "from_param": ""
+        "by_model": "concatenated_depth_rgbd"
+        "file": ""
+    "concatenated_depth_rgbd2":
+        "from_param": ""
+        "by_model": "concatenated_depth_rgbd2"
+        "file": ""
+
+
 "train":
     "pretrained_models":
         "deep_labv3_davis":
             "model": "deep_labv3"
             "dataset": "davis"
-            "file": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
+            "file": "./pretrained/deep_labv3/deeplab_davis_12_0.pth" #"./pretrained/davis_480x854_Aug16.pth"
         
         "resnet101_cityscapes":
             "model": "resnet101"
@@ -20,7 +54,7 @@
             "max_epoches": 30 #60 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
             "input_size": '854,480' #'854480' #Comma-separated string with height and width of images
-            "output_HW": '120,214' #'480,854'
+            "output_HW": '480,854'
             "num_classes": 2      #Number of classes to predict (including background)
             "img_mean": [104.00698793, 116.66876762, 122.67891434] ## saving model file and log record during the process of training
             "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
@@ -36,13 +70,18 @@
             "max_epoches": 30 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
             "input_size": '640,480' #'640,480'  #Comma-separated string with height and width of images
-            "output_HW": '120,160'
+            "output_HW": '480,640'
             "num_classes": 2      #Number of classes to predict (including background)
             "img_mean": [104.00698793, 116.66876762, 122.67891434] ## saving model file and log record during the process of training
             "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
             "snapshot_output_path": "./snapshots/hzfurgbd_iteration/"          #Where to save snapshots of the model
             "checkpoint_file": "./snapshots/hzfurgbd/co_attention_hzfurgbd.pth" #checkpoint log file helping recovering training
-
+            "subset":
+                "child_no1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png"]
+                "dog_no_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png"]
+                "toy_wg_occ": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png","46_obj_1.png","51_obj_1.png"]
+                "tracking4": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png"]
+                "zcup_move_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png"]
 
     "saliency_dataset":
         "root_path": "/vol/graphics-solar/fengwenb/vos/saliency_dataset/"
@@ -57,12 +96,51 @@
 
 
 "test":
+    "model":
+        "original_coattention_rgb":
+            "pretrained_params": "./pretrained/co_attention.pth" # './pretrained/davis_480x854_Aug16.pth'
+        "original_coattention_rgb_retrained":
+            "pretrained_params": "./snapshots/davis/origin/H480W854/20210823_110140/co_attention_davis_29.pth" # "./pretrained/davis_480x854_Aug16.pth"
+        "refactored_coattention_rgb":
+            "pretrained_params": "./snapshots/davis_480x854s/co_attention_davis_29.pth"
+        "added_depth_rgbd":
+            "pretrained_params": "./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth" #'./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth' #'./snapshots/hzfurgbd_iteration/H120W160/20210814_2145/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/hzfurgbd_iteration/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth'
+        "post_added_depth_rgbd":
+            "pretrained_params": "./snapshots/hzfurgbd/padd/H480W640/20210824_225825/snapshot_hzfurgbd_29.pth" #'./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth' #'./snapshots/hzfurgbd_iteration/H120W160/20210814_2145/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/hzfurgbd_iteration/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth'
+        "concatenated_depth_rgbd":
+            "pretrained_params": "./snapshots/hzfurgbd/coc/H480W640/20210822_113019/snapshot_hzfurgbd_29.pth" #20210822_164649
+        "concatenated_depth_rgbd2":
+            "pretrained_params": "./snapshots/hzfurgbd/conc2/H480W640/20210824_121853/snapshot_hzfurgbd_29.pth" #20210824_121853
     "dataset":
         "davis":
+            "model":
             "subset_file": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/ImageSets/480p/val.txt"
             "path": ""
+            "output_WH": ""
         "hzfurgb":
+            "model":
+            "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset"
+            "output_WH": "640,480"
+            "image_HW_4_model": "480, 640"
+            "sample_range": 1
+            "subset":
+                "child_no1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png"]
+                "dog_no_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png"]
+                "toy_wg_occ": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png","46_obj_1.png","51_obj_1.png"]
+                "tracking4": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png"]
+                "zcup_move_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png"]
 
         "hzfurgbd":
-    
+            "model":
+            "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset"
+            "output_WH": "640,480"
+            "image_HW_4_model": "480, 640"
+            "sample_range": 1
+            "subset":
+                "child_no1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png"]
+                "dog_no_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png"]
+                "toy_wg_occ": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png","41_obj_1.png","46_obj_1.png","51_obj_1.png"]
+                "tracking4": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png","36_obj_1.png"]
+                "zcup_move_1": ["01_obj_1.png","06_obj_1.png","11_obj_1.png","16_obj_1.png","21_obj_1.png","26_obj_1.png","31_obj_1.png"]
+
 

@@ -38,9 +38,11 @@ from deeplab.siamese_model_conf import CoattentionNet #siame_model 是直接将a
 from deeplab.residual_net import Bottleneck
 from deeplab.siamese_model import CoattentionSiameseNet
 import gc
+import datetime
 
 start = timeit.default_timer()
-
+timenow = datetime.datetime.now()
+ymd_hms = timenow.strftime("%Y%m%d_%H%M%S")
 
 def logMem(logger, prefix):
     total = torch.cuda.get_device_properties(None).total_memory
@@ -99,6 +101,7 @@ def get_arguments():
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") #使用3号GPU
     parser.add_argument("--sample_range", type=int, default=5, help="The number of frames sampled to compare with the target frame.")
+    parser.add_argument("--model", type=str, default='ori', help="ori, ref")
 
 
     return parser.parse_args()
@@ -230,7 +233,14 @@ def get_1x_lr_params(model):
         mod = mod.module
     
     if args.use_original_model:
-       print("get_1x_lr_params TODO")
+        b.append(mod.encoder.conv1)
+        b.append(mod.encoder.bn1)
+        b.append(mod.encoder.layer1)
+        b.append(mod.encoder.layer2)
+        b.append(mod.encoder.layer3)
+        b.append(mod.encoder.layer4)
+        b.append(mod.encoder.layer5)
+        b.append(mod.encoder.main_classifier)
     else:
         b.append(mod.encoder.backbone.conv1)
         b.append(mod.encoder.backbone.bn1)
@@ -261,7 +271,14 @@ def get_10x_lr_params(model):
         mod = model.module
 
     if args.use_original_model:
-        print("get_10x_lr_params TODO")
+        b.append(mod.linear_e.parameters())
+        b.append(mod.conv1.parameters())
+        b.append(mod.conv2.parameters())
+        b.append(mod.gate.parameters())
+        b.append(mod.bn1.parameters())
+        b.append(mod.bn2.parameters())   
+        b.append(mod.main_classifier1.parameters())
+        b.append(mod.main_classifier2.parameters())
     else:
         b.append(mod.linear_e.parameters())
         b.append(mod.conv1.parameters())
@@ -310,7 +327,9 @@ def convert_parameters_for_model(model, saved_state_dict, use_original_model):
     if args.cuda:
         #model.to(device)
         if use_original_model:
-            print("")
+            for i in saved_state_dict["model"]:
+                newKey = i.replace("module.", "encoder.")
+                new_params[newKey] = saved_state_dict["model"][i]
         else:
             for i in saved_state_dict["model"]:
                 if i.startswith("module.layer5."):
@@ -322,8 +341,8 @@ def convert_parameters_for_model(model, saved_state_dict, use_original_model):
                 new_params[newKey] = saved_state_dict["model"][i]
     return new_params
 
+
 def main():
-    
     
     print("=====> Configure dataset and pretrained model:",args)
     configure_dataset_init_model(args)
@@ -354,15 +373,19 @@ def main():
 
     cudnn.enabled = True
 
+
     print("=====> Loading state saved")
 
     saved_state_dict = torch.load(args.restore_from)
 
     print("=====> Building network")
 
-    # model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
-    model = CoattentionNet(num_classes=args.num_classes)
-    args.use_original_model = type(model) == CoattentionNet
+    if args.model == "ori":
+        model = CoattentionNet(num_classes=args.num_classes)
+        args.use_original_model = True
+    else:
+        args.use_original_model = False
+        model = CoattentionSiameseNet(Bottleneck,3, [3, 4, 23, 3], num_classes=args.num_classes-1)
     #print(model)
     print("=====> Restoring initial state")
     new_params = convert_parameters_for_model(model, saved_state_dict, args.use_original_model)
@@ -422,9 +445,6 @@ def main():
 
     model.train()
     cudnn.benchmark = True
-
-    if not os.path.exists(args.snapshot_dir):
-        os.makedirs(args.snapshot_dir)
     
     print('=====> Computing network parameters')
     total_paramters = netParams(model)
@@ -443,7 +463,7 @@ def main():
         trainloader = data.DataLoader(db_train, 
                                       batch_size = args.batch_size, shuffle=True, num_workers=0, pin_memory=True, drop_last=True)
     elif args.dataset == 'davis':  #for davis 2016
-        db_train = db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None, sample_range=args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
+        db_train = db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None, sample_range=args.sample_range, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
@@ -454,8 +474,12 @@ def main():
     optimizer.zero_grad()
 
 
+    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, args.model+"_old_train", 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hms)
+
+    if not os.path.exists(args.snapshot_dir):
+        os.makedirs(args.snapshot_dir)
     
-    logFileLoc = args.snapshot_dir + args.logFile
+    logFileLoc = os.path.join(args.snapshot_dir,  args.dataset+"_"+args.model+"_old_"+ymd_hms+"_train_log.txt")
     if os.path.isfile(logFileLoc):
         logger = open(logFileLoc, 'a')
     else:
@@ -534,10 +558,10 @@ def main():
 
             del targets
             del targets_gts
-            del target_depth
+            # del target_depth
             del searches
             del searches_gts
-            del search_depth
+            # del search_depth
             del saliency_images
             del saliency_gts
             del batch

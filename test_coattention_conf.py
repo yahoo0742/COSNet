@@ -188,12 +188,10 @@ def main():
         voc_colorize = VOCColorize()
     
     elif args.dataset == 'hzfurgb':
-        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, output_HW=args.output_HW, channels='rgb')
-        db_test.set_for_test()
+        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, output_HW=args.output_HW, channels='rgb', for_training=False)
         testloader = data.DataLoader(db_test, batch_size=args.batch_size, shuffle=False, num_workers=0)
     elif args.dataset == 'hzfud':
-        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, output_HW=args.output_HW, channels='d')
-        db_test.set_for_test()
+        db_test = hzfurgbd_db.HzFuRGBDVideos(args.data_dir, sample_range=args.sample_range, output_HW=args.output_HW, channels='d',  for_training=False)
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=False, num_workers=0)
     elif args.dataset == 'davis':  #for davis 2016
         db_test = db.PairwiseImg(train=False, output_HW=args.output_HW, db_root_dir=args.data_dir,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
