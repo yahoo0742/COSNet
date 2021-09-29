@@ -199,6 +199,9 @@ class HzFuRGBDVideos(Dataset):
 
         def __check_framenames_of_sequence(folder, seq): #(folder:Folder, seq):
             seq_path = self._get_path(folder, seq)
+            if not os.path.exists(seq_path):
+                # seq doesn't exist
+                return None
             framenames_of_seq = os.listdir(seq_path)
             if False and len(framenames_of_seq) > 0:
                 '''
@@ -219,6 +222,7 @@ class HzFuRGBDVideos(Dataset):
                     folder.set_extension_name(None)
             return framenames_of_seq
 
+        invalid_seqs = []
         for seq in self.sets['entire']['names_of_sequences']:
             '''
             because not every rgb frame has been labelled in the dataset and I only consider the labelled frames as valid frames for training and test,
@@ -227,6 +231,10 @@ class HzFuRGBDVideos(Dataset):
             names_of_rgb_frames_of_seq = __check_framenames_of_sequence(EContentInfo.rgb, seq)
             names_of_depth_frames_of_seq = __check_framenames_of_sequence(EContentInfo.depth, seq)
             names_of_gt_frames_of_seq = __check_framenames_of_sequence(EContentInfo.groundtruth, seq)
+
+            if names_of_gt_frames_of_seq == None or names_of_depth_frames_of_seq == None or names_of_rgb_frames_of_seq == None:
+                invalid_seqs.append(seq)
+                continue
 
             names_of_rgb_frames_of_seq.sort()
             names_of_depth_frames_of_seq.sort()
@@ -277,6 +285,10 @@ class HzFuRGBDVideos(Dataset):
                 end_idx = start_idx + len(labelled_frames_of_seq)
                 self.sets['entire']['offset4_frames_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets['entire']['names_of_frames'].extend(labelled_frames_of_seq)
+
+        for seq in invalid_seqs:
+            self.sets['entire']['names_of_sequences'].remove(seq)
+
 
     def _split_dataset(self):
         # sequence based -- all frames of a sequence is randomly chosen for training, or for test
