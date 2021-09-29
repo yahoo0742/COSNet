@@ -85,22 +85,36 @@ class RGBDSegmentation_RAA(nn.Module):
         new_params = self.state_dict().copy()
         # state_dict_new = OrderedDict()
         for k in state_dict:
-            if k.startswith('module.'):
+            if k.startswith("module."):
                 # the state was trained from multiple GPUS
                 new_key = k[7:] # remove the prefix module.
             else:
                 # the state was trained from a single GPU
                 new_key = k
             
-            if new_key.startswith('encoder.layer5.'):
+            if new_key.startswith("encoder.layer5."):
                 new_key = new_key.replace("encoder.layer5.", "encoder.aspp.")
-            elif new_key.startswith('encoder.main_classifier'):
+            elif new_key.startswith("encoder.main_classifier"):
                 pass
-            elif new_key.startswith('encoder.'):
+            elif new_key.startswith("encoder."):
                 new_key = new_key.replace("encoder.", "encoder.backbone.")
+            elif new_key.startswith("linear_e."):
+                new_key = new_key.replace("linear_e.","rgb_similarity_weights.")
+            elif new_key.startswith("conv1."):
+                new_key = new_key.replace("conv1.","reduce_channels_A.")
+            elif new_key.startswith("conv2."):
+                new_key = new_key.replace("conv2.","reduce_channels_B.")
+            elif new_key.startswith("bn1."):
+                new_key = new_key.replace("bn1.","bn_A.")
+            elif new_key.startswith("bn2."):
+                new_key = new_key.replace("bn2.","bn_B.")
+            elif new_key.startswith("main_classifier1."):
+                new_key = new_key.replace("main_classifier1.","segmentation_classifier_A.")
+            elif new_key.startswith("main_classifier2."):
+                new_key = new_key.replace("main_classifier2.","segmentation_classifier_B.")
             new_params[new_key] = state_dict[k]
 
-        super.load_state_dict(new_params) 
+        self.load_state_dict(new_params) 
 
 
     def forward(self, rgbs_a, rgbs_b, depths_a):
