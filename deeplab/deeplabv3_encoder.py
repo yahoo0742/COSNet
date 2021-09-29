@@ -170,7 +170,8 @@ class DepthEncoder_ResNetASPP(nn.Module):
 
     def get_params(self):
         modules_with_params = []
-        modules_with_params.append(self.backbone)
+        mods_bb = self.backbone.get_params()
+        modules_with_params.extend(mods_bb)
         modules_with_params.append(self.aspp)
 
         return modules_with_params

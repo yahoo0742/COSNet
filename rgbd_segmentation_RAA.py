@@ -71,7 +71,8 @@ class RGBDSegmentation_RAA(nn.Module):
             modules_with_params.append(self.bn_B)
 
         if subset == "depth" or subset == "all":
-            modules_with_params.append(self.depth_encoder)
+            mods = self.depth_encoder.get_params()
+            modules_with_params.extend(mods)
             modules_with_params.append(self.depth_gate)
 
         if subset == "decoder" or subset == "all":

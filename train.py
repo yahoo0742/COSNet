@@ -283,9 +283,14 @@ def get_10x_lr_params(model):
     mods_with_params = mod.get_params("depth")
     b.extend(mods_with_params)
 
+    for j in range(len(b)):
+        for i in b[j].parameters():
+            yield i
+
     if True:
-        pass
-    elif args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
+        return
+
+    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
         b.append(mod.linear_e.parameters())
         b.append(mod.conv1.parameters())
         b.append(mod.conv2.parameters())
