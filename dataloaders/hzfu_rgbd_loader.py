@@ -49,6 +49,7 @@ from torch.utils.data import Dataset
 from dataloaders import utils
 import torch
 import math
+from PIL import Image
 
 k_method_of_splitting_dataset = 'frame_in_out' #'sequence_in_out'
 
@@ -88,7 +89,8 @@ class HzFuRGBDVideos(Dataset):
                  subset = None,
                  batch_size = 1,
                  meanval=(104.00699, 116.66877, 122.67892),
-                 transform=None
+                 transform=None,
+                 output_dir_for_debug=None
                  ):
         self.dataset_root = dataset_root
         self.sample_range = sample_range
@@ -99,7 +101,9 @@ class HzFuRGBDVideos(Dataset):
         self.stage = 'train' if for_training else 'test'
         self.channels_for_target_frame = channels_for_target_frame
         self.channels_for_counterpart_frame = channels_for_counterpart_frame
-        
+        self.depth_min_max = {}
+        self.output_dir_for_debug = output_dir_for_debug
+
         self.flip_prob_of_seqs_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
 
         self.sets = {
@@ -356,8 +360,11 @@ class HzFuRGBDVideos(Dataset):
                     if self.stage == 'train':
                         num_frames = 2 # 2 frames at least for a sequence for co-attention, and here the sequence should have more than 1 frame in total
                     # for testing, we can accept a sequence having only 1 frame
-                frames_selected = random.sample(frames_of_seq, num_frames)
-                end_idx = num_frames + start_idx
+                if num_frames == len(frames_of_seq):
+                    frames_selected = frames_of_seq
+                else:
+                    frames_selected = random.sample(frames_of_seq, num_frames)
+                end_idx = (int)(num_frames + start_idx)
                 self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
 
@@ -396,6 +403,31 @@ class HzFuRGBDVideos(Dataset):
                     rgb = _use_depth_as_rgb(depth[0])
                 else:
                     raise Exception("Invalid 'channels' parameter, which should be 'd' or 'rgb' or 'rgbd'.")
+            
+            if self.output_dir_for_debug != None:
+                save_dir = os.path.join(self.output_dir_for_debug, frame_info.seq_name)
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)
+
+                filename = os.path.join(save_dir, '{}_rgb.png'.format(frame_info.id))
+                if type(rgb) != np.ndarray:
+                    rgb_npary = rgb.numpy()
+                else:
+                    rgb_npary = rgb
+                img = Image.fromarray(np.uint8(np.add(rgb_npary.transpose(1, 2, 0), self.meanval)), 'RGB') #(rows, columns, channels)
+                img.save(filename)
+
+                if 'd' in channels_to_load:
+                    filename = os.path.join(save_dir, '{}_depth.png'.format(frame_info.id))
+                    img = Image.fromarray(np.uint8(depth[0]), 'L')
+                    img.save(filename)
+
+                if 't' in channels_to_load:
+                    filename = os.path.join(save_dir, '{}_gt.png'.format(frame_info.id))
+                    img = Image.fromarray(np.uint8(gt*255), 'L')
+                    img.save(filename)
+                del img
+            
             return rgb, depth, gt
 
 
@@ -453,8 +485,8 @@ class HzFuRGBDVideos(Dataset):
             : return: a 2d array in the shape of (output_HW[0], outputHW[1]) with values in [0,255]
             '''
             f = h5py.File(path, 'r')
-            result = np.array(f['depth'], dtype=np.float32)
-            # print("depth shape: ",result.shape)
+            result = np.array(f['depth'], dtype=np.float32) # need to be transposed. An image in the size of w:640, h:480, will get w:480, h:640 (transposed, but reshaped) here
+            result = result.transpose() # now it is in the same shape with the original image
 
             # resize to the expected size
             if self.output_HW is not None:
@@ -462,11 +494,13 @@ class HzFuRGBDVideos(Dataset):
                 result = cv2.resize(result,(self.output_HW[1], self.output_HW[0]),interpolation = cv2.INTER_NEAREST)
             result = np.array(result, dtype=np.float32)
 
+            depth_min = result.min()
+            depth_max = result.max()
+
             # normalize
-            result = (result - result.min()) * 255 / (result.max() - result.min())
+            result = (result - depth_min) * 255 / (depth_max - depth_min)
             # print(" after depth shape: ",result.shape, result.dtype)
-            # result = result.transpose() 
-            return result
+            return result, depth_min, depth_max
 
         load_rgb = 'rgb' in channels
         load_depth = 'd' in channels
@@ -498,7 +532,19 @@ class HzFuRGBDVideos(Dataset):
             # load depth
             depth_path = self._get_path_of_depth_data(frame_info.seq_name, frame_info.name_of_depth_frame)
             if depth_path:
-                depth_img = __load_mat(depth_path)
+                depth_img, depth_min, depth_max = __load_mat(depth_path)
+
+                # img = Image.fromarray(np.uint8(depth_img), 'L')
+                # img.save(depth_img_filename)
+
+                if frame_info.seq_name not in self.depth_min_max:
+                    self.depth_min_max[frame_info.seq_name] = [depth_min, depth_max]
+                else:
+                    if self.depth_min_max[frame_info.seq_name][0] < depth_min:
+                        self.depth_min_max[frame_info.seq_name][0] = depth_min
+                    if self.depth_min_max[frame_info.seq_name][1] > depth_max:
+                        self.depth_min_max[frame_info.seq_name][1] = depth_max
+
                 depth_img = depth_img[None, :,:] # 1, H, W with values in [0, 255]
                 if self.stage == 'train':
                     depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
