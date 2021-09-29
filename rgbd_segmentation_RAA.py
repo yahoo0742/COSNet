@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from deeplab.deeplabv3_encoder import Encoder
 from deeplab.deeplabv3_encoder import DepthEncoder_ResNetASPP
-from collections import OrderedDict
+# from collections import OrderedDict
 
 """
 R: ResNet
@@ -81,23 +81,26 @@ class RGBDSegmentation_RAA(nn.Module):
         return modules_with_params
 
 
-    def convert_keys(state_dict):
-        state_dict_new = OrderedDict()
-        #print(type(state_dict))
-        for k, v in state_dict.items():
-            print(k)
-            new_key = k
-            # if k.startswith('module.'):
-            #     # the state was trained from multiple GPUS
-            #     new_key = k[7:] # remove the prefix module.
-            # else:
-            #     # the state was trained from a single GPU
-            #     new_key = k
-
+    def load_state(self, state_dict):
+        new_params = self.state_dict().copy()
+        # state_dict_new = OrderedDict()
+        for k in state_dict:
+            if k.startswith('module.'):
+                # the state was trained from multiple GPUS
+                new_key = k[7:] # remove the prefix module.
+            else:
+                # the state was trained from a single GPU
+                new_key = k
             
-            state_dict_new[new_key] = v
+            if new_key.startswith('encoder.layer5.'):
+                new_key = new_key.replace("encoder.layer5.", "encoder.aspp.")
+            elif new_key.startswith('encoder.main_classifier'):
+                pass
+            elif new_key.startswith('encoder.'):
+                new_key = new_key.replace("encoder.", "encoder.backbone.")
+            new_params[new_key] = state_dict[k]
 
-        return state_dict_new
+        super.load_state_dict(new_params) 
 
 
     def forward(self, rgbs_a, rgbs_b, depths_a):

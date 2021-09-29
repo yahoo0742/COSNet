@@ -431,9 +431,9 @@ def main():
 
     def convert_parameters_for_model(model, saved_state_dict):
         new_params = model.state_dict().copy()
-        print("Model: ",new_params)
         if args.cuda:
             #model.to(device)
+            model.convert_keys(saved_state_dict["model"])
             for i in saved_state_dict["model"]:
                 if args.full_model_name == "resnet_aspp_add":
                     print("state key: ",i)
@@ -461,11 +461,12 @@ def main():
         return new_params
         
     
-    new_params = convert_parameters_for_model(model, saved_state_dict)
+    # new_params = convert_parameters_for_model(model, saved_state_dict)
 
     print("=====> Loading init weights,  pretrained COCO for VOC2012, and pretrained Coarse cityscapes for cityscapes")
  
-    model.load_state_dict(new_params) #only resnet first 5 conv layers params
+    # model.load_state_dict(new_params) #only resnet first 5 conv layers params
+    model.load_state(saved_state_dict["model"])
     #print(model.keys())
     logMem(logger, "After loading state")
 
