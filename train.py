@@ -357,23 +357,23 @@ def netParams(model):
 
 
 def create_model(model_name):
-    if args.model == "original_coattention_rgb":
+    if model_name == "original_coattention_rgb":
         model = CoattentionNet(num_classes=args.num_classes)
-    elif args.model == "resnet_aspp_add":
+    elif model_name == "resnet_aspp_add":
         model = RGBDSegmentation_RAA(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
-    elif args.model == "refactored_coattention_rgb":
+    elif model_name == "refactored_coattention_rgb":
         model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
-    # elif args.model == "added_depth_rgbd":
+    # elif model_name == "added_depth_rgbd":
     #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="add")
-    # elif args.model == "concatenated_depth_rgbd":
+    # elif model_name == "concatenated_depth_rgbd":
     #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc1")
-    # elif args.model == "concatenated_depth_rgbd2":
+    # elif model_name == "concatenated_depth_rgbd2":
     #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc2")
-    # elif args.model == "post_added_depth_rgbd":
+    # elif model_name == "post_added_depth_rgbd":
     #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="padd")
-    # elif args.model == "convs_depth_addition":
+    # elif model_name == "convs_depth_addition":
     #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_add")
-    # elif args.model == "convs_depth_concatenation2":
+    # elif model_name == "convs_depth_concatenation2":
     #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_conc2")
     else:
         raise Exception(model_name, "Invalid model name!")

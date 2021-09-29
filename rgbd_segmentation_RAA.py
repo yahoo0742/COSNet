@@ -34,7 +34,7 @@ class RGBDSegmentation_RAA(nn.Module):
         self.prelu = nn.ReLU(inplace=True)
 
         # For depth
-        self.depth_encoder = DepthEncoder_ResNetASPP(output_channels=256, res_block=block, num_blocks_of_layers_4_depth, num_classes)
+        self.depth_encoder = DepthEncoder_ResNetASPP(256, block, num_blocks_of_layers_4_depth, num_classes)
         self.depth_gate = nn.Conv2d(all_channel, 1, kernel_size  = 1, bias = True)
         self.depth_gate_s = nn.Tanh() # nn.Sigmoid()
         # self.depth_weight = nn.Conv2d(1, 1, kernel_size = 1, bias=True)
