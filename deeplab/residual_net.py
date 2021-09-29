@@ -141,6 +141,18 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
+
+    def get_params(self):
+        modules_with_params = []
+        modules_with_params.append(self.conv1)
+        modules_with_params.append(self.bn1)
+        modules_with_params.append(self.layer1)
+        modules_with_params.append(self.layer2)
+        modules_with_params.append(self.layer3)
+        modules_with_params.append(self.layer4)
+        return modules_with_params
+
+
     def forward(self, x):
         z = self.conv1(x)
         z = self.bn1(z)
@@ -150,7 +162,7 @@ class ResNet(nn.Module):
         z = self.layer1(z)
         z = self.layer2(z)
         z = self.layer3(z)
-        z = self.layer4(z)
+        z = self.layer4(z) # (N, 512*4, H, W)
 
         # normal ResNet includes layers below
         # z = self.avgpool(z)
