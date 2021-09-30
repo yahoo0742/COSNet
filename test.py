@@ -128,7 +128,7 @@ def main():
     print("=====> Configure dataset and model")
     configure_dataset_model(args)
     print(args)
-    model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], num_classes=args.num_classes-1)
+    model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=args.num_classes-1)
     saved_state_dict = torch.load(args.restore_from, map_location=lambda storage, loc: storage)
     #print(saved_state_dict.keys())
     #model.load_state_dict({k.replace('pspmodule.',''):v for k,v in torch.load(args.restore_from)['state_dict'].items()})
