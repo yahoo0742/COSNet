@@ -43,7 +43,7 @@ from deeplab.siamese_model_conf import CoattentionNet #original coattention mode
 from deeplab.siamese_model import CoattentionSiameseNet #refactored coattention model
 
 
-
+from torchsummary import summary
 from torchvision.utils import save_image
 
 from evaluation import compute_iou
@@ -198,6 +198,7 @@ def main():
     model.load_state_dict( convert_state_dict(saved_state_dict["model"]) ) #convert_state_dict(saved_state_dict["model"])
 
     model.eval()
+    summary(model, [(3,480,640),(3,480,640),(1,480,640)]) #summary the model
     model.cuda()
 
     if args.dataset == 'davis':  #for davis 2016
