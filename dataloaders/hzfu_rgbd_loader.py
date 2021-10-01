@@ -402,6 +402,7 @@ class HzFuRGBDVideos(Dataset):
             f = h5py.File(path, 'r')
             result = np.array(f['depth'], dtype=np.float32)
             # print("depth shape: ",result.shape)
+            result = result.transpose() 
 
             # resize to the expected size
             if self.output_HW is not None:
@@ -412,7 +413,6 @@ class HzFuRGBDVideos(Dataset):
             # normalize
             result = (result - result.min()) * 255 / (result.max() - result.min())
             # print(" after depth shape: ",result.shape, result.dtype)
-            # result = result.transpose() 
             return result
 
         load_rgb = 'rgb' in channels
