@@ -227,7 +227,7 @@ def get_1x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = mod.module
 
-    mods_with_params = mod.get_params("decoder")
+    mods_with_params = mod.get_params("encoder")
     b.extend(mods_with_params)
 
     if True:
@@ -280,7 +280,11 @@ def get_10x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = model.module
 
+    mods_with_params = mod.get_params("rgb_attention")
+    b.extend(mods_with_params)
     mods_with_params = mod.get_params("depth")
+    b.extend(mods_with_params)
+    mods_with_params = mod.get_params("decoder")
     b.extend(mods_with_params)
 
     for j in range(len(b)):

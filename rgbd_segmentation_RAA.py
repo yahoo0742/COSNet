@@ -56,13 +56,21 @@ class RGBDSegmentation_RAA(nn.Module):
                 m.bias.data.zero_()
 
 
-    def get_params(self, subset="none" or "all" or "rgb" or "depth" or "decoder"):
+    def get_params(self, subset="none" or "all" or "encoder" or "rgb_attention" or "rgb" or "depth" or "decoder"):
         modules_with_params = []
         if subset == "none":
             return modules_with_params
 
-        if subset == "rgb" or subset == "all":
+        # encoder: encoder
+        # rgb_attention: rgb_similarity_weights + gate + reduce_channels_A + reduce_channels_B + bn_A + bn_B
+        # rgb: encoder + rgb_attention
+        # depth: depth_encoder + depth_gate
+        # decoder: segmentation_classifier_A + segmentation_classifier_B
+        # all: rgb + depth + decoder
+        if subset == "encoder" or subset == "rgb" or subset == "all":
             modules_with_params.append(self.encoder)
+
+        if subset == "rgb_attention" or subset == "rgb" or subset == "all":
             modules_with_params.append(self.rgb_similarity_weights)
             modules_with_params.append(self.gate)
             modules_with_params.append(self.reduce_channels_A)
