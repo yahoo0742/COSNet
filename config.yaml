@@ -34,7 +34,7 @@
         "co_attention_refactored":
             "initial_params": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
         "resnet_aspp_add":
-            "initial_params": "./pretrained/co_attention.pth" #"./pretrained/davis_480x854_Aug16.pth"
+            "initial_params": "./pretrained/davis_480x854_Aug16.pth" #"./pretrained/co_attention.pth" #"./pretrained/davis_480x854_Aug16.pth"
     "dataset":
         "davis":
             "img_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/JPEGImages/480p/"
