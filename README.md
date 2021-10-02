@@ -47,6 +47,7 @@ scipy
 mattplotlib
 pyyaml
 h5py
+torchsummary
 
 1. Download all the training datasets, including MARA10K and DUT saliency datasets. Create a folder called images and put these two datasets into the folder. 
 
