@@ -40,7 +40,8 @@ class RGBDSegmentation_RAA(nn.Module):
         self.depth_gate_s = nn.Sigmoid() # nn.Sigmoid()
         self.depth_reduce_channels = nn.Conv2d(all_channel*2, all_channel, kernel_size=3, padding=1, bias = False)
         self.depth_bn = nn.BatchNorm2d(all_channel)
-        self.prelu = nn.ReLU(inplace=True)
+        self.depth_weights = nn.Conv2d(all_channel, all_channel, kernel_size=1, bias = True)
+        # self.prelu = nn.ReLU(inplace=True)
 
         # Decoder
         self.segmentation_classifier_A = nn.Conv2d(all_channel, num_classes, kernel_size=1, bias = True)
@@ -88,6 +89,7 @@ class RGBDSegmentation_RAA(nn.Module):
             modules_with_params.append(self.depth_similarity_weights)
             modules_with_params.append(self.depth_reduce_channels)
             modules_with_params.append(self.depth_bn)
+            modules_with_params.append(self.depth_weights)
 
         if subset == "decoder" or subset == "all":
             modules_with_params.append(self.segmentation_classifier_A)
@@ -171,8 +173,8 @@ class RGBDSegmentation_RAA(nn.Module):
         Z_b  = self.reduce_channels_B(Z_b ) 
         Z_a  = self.bn_A(Z_a )
         Z_b  = self.bn_B(Z_b )
-        Z_a  = self.prelu(Z_a )
-        Z_b  = self.prelu(Z_b )
+        # Z_a  = self.prelu(Z_a )
+        # Z_b  = self.prelu(Z_b )
 
         # Depth
         D_a = self.depth_encoder(depths_a) # N, C, H, W
@@ -209,11 +211,16 @@ class RGBDSegmentation_RAA(nn.Module):
         D_Z_b  = self.depth_reduce_channels(D_Z_b ) 
         D_Z_a  = self.depth_bn(D_Z_a )
         D_Z_b  = self.depth_bn(D_Z_b )
-        D_Z_a  = self.prelu(D_Z_a )
-        D_Z_b  = self.prelu(D_Z_b )
+        D_Z_a  = self.depth_weights(D_Z_a)
+        D_Z_b  = self.depth_weights(D_Z_b)
+        # D_Z_a  = self.prelu(D_Z_a )
+        # D_Z_b  = self.prelu(D_Z_b )
 
-        Z_a = torch.add(Z_a, D_a)
-        Z_b = torch.add(Z_b, D_b)
+        Z_a = torch.add(Z_a, D_Z_a)
+        Z_b = torch.add(Z_b, D_Z_b)
+
+        Z_a  = self.prelu(Z_a )
+        Z_b  = self.prelu(Z_b )
 
         # Segmentation
         x1 = self.segmentation_classifier_A(Z_a)
