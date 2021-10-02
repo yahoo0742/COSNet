@@ -446,6 +446,9 @@ class HzFuRGBDVideos(Dataset):
             sample['target_depth'] = current_depth
             sample['target_gt'] = current_gt
 
+            print("Load target frame ", frame_info.id, " of seq: ",frame_info.seq_name) # with this debug infor, we can know which data impact the loss at different extent
+
+
             # 2. (a) counterpart frame(s) for comparison with the target frame
             frame_range_of_seq = self.sets[set_name]['frame_range_of_sequences'][frame_info.seq_name]
             frame_indices_for_counterpart = []
@@ -464,6 +467,7 @@ class HzFuRGBDVideos(Dataset):
                 sample[key] = cp_rgb
                 sample[key+'_depth'] = cp_depth
                 sample[key+'_gt'] = cp_gt
+                print(i, " Load search frame ", frame_info_of_cp.id, " of seq: ",frame_info_of_cp.seq_name) # with this debug infor, we can know which data impact the loss at different extent
 
             # print(" ##### sample rgb: ",sample['target'].shape, " gt: ", sample['target_gt'].shape,  " depth: ", sample['target_depth'].shape, " search_rgb: " ,sample['search_0'].shape, " search_0_gt: ",sample['search_0_gt'].shape,  "search_0_depth: ", sample['search_0_depth'].shape)
             return sample
