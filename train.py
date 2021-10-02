@@ -546,10 +546,7 @@ def main():
                 lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
     optimizer.zero_grad()
 
-
     logMem(logger, "After creating dataloader")
-
-
 
     print("=====> Begin to train")
     train_len=len(trainloader)
@@ -569,9 +566,8 @@ def main():
             if db_train.next_batch:
                 db_train.next_batch()
             print("  i_iter=", i_iter)
-            current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_gt'],
+            current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_depth, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_depth'], batch['search_0_gt'],
 
-            
             # current_rgb.requires_grad_()
             current_rgb = Variable(current_rgb).cuda()
             # current_depth.requires_grad_()
@@ -581,21 +577,20 @@ def main():
             # counterpart_rgb.requires_grad_()
             counterpart_rgb = Variable(counterpart_rgb).cuda()
             # counterpart_depth.requires_grad_()
-            # counterpart_depth = Variable(counterpart_depth).cuda()
+            counterpart_depth = Variable(counterpart_depth).cuda()
             counterpart_gt = Variable(counterpart_gt.float().unsqueeze(1)).cuda()
 
             optimizer.zero_grad()
-            
+
             lr = adjust_learning_rate(optimizer, i_iter+epoch*train_len, epoch,
                     max_iter = args.maxEpoches * train_len)
             #print(images.size())
             logMem(logger, " After feeding data to GPU")
 
-
             if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
                 pred1, pred2, obj_label = model(current_rgb, counterpart_rgb)
             else:
-                pred1, pred2, obj_label = model(current_rgb, counterpart_rgb, current_depth)
+                pred1, pred2, obj_label = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
 
             loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt) + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
             logMem(logger, " After forward")
