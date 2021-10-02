@@ -35,9 +35,12 @@ class RGBDSegmentation_RAA(nn.Module):
 
         # For depth
         self.depth_encoder = DepthEncoder_ResNetASPP(256, block, num_blocks_of_layers_4_depth, num_classes)
+        self.depth_similarity_weights = nn.Linear(all_channel, all_channel,bias = False)
         self.depth_gate = nn.Conv2d(all_channel, 1, kernel_size  = 1, bias = True)
-        self.depth_gate_s = nn.Tanh() # nn.Sigmoid()
-        # self.depth_weight = nn.Conv2d(1, 1, kernel_size = 1, bias=True)
+        self.depth_gate_s = nn.Sigmoid() # nn.Sigmoid()
+        self.depth_reduce_channels = nn.Conv2d(all_channel*2, all_channel, kernel_size=3, padding=1, bias = False)
+        self.depth_bn = nn.BatchNorm2d(all_channel)
+        self.prelu = nn.ReLU(inplace=True)
 
         # Decoder
         self.segmentation_classifier_A = nn.Conv2d(all_channel, num_classes, kernel_size=1, bias = True)
@@ -82,6 +85,9 @@ class RGBDSegmentation_RAA(nn.Module):
             mods = self.depth_encoder.get_params()
             modules_with_params.extend(mods)
             modules_with_params.append(self.depth_gate)
+            modules_with_params.append(self.depth_similarity_weights)
+            modules_with_params.append(self.depth_reduce_channels)
+            modules_with_params.append(self.depth_bn)
 
         if subset == "decoder" or subset == "all":
             modules_with_params.append(self.segmentation_classifier_A)
@@ -126,7 +132,7 @@ class RGBDSegmentation_RAA(nn.Module):
         self.load_state_dict(new_params) 
 
 
-    def forward(self, rgbs_a, rgbs_b, depths_a):
+    def forward(self, rgbs_a, rgbs_b, depths_a, depths_b):
         input_size = rgbs_a.size()[2:] # H, W
 
         # RGB
@@ -170,12 +176,44 @@ class RGBDSegmentation_RAA(nn.Module):
 
         # Depth
         D_a = self.depth_encoder(depths_a) # N, C, H, W
-        depth_mask = self.depth_gate(D_a)
-        depth_mask = self.depth_gate_s(depth_mask)
-        D_a = D_a * depth_mask
-        # add weighted depth features to RGB features
+        D_b = self.depth_encoder(depths_b) # N, C, H, W
+        depth_feat_channels = D_a.shape[1]
+        depth_feat_hw = D_a.size()[2:]
+        all_dim = depth_feat_hw[0] * depth_feat_hw[1] #H*W
+        D_a_flat = D_a.view(-1, depth_feat_channels, all_dim) #N, C, H*W
+        D_b_flat = D_b.view(-1, depth_feat_channels, all_dim) #N, C, H*W
+
+        # S = B W A_transform
+        D_a_flat_t = torch.transpose(D_a_flat,1,2).contiguous()  #N, H*W, C
+        D_a_flat_t = self.depth_similarity_weights(D_a_flat_t) # D_a_flat_t = D_a_flat_t * W, [N, H*W, C]
+        D_S = torch.bmm(D_a_flat_t, D_b_flat) # D_S = D_a_flat_t prod D_b_flat, [N, H*W, H*W]
+
+        D_S_row = F.softmax(D_S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
+        D_S_column = F.softmax(torch.transpose(D_S,1,2),dim=1) # S column-wise
+
+        D_Z_b = torch.bmm(D_a_flat, D_S_row).contiguous() #DZ_b = D_a_flat prod D_S_row
+        D_Z_a = torch.bmm(D_b_flat, D_S_column).contiguous() # DZ_a = D_b_flat prod D_S_column
+
+        D_Z_a = D_Z_a.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
+        D_Z_b = D_Z_b.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
+        D_input_mask_a = self.depth_gate(D_Z_a)
+        D_input_mask_b = self.depth_gate(D_Z_b)
+        D_input_mask_a = self.depth_gate_s(D_input_mask_a)
+        D_input_mask_b = self.depth_gate_s(D_input_mask_b)
+        D_Z_a = D_Z_a * D_input_mask_a
+        D_Z_b = D_Z_b * D_input_mask_b
+
+        D_Z_a = torch.cat([D_Z_a, D_a],1) 
+        D_Z_b = torch.cat([D_Z_b, D_b],1)
+        D_Z_a  = self.depth_reduce_channels(D_Z_a )
+        D_Z_b  = self.depth_reduce_channels(D_Z_b ) 
+        D_Z_a  = self.depth_bn(D_Z_a )
+        D_Z_b  = self.depth_bn(D_Z_b )
+        D_Z_a  = self.prelu(D_Z_a )
+        D_Z_b  = self.prelu(D_Z_b )
+
         Z_a = torch.add(Z_a, D_a)
-        # encode(d) * weight + rgb_features
+        Z_b = torch.add(Z_b, D_b)
 
         # Segmentation
         x1 = self.segmentation_classifier_A(Z_a)
