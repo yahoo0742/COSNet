@@ -229,7 +229,13 @@ def main():
     model.load_state_dict( convert_state_dict(saved_state_dict["model"]) ) #convert_state_dict(saved_state_dict["model"])
 
     model.eval()
-    summary(model, [(3,480,640),(3,480,640),(1,480,640)]) #summary the model
+    if args.full_model_name == "resnet_aspp_add"
+        summary(model, [(3,480,640),(3,480,640),(1,480,640), (1,480,640)]) #summary the model
+    elif args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
+        summary(model, [(3,480,640),(3,480,640),(1,480,640)]) #summary the model
+    else:
+        summary(model, [(3,480,640),(3,480,640)])
+
     model.cuda()
 
     if args.dataset == 'davis':  #for davis 2016
@@ -284,7 +290,9 @@ def main():
                 search_depth = batch['search_'+str(i)+'_depth']
                 #print(search_img.size())
                 with torch.no_grad():
-                    if args.full_model_name == "resnet_aspp_add" or args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
+                    if args.full_model_name == "resnet_aspp_add"
+                        output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
+                    elif args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
                         output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
                     else:
                         output = model(Variable(target).cuda(),Variable(search_img).cuda())
