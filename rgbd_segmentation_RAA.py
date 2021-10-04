@@ -155,24 +155,24 @@ class RGBDSegmentation_RAA(nn.Module):
         S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
         S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
 
-        Z_b = torch.bmm(V_a_flat, S_row).contiguous() #Z_b = V_a_flat prod S_row
-        Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column
+        Z_b = torch.bmm(V_a_flat, S_row).contiguous() #Z_b = V_a_flat prod S_row [N, C, H*W]
+        Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column [N, C, H*W]
         
         Z_a = Z_a.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
         Z_b = Z_b.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
-        input_mask_a = self.gate(Z_a)
-        input_mask_b = self.gate(Z_b)
-        input_mask_a = self.gate_s(input_mask_a)
-        input_mask_b = self.gate_s(input_mask_b)
-        Z_a = Z_a * input_mask_a
-        Z_b = Z_b * input_mask_b
+        input_mask_a = self.gate(Z_a) #[N, 1, H, W]
+        input_mask_b = self.gate(Z_b) #[N, 1, H, W]
+        input_mask_a = self.gate_s(input_mask_a) #[N, 1, H, W]
+        input_mask_b = self.gate_s(input_mask_b) #[N, 1, H, W]
+        Z_a = Z_a * input_mask_a # [N, C, H, W]
+        Z_b = Z_b * input_mask_b # [N, C, H, W]
 
-        Z_a = torch.cat([Z_a, V_a],1) 
-        Z_b = torch.cat([Z_b, V_b],1)
-        Z_a  = self.reduce_channels_A(Z_a )
-        Z_b  = self.reduce_channels_B(Z_b ) 
-        Z_a  = self.bn_A(Z_a )
-        Z_b  = self.bn_B(Z_b )
+        Z_a = torch.cat([Z_a, V_a],1) # [N, 2C, H, W]
+        Z_b = torch.cat([Z_b, V_b],1) # [N, 2C, H, W]
+        Z_a  = self.reduce_channels_A(Z_a ) # [N, C, H, W]
+        Z_b  = self.reduce_channels_B(Z_b ) # [N, C, H, W]
+        Z_a  = self.bn_A(Z_a ) # [N, C, H, W]
+        Z_b  = self.bn_B(Z_b ) # [N, C, H, W]
         # Z_a  = self.prelu(Z_a )
         # Z_b  = self.prelu(Z_b )
 
