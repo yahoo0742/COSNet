@@ -10,8 +10,8 @@ from __future__ import division
 import os
 import numpy as np
 import cv2
-from scipy.misc import imresize
-import scipy.misc 
+# from scipy.misc import imresize
+# import scipy.misc 
 import random
 
 #from dataloaders.helpers import *
@@ -47,9 +47,10 @@ class PairwiseImg(Dataset):
     """DAVIS 2016 dataset constructed using the PyTorch built-in functionalities"""
 
     def __init__(self, dataset_config, saliency_dataset_config, train=True,
-                 inputRes=None,
+                 desired_HW=None,
                  db_root_dir='/DAVIS-2016',
                  img_root_dir = None,
+                 batch_size = 1,
                  transform=None,
                  meanval=(104.00699, 116.66877, 122.67892),
                  seq_name=None, sample_range=10):
@@ -58,12 +59,13 @@ class PairwiseImg(Dataset):
         """
         self.train = train
         self.range = sample_range
-        self.inputRes = inputRes
+        self.desired_HW = desired_HW
         self.img_root_dir = img_root_dir
         self.db_root_dir = db_root_dir
         self.transform = transform
         self.meanval = meanval
         self.seq_name = seq_name
+        self.batch_size = batch_size
 
         self.dataset_config = dataset_config
         self.saliency_dataset_config = saliency_dataset_config
@@ -83,11 +85,11 @@ class PairwiseImg(Dataset):
                 image_list = [] #DUTS-TR/Imgs/0001.jpg
                 im_label = []
                 for seq in seqs:
-                    print("seq: ",seq) #wbf
+                    # print("seq: ",seq) #wbf
                     path_to_category = os.path.join(dataset_config["img_path"], seq.strip('\n'))
                     images = np.sort(os.listdir(path_to_category))
                     images_path = list(map(lambda x: os.path.join(seq.strip(), x), images))
-                    print("images_path",images_path) #wbf
+                    # print("images_path",images_path) #wbf
                     start_num = len(video_list)
                     video_list.extend(images_path)
                     end_num = len(video_list)
@@ -100,7 +102,7 @@ class PairwiseImg(Dataset):
                 #data_list = np.sort(os.listdir(db_root_dir))
                 for seq in saliency_datasets: #所有数据集
                     seq = seq.strip('\n') 
-                    print(" saliency seq: ",seq) #wbf
+                    # print(" saliency seq: ",seq) #wbf
                     img_fullpath = os.path.join(saliency_dataset_config["root_path"], saliency_dataset_config["datasets"][seq]["images"])
                     images = np.sort(os.listdir(img_fullpath))#针对某个数据集，比如DUT			
         # Initialize the original DAVIS splits for training the parent network
@@ -126,31 +128,53 @@ class PairwiseImg(Dataset):
 
         assert (len(labels) == len(video_list))
 
-        self.video_list = video_list
-        self.labels = labels
-        self.saliency_images = image_list
-        self.saliency_labels = im_label
-        self.Index = Index
+        self.video_list = video_list # like ['bear/0000.jpg', 'bear/0001.jpg',... 'bear/0081.jpg', 'boat/00000.jpg',... 'boat/00074.jpg', ...]
+        self.labels = labels # like ['Annotations/480p/bear/0000.png', ... 'Annotations/480p/bear/0081.jpg', ...]
+        self.saliency_images = image_list # like ['./DUTS-TR/Imgs/ILSVRC2012_test_00000004.jpg', './DUTS-TR/Imgs/ILSVRC2012_test_00000018.jpg', './DUTS-TR/Imgs/ILSVRC2012_test_00000019.jpg', ...]
+        self.saliency_labels = im_label # like ['./DUTS-TR/Masks/ILSVRC2012_test_00000004.png', './DUTS-TR/Masks/ILSVRC2012_test_00000018.png', './DUTS-TR/Masks/ILSVRC2012_test_00000019.png', ...]
+        self.index_range_of_objects = Index # like {'boat': array([ 82, 157]), 'bear': array([ 0, 82]), 'camel': array([157, 247])} index of video_list
         #img_files = open('all_im.txt','w+')
 
+    def train_from_saliency(self, from_saliency):
+        self.from_saliency = from_saliency
+
     def __len__(self):
-        print(len(self.video_list), len(self.saliency_images))
-        return len(self.video_list)
+        # print(len(self.video_list), len(self.saliency_images))
+        result = len(self.video_list)
+        if result % self.batch_size != 0:
+            result = result - result % self.batch_size
+        return result
     
     def __getitem__(self, idx):
-        target, target_gt = self.make_video_gt_pair(idx)
-        target_id = idx
-        img_idx = np.random.randint(1,len(self.saliency_images)-1)
-        seq_name1 = self.video_list[idx].split('/')[0] #获取物体名称
+        '''
+        if we need to get an item from the saliency set, we only return "img" and "img_gt",
+        otherwise, return "target", "target_gt", "search", "search_gt"
+        '''
+        seq_name1 = self.video_list[idx].split('/')[0]
+
         if self.train:
-            my_index = self.Index[seq_name1]
-            search_id = np.random.randint(my_index[0], my_index[1])#min(len(self.video_list)-1, target_id+np.random.randint(1,self.range+1))
-            if search_id == target_id:
-                search_id = np.random.randint(my_index[0], my_index[1])
-            search, search_gt = self.make_video_gt_pair(search_id)
-            img, img_gt = self.make_img_gt_pair(img_idx)
+            if self.from_saliency:
+                # get an item from the saliency set
+                target = np.zeros((1,1), dtype=np.float32)
+                target_gt = np.zeros((1,1), dtype=np.int32)
+                search = np.zeros((1,1), dtype=np.float32)
+                search_gt = np.zeros((1,1), dtype=np.int32)
+                img_idx = np.random.randint(1,len(self.saliency_images)-1)
+                img, img_gt = self.make_img_gt_pair(img_idx)
+            else:
+                # get an item from the video frames
+                img = np.zeros((1,1), dtype=np.float32)
+                img_gt = np.zeros((1,1), dtype=np.int32)
+                target, target_gt = self.make_video_gt_pair(idx)
+
+                my_index = self.index_range_of_objects[seq_name1]
+                search_id = np.random.randint(my_index[0], my_index[1])#min(len(self.video_list)-1, target_id+np.random.randint(1,self.range+1))
+                if search_id == idx:
+                    search_id = np.random.randint(my_index[0], my_index[1])
+                search, search_gt = self.make_video_gt_pair(search_id)
+
             sample = {'target': target, 'target_gt': target_gt, 'search': search, 'search_gt': search_gt, \
-                      'img': img, 'img_gt': img_gt}
+                    'img': img, 'img_gt': img_gt}
             #np.save('search1.npy',search)
             #np.save('search_gt.npy',search_gt)
             if self.seq_name is not None:
@@ -159,19 +183,12 @@ class PairwiseImg(Dataset):
 
             if self.transform is not None:
                 sample = self.transform(sample)
-       
-        else:
-            img, gt = self.make_video_gt_pair(idx)
-            sample = {'image': img, 'gt': gt}
-            if self.seq_name is not None:
-                fname = os.path.join(self.seq_name, "%05d" % idx)
-                sample['fname'] = fname
-        
-        
-        
-        return sample  #这个类最后的输出
 
-    def make_video_gt_pair(self, idx): #这个函数存在的意义是为了getitem函数服务的
+            return sample
+                
+        
+
+    def make_video_gt_pair(self, idx): # get an image pair consisting of a video frame and the annotation of the frame with the index of 'idx'
         """
         Make the image-ground-truth pair
         """
@@ -195,18 +212,20 @@ class PairwiseImg(Dataset):
              img = img_temp
              label = gt_temp
              
-        if self.inputRes is not None:
-            img = imresize(img, self.inputRes)
+        if self.desired_HW is not None:
+            # img = imresize(img, self.desired_HW) # bilinear by default
+            img = cv2.resize(img, (self.desired_HW[1], self.desired_HW[0])) # INTER_LINEAR by default, actually bilinear
             #print('ok1')
             #scipy.misc.imsave('label.png',label)
             #scipy.misc.imsave('img.png',img)
             if self.labels[idx] is not None and self.train:
-                label = imresize(label, self.inputRes, interp='nearest')
+                # label = imresize(label, self.desired_HW, interp='nearest')
+                label = cv2.resize(label, (self.desired_HW[1], self.desired_HW[0]), interpolation=cv2.INTER_NEAREST)
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
-        img = np.subtract(img, np.array(self.meanval, dtype=np.float32))        
-        img = img.transpose((2, 0, 1))  # NHWC -> NCHW
+        img = np.subtract(img, np.array(self.meanval, dtype=np.float32)) # normalize
+        img = img.transpose((2, 0, 1))  # HWC -> CHW
         
         if self.labels[idx] is not None and self.train:
                 gt = np.array(label, dtype=np.int32)
@@ -220,7 +239,7 @@ class PairwiseImg(Dataset):
         
         return list(img.shape[:2])
 
-    def make_img_gt_pair(self, idx): #这个函数存在的意义是为了getitem函数服务的
+    def make_img_gt_pair(self, idx): # get an image pair consisting of a saliency image and the annotation of the image with the index of 'idx'
         """
         Make the image-ground-truth pair
         """
@@ -232,15 +251,18 @@ class PairwiseImg(Dataset):
         else:
             gt = np.zeros(img.shape[:-1], dtype=np.uint8)
             
-        if self.inputRes is not None:            
-            img = imresize(img, self.inputRes)
+        if self.desired_HW is not None:            
+            # img = imresize(img, self.desired_HW)
+            img = cv2.resize(img, (self.desired_HW[1], self.desired_HW[0]))
             if self.saliency_labels[idx] is not None and self.train:
-                label = imresize(label, self.inputRes, interp='nearest')
+                # label = imresize(label, self.desired_HW, interp='nearest')
+                label = cv2.resize(label, (self.desired_HW[1], self.desired_HW[0]), interpolation=cv2.INTER_NEAREST)
+
 
         img = np.array(img, dtype=np.float32)
         #img = img[:, :, ::-1]
         img = np.subtract(img, np.array(self.meanval, dtype=np.float32))        
-        img = img.transpose((2, 0, 1))  # NHWC -> NCHW
+        img = img.transpose((2, 0, 1))  # N HWC -> N CHW
         
         if self.saliency_labels[idx] is not None and self.train:
                 gt = np.array(label, dtype=np.int32)

@@ -46,6 +46,7 @@ opencv 2.4
 scipy
 mattplotlib
 pyyaml
+h5py
 
 1. Download all the training datasets, including MARA10K and DUT saliency datasets. Create a folder called images and put these two datasets into the folder. 
 

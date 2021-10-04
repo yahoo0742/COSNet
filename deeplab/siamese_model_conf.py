@@ -9,8 +9,11 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 from torch.nn import init
-affine_par = True
+k_learnable_affine_parameters = True
 #区别于siamese_model_concat的地方就是采用的最标准的deeplab_v3的基础网络，然后加上了非对称的分支
+
+#http://torch.ch/blog/2016/02/04/resnets.html
+#https://pytorch.org/vision/stable/_modules/torchvision/models/resnet.html
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
@@ -21,13 +24,13 @@ def conv3x3(in_planes, out_planes, stride=1):
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
+    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3(inplanes, planes, stride)
-        self.bn1 = nn.BatchNorm2d(planes, affine=affine_par)
+        self.conv1 = conv3x3(in_channels, out_channels, stride)
+        self.bn1 = nn.BatchNorm2d(out_channels, affine=k_learnable_affine_parameters)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(planes, planes)
-        self.bn2 = nn.BatchNorm2d(planes, affine=affine_par)
+        self.conv2 = conv3x3(out_channels, out_channels)
+        self.bn2 = nn.BatchNorm2d(out_channels, affine=k_learnable_affine_parameters)
         self.downsample = downsample
         self.stride = stride
 
@@ -53,32 +56,38 @@ class BasicBlock(nn.Module):
 class Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None):
+    def __init__(self, in_channels, shrank_channels, stride=1, dilation=1, downsample=None):
         super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, bias=False)  # change
-        self.bn1 = nn.BatchNorm2d(planes, affine=affine_par)
+        # TODO: assert shrank_channels * self.expansion = in_channels
+        self.conv1 = nn.Conv2d(in_channels, shrank_channels, kernel_size=1, stride=stride, bias=False)  # change configurable stride
+        self.bn1 = nn.BatchNorm2d(shrank_channels, affine=k_learnable_affine_parameters)
+
         padding = dilation
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1,  # change
+        self.conv2 = nn.Conv2d(shrank_channels, shrank_channels, kernel_size=3, stride=1,  # change
                                padding=padding, bias=False, dilation=dilation)
-        self.bn2 = nn.BatchNorm2d(planes, affine=affine_par)
-        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * 4, affine=affine_par)
+        self.bn2 = nn.BatchNorm2d(shrank_channels, affine=k_learnable_affine_parameters)
+
+        self.conv3 = nn.Conv2d(shrank_channels, shrank_channels * self.expansion, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(shrank_channels * self.expansion, affine=k_learnable_affine_parameters)
+
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
     def forward(self, x):
+        # TODO https://arxiv.org/pdf/1603.05027v3.pdf Identity Mappings in Deep Residual Networks puts Relu and BN before the Conv 
+        # https://github.com/BIGBALLON/cifar-10-cnn
         residual = x
 
-        out = self.conv1(x)
+        out = self.conv1(x) # 1x1
         out = self.bn1(out)
         out = self.relu(out)
 
-        out = self.conv2(out)
+        out = self.conv2(out) # 3x3
         out = self.bn2(out)
         out = self.relu(out)
 
-        out = self.conv3(out)
+        out = self.conv3(out) # 1x1
         out = self.bn3(out)
 
         if self.downsample is not None:
@@ -94,18 +103,19 @@ class ASPP(nn.Module):
     def __init__(self, dilation_series, padding_series, depth):
         super(ASPP, self).__init__()
         self.mean = nn.AdaptiveAvgPool2d((1,1))
-        self.conv= nn.Conv2d(2048, depth, 1,1)
+        self.conv= nn.Conv2d(2048, depth, kernel_size=1,stride=1)
         self.bn_x = nn.BatchNorm2d(depth)
-        self.conv2d_0 = nn.Conv2d(2048, depth, kernel_size=1, stride=1)
+
+        self.conv2d_0 = nn.Conv2d(2048, depth, kernel_size=1, stride=1) # 1x1
         self.bn_0 = nn.BatchNorm2d(depth)
-        self.conv2d_1 = nn.Conv2d(2048, depth, kernel_size=3, stride=1, padding=padding_series[0], dilation=dilation_series[0])
+        self.conv2d_1 = nn.Conv2d(2048, depth, kernel_size=3, stride=1, padding=padding_series[0], dilation=dilation_series[0]) # 3x3, atrous 1 
         self.bn_1 = nn.BatchNorm2d(depth)
-        self.conv2d_2 = nn.Conv2d(2048, depth, kernel_size=3, stride=1, padding=padding_series[1], dilation=dilation_series[1])
+        self.conv2d_2 = nn.Conv2d(2048, depth, kernel_size=3, stride=1, padding=padding_series[1], dilation=dilation_series[1]) # 3x3, atrous 2
         self.bn_2 = nn.BatchNorm2d(depth)
-        self.conv2d_3 = nn.Conv2d(2048, depth, kernel_size=3, stride=1, padding=padding_series[2], dilation=dilation_series[2])
+        self.conv2d_3 = nn.Conv2d(2048, depth, kernel_size=3, stride=1, padding=padding_series[2], dilation=dilation_series[2]) # 3x3, atrous 3
         self.bn_3 = nn.BatchNorm2d(depth)
         self.relu = nn.ReLU(inplace=True)
-        self.bottleneck = nn.Conv2d( depth*5, 256, kernel_size=3, padding=1 )  #512 1x1Conv
+        self.bottleneck = nn.Conv2d( depth*5, 256, kernel_size=3, padding=1 )
         self.bn = nn.BatchNorm2d(256)
         self.prelu = nn.PReLU()
         #for m in self.conv2d_list:
@@ -118,7 +128,7 @@ class ASPP(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
             
-    def _make_stage_(self, dilation1, padding1):
+    def _make_stage_(self, dilation1, padding1): # not used
         Conv = nn.Conv2d(2048, 256, kernel_size=3, stride=1, padding=padding1, dilation=dilation1, bias=True)#classes
         Bn = nn.BatchNorm2d(256)
         Relu = nn.ReLU(inplace=True)
@@ -126,30 +136,34 @@ class ASPP(nn.Module):
         
 
     def forward(self, x):
+        # x.shape == (N, 2048, W', H')  #(36, 19) if (286,144)   / (48, 25) if (381, 192)
         #out = self.conv2d_list[0](x)
         #mulBranches = [conv2d_l(x) for conv2d_l in self.conv2d_list]
         size=x.shape[2:]
-        image_features=self.mean(x)
-        image_features=self.conv(image_features)
+
+        image_features=self.mean(x) # (N,2048,1,1)
+        image_features=self.conv(image_features) # (N,512,1,1)
         image_features = self.bn_x(image_features)
-        image_features = self.relu(image_features)
-        image_features=F.upsample(image_features, size=size, mode='bilinear', align_corners=True)
-        out_0 = self.conv2d_0(x)
-        out_0 = self.bn_0(out_0) 
-        out_0 = self.relu(out_0)
-        out_1 = self.conv2d_1(x)
-        out_1 = self.bn_1(out_1) 
-        out_1 = self.relu(out_1)
-        out_2 = self.conv2d_2(x)
-        out_2 = self.bn_2(out_2) 
-        out_2 = self.relu(out_2)
-        out_3 = self.conv2d_3(x)
-        out_3 = self.bn_3(out_3) 
-        out_3 = self.relu(out_3)
-        out = torch.cat([image_features, out_0, out_1, out_2, out_3], 1)
-        out = self.bottleneck(out)
-        out = self.bn(out)
-        out = self.prelu(out)
+        image_features = self.relu(image_features) # (N,512,1,1)
+
+        image_features=F.upsample(image_features, size=size, mode='bilinear', align_corners=True) # (N, 512, W', H')
+
+        out_0 = self.conv2d_0(x) # (N, 512, W', H')
+        out_0 = self.bn_0(out_0) # (N, 512, W', H')
+        out_0 = self.relu(out_0) # (N, 512, W', H')
+        out_1 = self.conv2d_1(x) # (N, 512, W', H')
+        out_1 = self.bn_1(out_1) # (N, 512, W', H')
+        out_1 = self.relu(out_1) # (N, 512, W', H')
+        out_2 = self.conv2d_2(x) # (N, 512, W', H')
+        out_2 = self.bn_2(out_2) # (N, 512, W', H')
+        out_2 = self.relu(out_2) # (N, 512, W', H')
+        out_3 = self.conv2d_3(x) # (N, 512, W', H')
+        out_3 = self.bn_3(out_3) # (N, 512, W', H')
+        out_3 = self.relu(out_3) # (N, 512, W', H')
+        out = torch.cat([image_features, out_0, out_1, out_2, out_3], 1) # (N, 2560, W', H')
+        out = self.bottleneck(out) # (N, 256, W', H')
+        out = self.bn(out) # (N, 256, W', H')
+        out = self.prelu(out) # (N, 256, W', H')
         #for i in range(len(self.conv2d_list) - 1):
         #    out += self.conv2d_list[i + 1](x)
         
@@ -158,18 +172,26 @@ class ASPP(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, layers, num_classes):
-        self.inplanes = 64
+    def __init__(self, input_channels, res_block, num_blocks_of_layers, num_classes):
+        self.inner_channels = 64
+        self.input_channels = input_channels
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn1 = nn.BatchNorm2d(64, affine=affine_par)
+
+        self.conv1 = nn.Conv2d(self.input_channels, self.inner_channels, kernel_size=7, stride=2, padding=3, bias=False) # conv7x7, 64
+        self.bn1 = nn.BatchNorm2d(self.inner_channels, affine=k_learnable_affine_parameters) # BN,64
         self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)  # change
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=1, dilation=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=1, dilation=4)
-        self.layer5 = self._make_pred_layer(ASPP, [ 6, 12, 18], [6, 12, 18], 512)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)  # change ceil_mode=True
+
+
+        self.layer1 = self._make_layer(res_block, 64, num_blocks_of_layers[0])
+        self.layer2 = self._make_layer(res_block, 128, num_blocks_of_layers[1], stride=2)
+        self.layer3 = self._make_layer(res_block, 256, num_blocks_of_layers[2], stride=1, dilation=2)
+        self.layer4 = self._make_layer(res_block, 512, num_blocks_of_layers[3], stride=1, dilation=4)
+
+        dilations = [ 6, 12, 18]
+        paddings = [6, 12, 18]
+
+        self.layer5 = self._make_pred_layer(ASPP, dilations, paddings, 512)
         self.main_classifier = nn.Conv2d(256, num_classes, kernel_size=1)
         self.softmax = nn.Sigmoid()#nn.Softmax()
         
@@ -181,20 +203,22 @@ class ResNet(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def _make_layer(self, block, planes, blocks, stride=1, dilation=1):
+    def _make_layer(self, res_block, out_channels, num_blocks, stride=1, dilation=1):
         downsample = None
-        if stride != 1 or self.inplanes != planes * block.expansion or dilation == 2 or dilation == 4:
+        if stride != 1 or self.inner_channels != out_channels * res_block.expansion or dilation == 2 or dilation == 4:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
+                nn.Conv2d(self.inner_channels, out_channels * res_block.expansion,
                           kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion, affine=affine_par))
-        for i in downsample._modules['1'].parameters():
+                nn.BatchNorm2d(out_channels * res_block.expansion, affine=k_learnable_affine_parameters))
+        for i in downsample._modules['1'].parameters(): # BN layer
             i.requires_grad = False
+
         layers = []
-        layers.append(block(self.inplanes, planes, stride, dilation=dilation, downsample=downsample))
-        self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, dilation=dilation))
+        layers.append(res_block(self.inner_channels, out_channels, stride, dilation=dilation, downsample=downsample))
+        self.inner_channels = out_channels * res_block.expansion
+
+        for i in range(1, num_blocks):
+            layers.append(res_block(self.inner_channels, out_channels, dilation=dilation))
 
         return nn.Sequential(*layers)
 
@@ -207,11 +231,14 @@ class ResNet(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
+
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
+
         fea = self.layer5(x)
+
         x = self.main_classifier(fea)
         #print("before upsample, tensor size:", x.size())
         x = F.upsample(x, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
@@ -220,9 +247,11 @@ class ResNet(nn.Module):
         return fea, x
 
 class CoattentionModel(nn.Module):
-    def  __init__(self, block, layers, num_classes, all_channel=256, all_dim=60*60):	#473./8=60	
+    def  __init__(self, block, num_blocks_of_resnet_layers, num_classes, all_channel=256, all_dim=60*60):	#473./8=60	
         super(CoattentionModel, self).__init__()
-        self.encoder = ResNet(block, layers, num_classes)
+        self.encoder = ResNet(3, block, num_blocks_of_resnet_layers, num_classes)
+        #self.depth_encoder = ResNet(1, block, num_blocks_of_resnet_layers, num_classes)
+
         self.linear_e = nn.Linear(all_channel, all_channel,bias = False)
         self.channel = all_channel
         self.dim = all_dim
@@ -249,40 +278,51 @@ class CoattentionModel(nn.Module):
                 m.bias.data.zero_()    
     
 		
-    def forward(self, input1, input2): #注意input2 可以是多帧图像
+    def forward(self, rgbs_a, rgbs_b): #注意input2 可以是多帧图像
         
         #input1_att, input2_att = self.coattention(input1, input2) 
-        input_size = input1.size()[2:]
-        exemplar, temp = self.encoder(input1)
-        query, temp = self.encoder(input2)		 
-        fea_size = query.size()[2:]	 
-        all_dim = fea_size[0]*fea_size[1]
-        exemplar_flat = exemplar.view(-1, query.size()[1], all_dim) #N,C,H*W
-        query_flat = query.view(-1, query.size()[1], all_dim)
-        exemplar_t = torch.transpose(exemplar_flat,1,2).contiguous()  #batch size x dim x num
-        exemplar_corr = self.linear_e(exemplar_t) # 
-        A = torch.bmm(exemplar_corr, query_flat)
-        A1 = F.softmax(A.clone(), dim = 1) #
-        B = F.softmax(torch.transpose(A,1,2),dim=1)
-        query_att = torch.bmm(exemplar_flat, A1).contiguous() #注意我们这个地方要不要用交互以及Residual的结构
-        exemplar_att = torch.bmm(query_flat, B).contiguous()
+        input_size = rgbs_a.size()[2:] # H, W
+        V_a, category = self.encoder(rgbs_a)
+        V_b, category = self.encoder(rgbs_b) # N, C, H, W
+
+        fea_size = V_b.size()[2:]	# H, W
+        all_dim = fea_size[0]*fea_size[1] #H*W
+        V_a_flat = V_a.view(-1, V_b.size()[1], all_dim) #N,C,H*W
+        V_b_flat = V_b.view(-1, V_b.size()[1], all_dim) #N, C, H*W
         
-        input1_att = exemplar_att.view(-1, query.size()[1], fea_size[0], fea_size[1])  
-        input2_att = query_att.view(-1, query.size()[1], fea_size[0], fea_size[1])
+        # S = B W A_transform
+        encoder_future_1_flat_t = torch.transpose(V_a_flat,1,2).contiguous()  #N, H*W, C
+        weighted_encoder_feature_1 = self.linear_e(encoder_future_1_flat_t) # weighted_encoder_feature_1 = encoder_future_1_flat_t * W, [N, H*W, C]
+        S = torch.bmm(weighted_encoder_feature_1, V_b_flat) # S = weighted_encoder_feature_1 prod encoder_feature_2_flat, [N, H*W, H*W]
+
+        S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise, the column sums to 1, from a column, it is easy to address the most similar feature from A with a feature from B 
+        S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise, he column sums to 1, from a column, it is easy to address the most similar feature from B with a feature from A
+
+        Z_b = torch.bmm(V_a_flat, S_row).contiguous() #注意我们这个地方要不要用交互以及Residual的结构 Z_b = V_a_flat prod S_row Z_b is the most similar features from A with features from B
+        Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column, Z_a is the most similar features from B with features from A
+        
+        input1_att = Z_a.view(-1, V_b.size()[1], fea_size[0], fea_size[1]) # [N, C, H, W]
+        input2_att = Z_b.view(-1, V_b.size()[1], fea_size[0], fea_size[1]) # [N, C, H, W]
+
         input1_mask = self.gate(input1_att)
         input2_mask = self.gate(input2_att)
         input1_mask = self.gate_s(input1_mask)
         input2_mask = self.gate_s(input2_mask)
+
         input1_att = input1_att * input1_mask
         input2_att = input2_att * input2_mask
-        input1_att = torch.cat([input1_att, exemplar],1) 
-        input2_att = torch.cat([input2_att, query],1)
+
+        input1_att = torch.cat([input1_att, V_a],1) 
+        input2_att = torch.cat([input2_att, V_b],1)
+
         input1_att  = self.conv1(input1_att )
         input2_att  = self.conv2(input2_att ) 
         input1_att  = self.bn1(input1_att )
         input2_att  = self.bn2(input2_att )
         input1_att  = self.prelu(input1_att )
         input2_att  = self.prelu(input2_att )
+
+        # Segmentation
         x1 = self.main_classifier1(input1_att)
         x2 = self.main_classifier2(input2_att)   
         x1 = F.upsample(x1, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
@@ -290,17 +330,16 @@ class CoattentionModel(nn.Module):
         #print("after upsample, tensor size:", x.size())
         x1 = self.softmax(x1)
         x2 = self.softmax(x2)
-        
-#        x1 = self.softmax(x1)
-#        x2 = self.softmax(x2)
-        return x1, x2, temp  #shape: NxCx	
+
+        return x1, x2, category  #shape: [N, 1, H, W]
     
 
-def Res_Deeplab(num_classes=2):
+def Res_Deeplab(num_classes=2): # not used
     model = ResNet(Bottleneck, [3, 4, 23, 3], num_classes-1)
     return model
 
 def CoattentionNet(num_classes=2):
-    model = CoattentionModel(Bottleneck,[3, 4, 23, 3], num_classes-1)
-	
+    num_blocks_of_resnet_layers = [3, 4, 23, 3] #resnet 101
+    model = CoattentionModel(Bottleneck, num_blocks_of_resnet_layers, num_classes-1)
+
     return model
