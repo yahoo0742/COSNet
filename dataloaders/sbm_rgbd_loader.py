@@ -12,6 +12,8 @@ import numpy as np
 from torch.utils.data import Dataset
 #from torchvision.datasets.utils import download_url
 from dataloaders import utils
+from PIL import Image
+
 import math
 
 import yaml
@@ -222,7 +224,8 @@ class sbm_rgbd(Dataset):
         batch_size = 1,
         subset_percentage = 0.8,
         subset = None,
-        meanval=(104.00699, 116.66877, 122.67892)
+        meanval=(104.00699, 116.66877, 122.67892),
+        output_dir_for_debug=None
     ):
         """
         Will return tuples based on what data source has been enabled (rgb, seg etc).
@@ -265,6 +268,9 @@ class sbm_rgbd(Dataset):
         self.ROI = {
             # seq_name: ([x_min, x_max], [y_min, y_max])
         }
+
+        self.depth_min_max = {}
+        self.output_dir_for_debug = output_dir_for_debug
 
         self.batch_size = 1
         self.stage = 'initing'
@@ -584,6 +590,7 @@ class sbm_rgbd(Dataset):
                 for i in range(rgb_img.shape[2]):
                     new_rgb_img.append(self._get_content_in_roi(rgb_img[:,:,i], frame_info.seq_name)) #CHW
                 rgb_img = np.array(new_rgb_img, dtype=np.float32) #CHW
+                print(" rgb shape ",rgb_img.shape)
 
                 if self.output_HW is not None:
                     rgb_img = rgb_img.transpose((1, 2, 0))  # CHW -> HWC
@@ -592,6 +599,7 @@ class sbm_rgbd(Dataset):
 
                 if self.stage == 'train':
                     rgb_img, crop_offset = self._augmente_image(rgb_img, frame_info.seq_name, crop_offset, True)
+                    print(" after aug rgb shape ", rgb_img.shape)
             else:
                 raise Exception("Cannot find the rgb image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
         else:
@@ -605,13 +613,15 @@ class sbm_rgbd(Dataset):
                 depth_img = np.array(depth_img, dtype=np.float32)
                 # get content in ROI
                 depth_img = self._get_content_in_roi(depth_img, frame_info.seq_name)
+                print(" depth shape ", depth_img.shape)
                 if self.output_HW is not None:
                     depth_img = cv2.resize(depth_img, (self.output_HW[1], self.output_HW[0]))
                 depth_img = depth_img[None, :,:] # 1, H, W
                 if self.stage == 'train':
                     depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
+                    print(" after aug depth shape ",depth_img.shape)
             else:
-                raise Exception("Cannot find the depth image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
+                raise Exception("Cannot find the depth image for ", frame_info.seq_name, frame_info.name_of_depth_frame)
         else:
             depth_img = np.zeros((1,1), dtype=np.float32)
 
@@ -624,13 +634,15 @@ class sbm_rgbd(Dataset):
                 gt_img = np.array(gt_img, dtype=np.uint8)
                 # get content in ROI
                 gt_img = self._get_content_in_roi(gt_img, frame_info.seq_name)
+                print(" gt shape ",gt_img.shape)
                 if self.output_HW is not None:
                     gt_img = cv2.resize(gt_img, (self.output_HW[1],self.output_HW[0]) , interpolation=cv2.INTER_NEAREST)
                 # print("gt shape: ",gt_img.shape)
                 if self.stage == 'train':
                     gt_img, crop_offset = self._augmente_image(gt_img, frame_info.seq_name, crop_offset, False)
+                    print(" after aug gt shape ",gt_img.shape)
             else:
-                raise Exception("Cannot find the groud truth image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
+                raise Exception("Cannot find the groud truth image for ", frame_info.seq_name, frame_info.name_of_groundtruth_frame)
         else:
             gt_img = np.zeros((1,1), dtype=np.uint8)
 
@@ -638,6 +650,29 @@ class sbm_rgbd(Dataset):
         rgb_img = torch.from_numpy(rgb_img.copy())
         depth_img = torch.from_numpy(depth_img.copy())
         gt_img = torch.from_numpy(gt_img.copy())
+
+            
+        if self.output_dir_for_debug != None:
+            save_dir = os.path.join(self.output_dir_for_debug, frame_info.seq_name)
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+
+            filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_rgb_frame))
+            rgb_npary = rgb_img
+            img = Image.fromarray(np.uint8(np.add(rgb_npary.transpose(1, 2, 0), self.meanval)), 'RGB') #(rows, columns, channels)
+            img.save(filename)
+
+            if 'd' in channels_to_load:
+                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_depth_frame))
+                img = Image.fromarray(np.uint8(depth_img[0]), 'L')
+                img.save(filename)
+
+            if 't' in channels_to_load:
+                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_groundtruth_frame))
+                img = Image.fromarray(np.uint8(gt_img*255), 'L')
+                img.save(filename)
+            del img
+            
 
         return rgb_img, depth_img, gt_img
 
