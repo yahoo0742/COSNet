@@ -503,6 +503,7 @@ class sbm_rgbd(Dataset):
                 end_idx = num_frames + start_idx
                 self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
+                print("****dataset:\n ", to_be_in_subset, '\n'.join(map(str, self.sets[to_be_in_subset]['names_of_frames'])))
 
 
     def _get_frames_of_seq(self, set_name, seq_name):
@@ -561,7 +562,7 @@ class sbm_rgbd(Dataset):
         result = len(self.sets[set_name]['names_of_frames'])
         if result % self.batch_size != 0:
             result = result - result % self.batch_size
-        print("dataset: ", '  '.join(map(str, self.sets[set_name]['names_of_frames'])))
+        # print("dataset: ", '  '.join(map(str, self.sets[set_name]['names_of_frames'])))
         print("SBM length: " , result, " for " + set_name)
         return result
 
