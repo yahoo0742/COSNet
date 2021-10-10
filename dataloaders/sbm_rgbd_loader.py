@@ -658,17 +658,18 @@ class sbm_rgbd(Dataset):
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
 
-            filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_rgb_frame))
-            rgb_npary = rgb_img
-            img = Image.fromarray(np.uint8(np.add(rgb_npary.transpose(1, 2, 0), self.meanval)), 'RGB') #(rows, columns, channels)
-            img.save(filename)
+            if load_rgb:
+                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_rgb_frame))
+                rgb_npary = rgb_img
+                img = Image.fromarray(np.uint8(np.add(rgb_npary.transpose((1, 2, 0)), self.meanval)), 'RGB') #(rows, columns, channels)
+                img.save(filename)
 
-            if 'd' in channels_to_load:
+            if load_depth:
                 filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_depth_frame))
                 img = Image.fromarray(np.uint8(depth_img[0]), 'L')
                 img.save(filename)
 
-            if 't' in channels_to_load:
+            if load_groundtruth:
                 filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_groundtruth_frame))
                 img = Image.fromarray(np.uint8(gt_img*255), 'L')
                 img.save(filename)
