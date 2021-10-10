@@ -555,6 +555,8 @@ def main():
     print("  max iteration: ", args.maxEpoches*train_len)
     
     loss_history = []
+
+    ignore_counterpart_loss = False
     for epoch in range(start_epoch, int(args.maxEpoches)):
         print("......epoch=", epoch)
         np.random.seed(args.random_seed + epoch)
@@ -578,7 +580,8 @@ def main():
             counterpart_rgb = Variable(counterpart_rgb).cuda()
             # counterpart_depth.requires_grad_()
             counterpart_depth = Variable(counterpart_depth).cuda()
-            counterpart_gt = Variable(counterpart_gt.float().unsqueeze(1)).cuda()
+            if not ignore_counterpart_loss:
+                counterpart_gt = Variable(counterpart_gt.float().unsqueeze(1)).cuda()
 
             optimizer.zero_grad()
 
@@ -590,9 +593,14 @@ def main():
             if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
                 pred1, pred2, obj_label = model(current_rgb, counterpart_rgb)
             else:
-                pred1, pred2, obj_label = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
+                if not ignore_counterpart_loss:
+                    pred1, pred2, obj_label = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
+                else:
+                    pred1, obj_label = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
 
-            loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt) + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
+            loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt)
+            if not ignore_counterpart_loss:
+                loss = loss + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
             logMem(logger, " After forward")
             loss.backward()
             logMem(logger, " After backward")
@@ -609,9 +617,11 @@ def main():
             del current_depth
             del current_gt
             del counterpart_rgb
-            del counterpart_gt
             del batch
-            del pred1, pred2, obj_label
+            del pred1, obj_label
+            if not ignore_counterpart_loss:
+                del counterpart_gt, pred2
+
             gc.collect()
             torch.cuda.empty_cache()
             logMem(logger, " After GC")
