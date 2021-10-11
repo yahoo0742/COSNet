@@ -19,7 +19,7 @@ class RGBDSegmentation_RAA(nn.Module):
     '''
     :param approach_for_depth: add, conc1, conc2, parallel
     '''
-    def __init__(self, block, num_blocks_of_layers_4_rgb, num_blocks_of_layers_4_depth, num_classes, all_channel=256, all_dim=60*60):	#473./8=60	
+    def __init__(self, block, num_blocks_of_layers_4_rgb, num_blocks_of_layers_4_depth, num_classes, all_channel=256, all_dim=60*60, no_grad_for_counterpart=True):	#473./8=60	
         super(RGBDSegmentation_RAA, self).__init__()
 
         # For RGB
@@ -47,6 +47,8 @@ class RGBDSegmentation_RAA(nn.Module):
         self.segmentation_classifier_A = nn.Conv2d(all_channel, num_classes, kernel_size=1, bias = True)
         self.segmentation_classifier_B = nn.Conv2d(all_channel, num_classes, kernel_size=1, bias = True)
         self.softmax = nn.Sigmoid()
+
+        self.no_grad_for_counterpart = no_grad_for_counterpart
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -139,7 +141,12 @@ class RGBDSegmentation_RAA(nn.Module):
 
         # RGB
         V_a, labels = self.encoder(rgbs_a)
-        V_b, labels = self.encoder(rgbs_b) # N, C, H, W
+        if self.no_grad_for_counterpart:
+            with torch.no_grad():
+                V_b, labels = self.encoder(rgbs_b) # N, C, H, W
+        else:
+            V_b, labels = self.encoder(rgbs_b) # N, C, H, W
+
         rgb_feat_channels = V_a.size()[1] 
         rgb_feat_hw = V_a.size()[2:]
 
@@ -161,9 +168,11 @@ class RGBDSegmentation_RAA(nn.Module):
         Z_a = Z_a.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
         Z_b = Z_b.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
         input_mask_a = self.gate(Z_a) #[N, 1, H, W]
-        input_mask_b = self.gate(Z_b) #[N, 1, H, W]
+        with torch.no_grad():
+            input_mask_b = self.gate(Z_b) #[N, 1, H, W]
         input_mask_a = self.gate_s(input_mask_a) #[N, 1, H, W]
-        input_mask_b = self.gate_s(input_mask_b) #[N, 1, H, W]
+        with torch.no_grad():
+            input_mask_b = self.gate_s(input_mask_b) #[N, 1, H, W]
         Z_a = Z_a * input_mask_a # [N, C, H, W]
         Z_b = Z_b * input_mask_b # [N, C, H, W]
 
@@ -178,7 +187,11 @@ class RGBDSegmentation_RAA(nn.Module):
 
         # Depth
         D_a = self.depth_encoder(depths_a) # N, C, H, W
-        D_b = self.depth_encoder(depths_b) # N, C, H, W
+        if self.no_grad_for_counterpart:
+            with torch.no_grad():
+                D_b = self.depth_encoder(depths_b) # N, C, H, W
+        else:
+            D_b = self.depth_encoder(depths_b) # N, C, H, W
         depth_feat_channels = D_a.shape[1]
         depth_feat_hw = D_a.size()[2:]
         all_dim = depth_feat_hw[0] * depth_feat_hw[1] #H*W
@@ -199,20 +212,25 @@ class RGBDSegmentation_RAA(nn.Module):
         D_Z_a = D_Z_a.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
         D_Z_b = D_Z_b.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
         D_input_mask_a = self.depth_gate(D_Z_a)
-        D_input_mask_b = self.depth_gate(D_Z_b)
+        with torch.no_grad():
+            D_input_mask_b = self.depth_gate(D_Z_b)
         D_input_mask_a = self.depth_gate_s(D_input_mask_a)
-        D_input_mask_b = self.depth_gate_s(D_input_mask_b)
+        with torch.no_grad():
+            D_input_mask_b = self.depth_gate_s(D_input_mask_b)
         D_Z_a = D_Z_a * D_input_mask_a
         D_Z_b = D_Z_b * D_input_mask_b
 
         D_Z_a = torch.cat([D_Z_a, D_a],1) 
         D_Z_b = torch.cat([D_Z_b, D_b],1)
         D_Z_a  = self.depth_reduce_channels(D_Z_a )
-        D_Z_b  = self.depth_reduce_channels(D_Z_b ) 
+        with torch.no_grad():
+            D_Z_b  = self.depth_reduce_channels(D_Z_b ) 
         D_Z_a  = self.depth_bn(D_Z_a )
-        D_Z_b  = self.depth_bn(D_Z_b )
+        with torch.no_grad():
+            D_Z_b  = self.depth_bn(D_Z_b )
         D_Z_a  = self.depth_weights(D_Z_a)
-        D_Z_b  = self.depth_weights(D_Z_b)
+        with torch.no_grad():
+            D_Z_b  = self.depth_weights(D_Z_b)
         # D_Z_a  = self.prelu(D_Z_a )
         # D_Z_b  = self.prelu(D_Z_b )
 
