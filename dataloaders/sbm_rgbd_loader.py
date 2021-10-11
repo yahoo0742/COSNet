@@ -660,7 +660,10 @@ class sbm_rgbd(Dataset):
 
             if load_rgb:
                 filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_rgb_frame))
-                rgb_npary = rgb_img
+                if type(rgb_img) != np.ndarray:
+                    rgb_npary = rgb_img.numpy()
+                else:
+                    rgb_npary = rgb_img
                 img = Image.fromarray(np.uint8(np.add(rgb_npary.transpose((1, 2, 0)), self.meanval)), 'RGB') #(rows, columns, channels)
                 img.save(filename)
 
