@@ -591,7 +591,6 @@ class sbm_rgbd(Dataset):
                 for i in range(rgb_img.shape[2]):
                     new_rgb_img.append(self._get_content_in_roi(rgb_img[:,:,i], frame_info.seq_name)) #CHW
                 rgb_img = np.array(new_rgb_img, dtype=np.float32) #CHW
-                print(" rgb shape ",rgb_img.shape)
 
                 if self.output_HW is not None:
                     rgb_img = rgb_img.transpose((1, 2, 0))  # CHW -> HWC
@@ -600,7 +599,6 @@ class sbm_rgbd(Dataset):
 
                 if self.stage == 'train':
                     rgb_img, crop_offset = self._augmente_image(rgb_img, frame_info.seq_name, crop_offset, True)
-                    print(" after aug rgb shape ", rgb_img.shape)
             else:
                 raise Exception("Cannot find the rgb image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
         else:
@@ -614,13 +612,11 @@ class sbm_rgbd(Dataset):
                 depth_img = np.array(depth_img, dtype=np.float32)
                 # get content in ROI
                 depth_img = self._get_content_in_roi(depth_img, frame_info.seq_name)
-                print(" depth shape ", depth_img.shape)
                 if self.output_HW is not None:
                     depth_img = cv2.resize(depth_img, (self.output_HW[1], self.output_HW[0]))
                 depth_img = depth_img[None, :,:] # 1, H, W
                 if self.stage == 'train':
                     depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
-                    print(" after aug depth shape ",depth_img.shape)
             else:
                 raise Exception("Cannot find the depth image for ", frame_info.seq_name, frame_info.name_of_depth_frame)
         else:
@@ -635,13 +631,11 @@ class sbm_rgbd(Dataset):
                 gt_img = np.array(gt_img, dtype=np.uint8)
                 # get content in ROI
                 gt_img = self._get_content_in_roi(gt_img, frame_info.seq_name)
-                print(" gt shape ",gt_img.shape)
                 if self.output_HW is not None:
                     gt_img = cv2.resize(gt_img, (self.output_HW[1],self.output_HW[0]) , interpolation=cv2.INTER_NEAREST)
                 # print("gt shape: ",gt_img.shape)
                 if self.stage == 'train':
                     gt_img, crop_offset = self._augmente_image(gt_img, frame_info.seq_name, crop_offset, False)
-                    print(" after aug gt shape ",gt_img.shape)
             else:
                 raise Exception("Cannot find the groud truth image for ", frame_info.seq_name, frame_info.name_of_groundtruth_frame)
         else:
