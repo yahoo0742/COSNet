@@ -225,7 +225,7 @@ class sbm_rgbd(Dataset):
         subset_percentage = 0.8,
         subset = None,
         meanval=(104.00699, 116.66877, 122.67892),
-        logFunc=None
+        logFunc=None,
         output_dir_for_debug=None
     ):
         """
@@ -511,7 +511,7 @@ class sbm_rgbd(Dataset):
                 end_idx = num_frames + start_idx
                 self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
-                self._Log("****dataset:\n ", to_be_in_subset, '\n'.join(map(str, self.sets[to_be_in_subset]['names_of_frames'])))
+                self._Log("****dataset:\n "+ to_be_in_subset+ '\n'.join(map(str, self.sets[to_be_in_subset]['names_of_frames'])))
 
 
     def _get_frames_of_seq(self, set_name, seq_name):
@@ -537,7 +537,7 @@ class sbm_rgbd(Dataset):
 
             # 1. target frame
             current_rgb, current_depth, current_gt = self._load_images(frame_info, self.channels_for_target_frame)
-            self._Log("   target frame: ", frame_index, " seq ", frame_info.seq_name, " shape: ", current_rgb.shape)
+            self._Log("   target frame: "+ frame_index+ " seq: "+ frame_info.seq_name+ " shape: "+ current_rgb.shape)
             sample['target'] = current_rgb
             sample['target_depth'] = current_depth
             sample['target_gt'] = current_gt
@@ -557,7 +557,7 @@ class sbm_rgbd(Dataset):
                 frame_idx = frame_indices_for_counterpart[i]
                 frame_info_of_cp = self._get_framename_by_index(set_name, frame_idx)
                 cp_rgb, cp_depth, cp_gt = self._load_images(frame_info_of_cp, self.channels_for_counterpart_frame)
-                self._Log("  counterpart frame: ", frame_indices_candidates[i], " seq ", frame_info.seq_name, " shape: ", cp_rgb.shape)
+                self._Log("  counterpart frame: "+ frame_indices_candidates[i]+ " seq: "+ frame_info.seq_name+ " shape: "+ cp_rgb.shape)
 
                 sample[key] = cp_rgb
                 sample[key+'_depth'] = cp_depth
@@ -574,7 +574,7 @@ class sbm_rgbd(Dataset):
         if result % self.batch_size != 0:
             result = result - result % self.batch_size
         # print("dataset: ", '  '.join(map(str, self.sets[set_name]['names_of_frames'])))
-        self._Log("SBM length: " , result, " for " + set_name)
+        self._Log("SBM length: " + result+ " for " + set_name)
         return result
 
     def _load_images(self, frame_info, channels='rgbdt'):
