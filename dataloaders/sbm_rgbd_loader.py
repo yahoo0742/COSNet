@@ -240,6 +240,7 @@ class sbm_rgbd(Dataset):
         self.meanval = meanval
         self.channels_for_target_frame = channels_for_target_frame
         self.channels_for_counterpart_frame = channels_for_counterpart_frame
+        self.logFunc = logFunc
 
         self.flip_prob_of_seqs_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
 
@@ -283,7 +284,6 @@ class sbm_rgbd(Dataset):
         self.stage = 'train' if for_training else 'test'
         self._split_dataset(subset)
 
-        self.logFunc = logFunc
 
 
     """
@@ -537,7 +537,7 @@ class sbm_rgbd(Dataset):
 
             # 1. target frame
             current_rgb, current_depth, current_gt = self._load_images(frame_info, self.channels_for_target_frame)
-            self._Log("   target frame: "+ frame_index+ " seq: "+ frame_info.seq_name+ " shape: "+ current_rgb.shape)
+            self._Log("   target frame: "+ str(frame_index) + " seq: "+ frame_info.seq_name+ " shape: "+ str(current_rgb.shape))
             sample['target'] = current_rgb
             sample['target_depth'] = current_depth
             sample['target_gt'] = current_gt
@@ -557,7 +557,7 @@ class sbm_rgbd(Dataset):
                 frame_idx = frame_indices_for_counterpart[i]
                 frame_info_of_cp = self._get_framename_by_index(set_name, frame_idx)
                 cp_rgb, cp_depth, cp_gt = self._load_images(frame_info_of_cp, self.channels_for_counterpart_frame)
-                self._Log("  counterpart frame: "+ frame_indices_candidates[i]+ " seq: "+ frame_info.seq_name+ " shape: "+ cp_rgb.shape)
+                self._Log("  counterpart frame: "+ str(frame_indices_candidates[i]) + " seq: "+ frame_info.seq_name+ " shape: "+ str(cp_rgb.shape))
 
                 sample[key] = cp_rgb
                 sample[key+'_depth'] = cp_depth
@@ -574,7 +574,7 @@ class sbm_rgbd(Dataset):
         if result % self.batch_size != 0:
             result = result - result % self.batch_size
         # print("dataset: ", '  '.join(map(str, self.sets[set_name]['names_of_frames'])))
-        self._Log("SBM length: " + result+ " for " + set_name)
+        self._Log("SBM length: " + str(result) + " for " + set_name)
         return result
 
     def _load_images(self, frame_info, channels='rgbdt'):
