@@ -526,13 +526,15 @@ def main():
     logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
     logger.flush()
 
+    lambda_log = lambda msg: logger.write(msg+"\n")
+
     print("=====> Preparing training data")
     db_train = None
     if args.dataset == 'hzfurgbd':
         db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["hzfurgbd"]["subset"],transform=None, for_training=True, batch_size=args.batch_size)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'sbmrgbd':
-        db_train = sbmdb.sbm_rgbd(user_config["train"]["dataset"]["sbmrgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["sbmrgbd"]["subset"],for_training=True, batch_size=args.batch_size, output_dir_for_debug=os.path.join(args.snapshot_dir,"debug"))
+        db_train = sbmdb.sbm_rgbd(user_config["train"]["dataset"]["sbmrgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["sbmrgbd"]["subset"],for_training=True, batch_size=args.batch_size, logFunc=lambda_log, output_dir_for_debug=os.path.join(args.snapshot_dir,"debug"))
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'davis':
         db_train = davis_db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.saliency_dataset_path,  transform=None, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
