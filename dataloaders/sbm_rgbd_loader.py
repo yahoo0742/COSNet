@@ -243,6 +243,8 @@ class sbm_rgbd(Dataset):
         self.logFunc = logFunc
 
         self.flip_prob_of_seqs_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
+        self._scale_ratio = 1.
+        self._crop_ratio = 1.
 
         self.sets = {
             'entire': {
