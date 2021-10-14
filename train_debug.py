@@ -143,8 +143,7 @@ def configure_dataset_init_model(args):
     args.data_dir = user_config["train"]["dataset"][args.dataset]["data_path"]   # 37572 image pairs
     args.num_classes = user_config["train"]["dataset"][args.dataset]["num_classes"]      #Number of classes to predict (including background)
     args.img_mean = np.array(user_config["train"]["dataset"][args.dataset]["img_mean"], dtype=np.float32)
-    args.full_model_name = get_fullname_of_model(args.model)
-    args.restore_from = user_config["train"]["model"][args.full_model_name]["initial_params"]
+    args.full_model_name = args.model #get_fullname_of_model(args.model)
     #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
     # args.ignore_label = user_config["train"]["dataset"]["hzfurgbd"]["ignore_label"]     #The index of the label to ignore during the training
     args.resume = user_config["train"]["dataset"][args.dataset]["checkpoint_file"] #'./snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
@@ -322,7 +321,7 @@ def main():
 
 
     print("    current dataset:  ", args.dataset)
-    print("    init model: ", args.restore_from)
+    # print("    init model: ", args.restore_from)
     print("=====> Set GPU for training")
     if args.cuda:
         print("====> Use gpu id: '{}'".format(args.gpus))
