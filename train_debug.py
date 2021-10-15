@@ -221,21 +221,14 @@ def get_1x_lr_params(model):
     requires_grad is set to False in deeplab_resnet.py, therefore this function does not return 
     any batchnorm parameter
     """
-    b = []
     mod = model
     if torch.cuda.device_count() > 1:
         mod = mod.module
 
-    mods_with_params = mod.get_params()
-    b.extend(mods_with_params)
-
-    for i in range(len(b)):
-        for j in b[i].modules():
-            jj = 0
-            for k in j.parameters():
-                jj+=1
-                if k.requires_grad:
-                    yield k
+    for k in mod.parameters():
+        print("param ",k, " GRAD: ", k.requires_grad)
+        if k.requires_grad:
+            yield k
 
 
 def get_10x_lr_params(model):
