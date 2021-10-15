@@ -429,6 +429,8 @@ def main():
 
             pred = model(current_rgb)
             logMem(logger, " After forward")
+            if args.full_model_name == "deeplabv3":
+                pred = pred[0]
 
             gt = torch.tensor(np.empty(pred.shape))
             gt = Variable(gt.float().unsqueeze(1)).cuda()
