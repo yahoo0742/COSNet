@@ -412,28 +412,36 @@ def main():
         np.random.seed(args.random_seed + epoch)
 
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
-            logMem(logger, " Start batch")
-
             print("  i_iter=", i_iter)
-            current_rgb, _, _ = batch['target'], batch['target_depth'], batch['target_gt']
 
-            # current_rgb.requires_grad_()
-            current_rgb = Variable(current_rgb).cuda()
-            # current_depth.requires_grad_()
-            # current_depth = Variable(current_depth).cuda()
-            # current_gt = Variable(current_gt.float().unsqueeze(1)).cuda()
-
+            logMem(logger, " Start batch")
             optimizer.zero_grad()
 
             lr = adjust_learning_rate(optimizer, i_iter+epoch*train_len, epoch,
                     max_iter = args.maxEpoches * train_len)
-            #print(images.size())
-            logMem(logger, " After feeding data to GPU")
 
-            pred = model(current_rgb)
-            logMem(logger, " After forward")
-            if args.full_model_name == "deeplabv3":
+            if args.full_model_name == "coatt_rgb":
+                current_rgb, cp_rgb = batch['target'], batch['search_0']
+
+                # current_rgb.requires_grad_()
+                current_rgb = Variable(current_rgb).cuda()
+                # current_depth.requires_grad_()
+                # current_depth = Variable(current_depth).cuda()
+                # current_gt = Variable(current_gt.float().unsqueeze(1)).cuda()
+                cp_rgb = Variable(cp_rgb).cuda()
+                logMem(logger, " After feeding data to GPU")
+                pred = model(current_rgb, cp_rgb)
+                logMem(logger, " After forward")
                 pred = pred[0]
+            else:
+                current_rgb = batch['target']
+                current_rgb = Variable(current_rgb).cuda()
+                logMem(logger, " After feeding data to GPU")
+
+                pred = model(current_rgb)
+                logMem(logger, " After forward")
+                if args.full_model_name == "deeplabv3":
+                    pred = pred[0]
 
             gt = torch.tensor(np.empty(pred.shape))
             gt = Variable(gt.float().unsqueeze(1)).cuda()
