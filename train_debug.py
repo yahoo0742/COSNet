@@ -225,7 +225,7 @@ def get_1x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = mod.module
 
-    mods_with_params = mod.get_params("encoder")
+    mods_with_params = mod.get_params()
     b.extend(mods_with_params)
 
     for i in range(len(b)):
@@ -243,6 +243,8 @@ def get_10x_lr_params(model):
     which does the classification of pixel into classes
     """
     b = []
+    if True:
+        return
 
     mod = model
     if torch.cuda.device_count() > 1:
@@ -426,10 +428,15 @@ def main():
             logMem(logger, " After feeding data to GPU")
 
             pred = model(current_rgb)
-
-            loss = 1
             logMem(logger, " After forward")
+
+            gt = torch.tensor(np.empty(pred.shape))
+            gt = Variable(gt.float().unsqueeze(1)).cuda()
+            logMem(logger, " Before calc loss ")
+
+            loss = calc_loss_L1(pred, gt)
             loss.backward()
+
             logMem(logger, " After backward")
 
             optimizer.step()
