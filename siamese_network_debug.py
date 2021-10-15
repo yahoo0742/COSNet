@@ -11,7 +11,7 @@ class SiameseNetwork_Debug(nn.Module):
     '''
     :param approach_for_depth: add, conc1, conc2, parallel
     '''
-    def __init__(self, block, num_blocks_of_layers_4_rgb, num_blocks_of_layers_4_depth, num_classes, all_channel=256, all_dim=60*60, no_grad_for_counterpart=True):	#473./8=60	
+    def __init__(self, block, num_blocks_of_layers_4_rgb, num_classes, all_channel=256, all_dim=60*60, no_grad_for_counterpart=True):	#473./8=60	
         super(SiameseNetwork_Debug, self).__init__()
 
         # For RGB

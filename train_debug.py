@@ -35,6 +35,7 @@ from dataloaders import sbm_rgbd_loader as sbmdb
 #from deeplab.utils import get_1x_lr_params, get_10x_lr_params#, adjust_learning_rate #, loss_calc
 from deeplab.residual_net import Bottleneck, ResNet
 from deeplab.deeplabv3_encoder import Encoder
+from siamese_network_debug import SiameseNetwork_Debug
 
 import datetime
 import gc
@@ -106,7 +107,7 @@ def get_arguments():
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") 
-    parser.add_argument("--model", default="resnet101", help="resnet50, deeplabv3") 
+    parser.add_argument("--model", default="resnet101", help="resnet50, deeplabv3, coatt_rgb") 
 
     return parser.parse_args()
 
@@ -298,6 +299,8 @@ def create_model(model_name):
         model = ResNet(3, Bottleneck, [3, 4, 6, 3], 0)
     elif model_name == "deeplabv3":
         model = Encoder(3, Bottleneck, [3, 4, 23, 3], 2)
+    elif model_name == "coatt_rgb":
+        model = SiameseNetwork_Debug(Bottleneck, [3, 4, 23, 3], 1)
     else:
         raise Exception(model_name, "Invalid model name!")
     return model
