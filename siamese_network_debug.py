@@ -118,7 +118,7 @@ class SiameseNetwork_Debug(nn.Module):
         self.load_state_dict(new_params) 
 
 
-    def forward(self, rgbs_a, rgbs_b, depths_a, depths_b):
+    def forward(self, rgbs_a, rgbs_b):
         input_size = rgbs_a.size()[2:] # H, W
 
         # RGB
