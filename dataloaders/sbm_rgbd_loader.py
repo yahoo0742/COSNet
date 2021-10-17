@@ -475,7 +475,7 @@ class sbm_rgbd(Dataset):
 
                 start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
                 # get ids of the frames of the sequence
-                ids_of_frames = [frame[:2] for frame in predefined_subset_dict[seq]] # We know there are duplicate frames (XX is present more than once)
+                ids_of_frames = predefined_subset_dict[seq] # We know there are duplicate frames (XX is present more than once)
                 # collect information of the frames
                 frames_of_seq = []
                 for id in ids_of_frames:
@@ -513,7 +513,9 @@ class sbm_rgbd(Dataset):
                 end_idx = num_frames + start_idx
                 self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
-                self._Log("****dataset:\n "+ to_be_in_subset+ '\n'.join(map(str, self.sets[to_be_in_subset]['names_of_frames'])))
+        self._Log("****dataset:\n "+ to_be_in_subset+ '\n'.join(map(str, self.sets[to_be_in_subset]['names_of_frames'])))
+        another_set = list(set(self.sets["entire"]['names_of_frames']) - set(self.sets[to_be_in_subset]['names_of_frames']))
+        self._Log("****Another set:" + '\n'.join(map(str, self.sets[to_be_in_subset]['names_of_frames'])))
 
 
     def _get_frames_of_seq(self, set_name, seq_name):
@@ -526,6 +528,12 @@ class sbm_rgbd(Dataset):
         if frame_index >= len(self.sets[set_name]['names_of_frames']):
             return None
         return self.sets[set_name]['names_of_frames'][frame_index]
+
+    def _get_framename_of_seq_by_id(self, seq, id):
+        for fn in self.sets['entire']['names_of_frames']:
+            if fn.id == id and fn.seq_name == seq:
+                return fn
+        return None
 
     def __getitem__(self, frame_index):
         set_name = self.stage
