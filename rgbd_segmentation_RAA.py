@@ -159,11 +159,18 @@ class RGBDSegmentation_RAA(nn.Module):
         V_a_flat_t = self.rgb_similarity_weights(V_a_flat_t) # V_a_flat_t = V_a_flat_t * W, [N, H*W, C]
         S = torch.bmm(V_a_flat_t, V_b_flat) # S = V_a_flat_t prod V_b_flat, [N, H*W, H*W]
 
+        del V_a_flat_t
+
         S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
         S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
 
+        del S
+
         Z_b = torch.bmm(V_a_flat, S_row).contiguous() #Z_b = V_a_flat prod S_row [N, C, H*W]
         Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column [N, C, H*W]
+
+        del V_a_flat, V_b_flat
+        del S_row, S_column
         
         Z_a = Z_a.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
         Z_b = Z_b.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
@@ -185,6 +192,8 @@ class RGBDSegmentation_RAA(nn.Module):
         # Z_a  = self.prelu(Z_a )
         # Z_b  = self.prelu(Z_b )
 
+        del V_a, V_b
+
         # Depth
         D_a = self.depth_encoder(depths_a) # N, C, H, W
         if self.no_grad_for_counterpart:
@@ -201,13 +210,18 @@ class RGBDSegmentation_RAA(nn.Module):
         # S = B W A_transform
         D_a_flat_t = torch.transpose(D_a_flat,1,2).contiguous()  #N, H*W, C
         D_a_flat_t = self.depth_similarity_weights(D_a_flat_t) # D_a_flat_t = D_a_flat_t * W, [N, H*W, C]
-        D_S = torch.bmm(D_a_flat_t, D_b_flat) # D_S = D_a_flat_t prod D_b_flat, [N, H*W, H*W]
+        S = torch.bmm(D_a_flat_t, D_b_flat) # S = D_a_flat_t prod D_b_flat, [N, H*W, H*W]
 
-        D_S_row = F.softmax(D_S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
-        D_S_column = F.softmax(torch.transpose(D_S,1,2),dim=1) # S column-wise
+        S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
+        S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
 
-        D_Z_b = torch.bmm(D_a_flat, D_S_row).contiguous() #DZ_b = D_a_flat prod D_S_row
-        D_Z_a = torch.bmm(D_b_flat, D_S_column).contiguous() # DZ_a = D_b_flat prod D_S_column
+        del S
+
+        D_Z_b = torch.bmm(D_a_flat, S_row).contiguous() #DZ_b = D_a_flat prod S_row
+        D_Z_a = torch.bmm(D_b_flat, S_column).contiguous() # DZ_a = D_b_flat prod S_column
+
+        del S_row, S_column
+        del D_a_flat, D_a_flat_t, D_b_flat, 
 
         D_Z_a = D_Z_a.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
         D_Z_b = D_Z_b.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
@@ -236,6 +250,8 @@ class RGBDSegmentation_RAA(nn.Module):
 
         Z_a = torch.add(Z_a, D_Z_a)
         Z_b = torch.add(Z_b, D_Z_b)
+
+        del D_Z_a, D_Z_b
 
         Z_a  = self.prelu(Z_a )
         Z_b  = self.prelu(Z_b )
