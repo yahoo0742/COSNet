@@ -8,11 +8,18 @@ def compute_iou(prediction01, gt01):
     result_and = prediction & gt
     result_or = prediction | gt
     if np.all(result_or == 0):
+        # no foreground object in the gt, same as the prediction
         iou = 1
     else:
-        sum_and = np.sum(result_and) * 1.0
         sum_or = np.sum(result_or)
-        iou = sum_and/sum_or
+        if np.all(gt == 0):
+            # the gt doesn't have the foreground object
+            # in this case, the IOU can be what percentage background the model predicted
+            iou = 1.0 - sum_or / (prediction.shape[0] * prediction.shape[1])
+        else:
+            # the gt includes the mask for the foreground object
+            sum_and = np.sum(result_and) * 1.0
+            iou = sum_and/sum_or
 
     return iou
 
