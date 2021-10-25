@@ -117,6 +117,8 @@ args = get_arguments()
 def get_fullname_of_model(model_abbr):
     if model_abbr == "ori" or model_abbr == "original_coattention_rgb":
         return  "original_coattention_rgb"
+    elif model_abbr == "retrain" or model_abbr == "original_coattention_rgb_retrained":
+        return "original_coattention_rgb_retrained"
     elif model_abbr == 'raa' or model_abbr == "resnet_aspp_add":
         return  "resnet_aspp_add"
     elif model_abbr == "ref" or model_abbr == "refactored_coattention_rgb":
@@ -227,7 +229,7 @@ def get_1x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = mod.module
 
-    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
+    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "original_coattention_rgb_retrained" or args.full_model_name == "refactored_coattention_rgb":
         b.append(mod.encoder.conv1)
         b.append(mod.encoder.bn1)
         b.append(mod.encoder.layer1)
@@ -279,7 +281,7 @@ def get_10x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = model.module
 
-    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
+    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "original_coattention_rgb_retrained" or args.full_model_name == "refactored_coattention_rgb":
         b.append(mod.linear_e.parameters())
         b.append(mod.conv1.parameters())
         b.append(mod.conv2.parameters())
@@ -369,7 +371,7 @@ def netParams(model):
 
 
 def create_model(model_name):
-    if model_name == "original_coattention_rgb":
+    if model_name == "original_coattention_rgb" or model_name == "original_coattention_rgb_retrained":
         model = CoattentionNet(num_classes=args.num_classes)
     elif model_name == "resnet_aspp_add":
         model = RGBDSegmentation_RAA(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
@@ -585,7 +587,7 @@ def main():
             #print(images.size())
             logMem(logger, " After feeding data to GPU")
 
-            if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
+            if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "original_coattention_rgb_retrained" or args.full_model_name == "refactored_coattention_rgb":
                 pred1, pred2, obj_label = model(current_rgb, counterpart_rgb)
             else:
                 if not ignore_counterpart_loss:
