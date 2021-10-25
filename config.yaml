@@ -29,6 +29,8 @@
 
 "train":
     "model":
+        "original_coattention_rgb":
+            "initial_params": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
         "original_coattention_rgb_retrained":
             "initial_params": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
         "co_attention_refactored":
