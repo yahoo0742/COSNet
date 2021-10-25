@@ -431,12 +431,13 @@ def main():
 
     def convert_parameters_for_model(model, saved_state_dict):
         new_params = model.state_dict().copy()
-        print("Model: ",new_params)
+        # print("Model: ",new_params)
         if args.cuda:
             #model.to(device)
             for i in saved_state_dict["model"]:
                 if args.full_model_name == "resnet_aspp_add":
-                    print("state key: ",i)
+                    # print("state key: ",i)
+                    pass
 
                 elif args.full_model_name == "original_coattention_rgb":
                     newKey = i.replace("module.", "encoder.")
@@ -495,7 +496,7 @@ def main():
     model.train()
     cudnn.benchmark = True
 
-    print("#######model:\n", model)
+    # print("#######model:\n", model)
 
     
     print('=====> Computing network parameters')
@@ -512,7 +513,14 @@ def main():
         db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["hzfurgbd"]["subset"],transform=None, for_training=True, batch_size=args.batch_size)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'sbmrgbd':
-        db_train = sbmdb.sbm_rgbd(user_config["train"]["dataset"]["sbmrgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["sbmrgbd"]["subset"],for_training=True, batch_size=args.batch_size)
+        if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
+            channels_for_target_frame = "rgbt"
+            channels_for_counterpart_frame = "rgbt"
+        else:
+            channels_for_target_frame = "rgbdt"
+            channels_for_counterpart_frame = "rgbt"
+
+        db_train = sbmdb.sbm_rgbd(user_config["train"]["dataset"]["sbmrgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["sbmrgbd"]["subset"],for_training=True, batch_size=args.batch_size, channels_for_target_frame=channels_for_target_frame, channels_for_counterpart_frame=channels_for_target_frame)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'davis':
         db_train = davis_db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.saliency_dataset_path,  transform=None, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
