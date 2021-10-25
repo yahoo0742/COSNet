@@ -227,15 +227,7 @@ def get_1x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = mod.module
 
-    # mods_with_params = mod.get_params("encoder")
-    # b.extend(mods_with_params)
-
-    mods_with_params = mod.get_params("decoder")
-    b.extend(mods_with_params)
-
-    if True:
-        pass
-    elif args.full_model_name == "original_coattention_rgb":
+    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
         b.append(mod.encoder.conv1)
         b.append(mod.encoder.bn1)
         b.append(mod.encoder.layer1)
@@ -244,6 +236,10 @@ def get_1x_lr_params(model):
         b.append(mod.encoder.layer4)
         b.append(mod.encoder.layer5)
         b.append(mod.encoder.main_classifier)
+    elif args.full_model_name == "resnet_aspp_add":
+        mods_with_params = mod.get_params("encoder")
+        b.extend(mods_with_params)
+
     else:
         # b.append(mod.encoder.backbone.conv1)
         # b.append(mod.encoder.backbone.bn1)
@@ -283,20 +279,6 @@ def get_10x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = model.module
 
-    # mods_with_params = mod.get_params("rgb_attention")
-    # b.extend(mods_with_params)
-    mods_with_params = mod.get_params("depth")
-    b.extend(mods_with_params)
-    # mods_with_params = mod.get_params("decoder")
-    # b.extend(mods_with_params)
-
-    for j in range(len(b)):
-        for i in b[j].parameters():
-            yield i
-
-    if True:
-        return
-
     if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
         b.append(mod.linear_e.parameters())
         b.append(mod.conv1.parameters())
@@ -306,6 +288,14 @@ def get_10x_lr_params(model):
         b.append(mod.bn2.parameters())   
         b.append(mod.main_classifier1.parameters())
         b.append(mod.main_classifier2.parameters())
+    elif args.full_model_name == "resnet_aspp_add":
+        mods_with_params = mod.get_params("rgb_attention")
+        b.extend(mods_with_params)
+        mods_with_params = mod.get_params("depth")
+        b.extend(mods_with_params)
+        mods_with_params = mod.get_params("decoder")
+        b.extend(mods_with_params)
+
     elif args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "convs_depth_addition" or args.full_model_name == "convs_depth_concatenation2":
         b.append(mod.depth_encoder.conv1.parameters())
         b.append(mod.depth_encoder.conv2.parameters())
