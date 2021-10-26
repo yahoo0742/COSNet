@@ -548,9 +548,9 @@ def main():
     loss_history = []
     for epoch in range(start_epoch, int(args.maxEpoches)):
         print("......epoch=", epoch)
+        np.random.seed(args.random_seed + epoch)
         if db_train.next_batch:
             db_train.next_batch()
-        np.random.seed(args.random_seed + epoch)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
             logMem(logger, " Start batch")
 
