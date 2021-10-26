@@ -491,6 +491,7 @@ class sbm_rgbd(Dataset):
 
         else:
             to_be_in_subset = self.stage
+            self._Log("Randomly split dataset for "+self.stage)
             for seq in self.sets['entire']['names_of_sequences']:
                 frames_of_seq = self._get_frames_of_seq('entire', seq)
                 if not frames_of_seq:
