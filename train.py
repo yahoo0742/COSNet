@@ -292,11 +292,11 @@ def get_10x_lr_params(model):
         b.append(mod.main_classifier2.parameters())
     elif args.full_model_name == "resnet_aspp_add":
         mods_with_params = mod.get_params("rgb_attention")
-        b.extend(mods_with_params)
+        b.extend(mods_with_params.parameters())
         mods_with_params = mod.get_params("depth")
-        b.extend(mods_with_params)
+        b.extend(mods_with_params.parameters())
         mods_with_params = mod.get_params("decoder")
-        b.extend(mods_with_params)
+        b.extend(mods_with_params.parameters())
 
     elif args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "convs_depth_addition" or args.full_model_name == "convs_depth_concatenation2":
         b.append(mod.depth_encoder.conv1.parameters())
