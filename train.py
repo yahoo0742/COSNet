@@ -300,6 +300,7 @@ def get_10x_lr_params(model):
         for j in range(len(b)):
             for i in b[j].parameters():
                 yield i
+        return
 
     elif args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "convs_depth_addition" or args.full_model_name == "convs_depth_concatenation2":
         b.append(mod.depth_encoder.conv1.parameters())
