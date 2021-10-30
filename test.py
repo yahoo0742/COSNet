@@ -319,7 +319,9 @@ def main():
             if visualize_features:
                 features_save_path = os.path.join(args.result_dir ,"debug", "features")
                 deeplabv3_fea_sum = deeplabv3_fea_sum/args.sample_range
-                save_feature_maps(deeplabv3_fea_sum, features_save_path, "deeplabv3_S{}_F{}".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize]))
+                features_save_filename = "deeplabv3_S{}_F{}".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
+                features_save_filename = features_save_filename.replace("/", "_")
+                save_feature_maps(deeplabv3_fea_sum, features_save_path, features_save_filename)
 
             # resize
             output2 = []
