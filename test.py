@@ -288,6 +288,8 @@ def main():
 
             output_sum = 0
             deeplabv3_fea_sum = 0
+            att_fea_sum = 0
+            encoder_fea_sum = 0
             for i in range(0,args.sample_range):  
                 search_img = batch['search'+'_'+str(i)]
                 search_depth = batch['search_'+str(i)+'_depth']
@@ -311,17 +313,32 @@ def main():
                     if index == 0 and visualize_features:
                         # the channel number is large, to not pollute the disk, only save the features of a target image from the first batch to image files
                         deeplabv3_fea_sum = deeplabv3_fea_sum + deeplabv3_fea.data.cpu().numpy()[image_index_in_batch_to_visualize] # only for the first image in the batch
-
+                        att_fea_sum = att_fea_sum + att_fea.data.cpu().numpy()[image_index_in_batch_to_visualize]
+                        encoder_fea_sum = encoder_fea_sum + encoder_fea.data.cpu().numpy()[image_index_in_batch_to_visualize]
 
             output1 = output_sum/args.sample_range
             outputarray = np.array(output1)
 
             if index == 0 and visualize_features:
                 features_save_path = os.path.join(args.result_dir ,"debug", "features")
-                deeplabv3_fea_sum = deeplabv3_fea_sum/args.sample_range
-                features_save_filename = "deeplabv3_S{}_F{}".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
+
+                # deeplabv3 features
+                # deeplabv3_fea_sum = deeplabv3_fea_sum/args.sample_range
+                # features_save_filename = "{}_F{}_deeplabv3".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
+                # features_save_filename = features_save_filename.replace("/", "_")
+                # save_feature_maps(deeplabv3_fea_sum, features_save_path, features_save_filename)
+
+                #attention features
+                att_fea_sum = att_fea_sum/args.sample_range
+                features_save_filename = "{}_F{}_att_feat".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
                 features_save_filename = features_save_filename.replace("/", "_")
-                save_feature_maps(deeplabv3_fea_sum, features_save_path, features_save_filename)
+                save_feature_maps(att_fea_sum, features_save_path, features_save_filename)
+
+                #encoder features
+                encoder_fea_sum = encoder_fea_sum/args.sample_range
+                features_save_filename = "{}_F{}_encoder_feat".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
+                features_save_filename = features_save_filename.replace("/", "_")
+                save_feature_maps(encoder_fea_sum, features_save_path, features_save_filename)
 
             # resize
             output2 = []
