@@ -149,7 +149,7 @@ def convert_state_dict(state_dict):
     state_dict_new = OrderedDict()
     #print(type(state_dict))
     for k, v in state_dict.items():
-        print("state key: ",k)
+        # print("state key: ",k)
         if k.startswith("module."):
             name = k[k.index(".")+1:] # k is like module.encoder.backbone.layer2.xxxx
         else:
@@ -287,7 +287,7 @@ def main():
             seqs_name = batch['seq_name']
 
             output_sum = 0
-            deeplabv3_fea_sum = 0
+            decoded_fea_sum = 0
             att_fea_sum = 0
             encoder_fea_sum = 0
             for i in range(0,args.sample_range):  
@@ -296,9 +296,9 @@ def main():
                 #print(search_img.size())
                 with torch.no_grad():
                     if args.full_model_name == "resnet_aspp_add":
-                        pred1, pred2, label1, deeplabv3_fea, att_fea, encoder_fea = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
+                        pred1, pred2, label1, decoded_fea, att_fea, encoder_fea = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
                     elif args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
-                        pred1, pred2, label1, deeplabv3_fea, att_fea, encoder_fea = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
+                        pred1, pred2, label1, decoded_fea, att_fea, encoder_fea = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
                     else:
                         visualize_features = False
                         pred1, pred2, label1 = model(Variable(target).cuda(),Variable(search_img).cuda())
@@ -312,7 +312,7 @@ def main():
                     # visualize feature maps
                     if index == 0 and visualize_features:
                         # the channel number is large, to not pollute the disk, only save the features of a target image from the first batch to image files
-                        deeplabv3_fea_sum = deeplabv3_fea_sum + deeplabv3_fea.data.cpu().numpy()[image_index_in_batch_to_visualize] # only for the first image in the batch
+                        decoded_fea_sum = decoded_fea_sum + decoded_fea.data.cpu().numpy()[image_index_in_batch_to_visualize] # only for the first image in the batch
                         att_fea_sum = att_fea_sum + att_fea.data.cpu().numpy()[image_index_in_batch_to_visualize]
                         encoder_fea_sum = encoder_fea_sum + encoder_fea.data.cpu().numpy()[image_index_in_batch_to_visualize]
 
@@ -323,22 +323,22 @@ def main():
                 features_save_path = os.path.join(args.result_dir ,"debug", "features")
 
                 # deeplabv3 features
-                # deeplabv3_fea_sum = deeplabv3_fea_sum/args.sample_range
-                # features_save_filename = "{}_F{}_deeplabv3".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
+                decoded_fea_sum = decoded_fea_sum/args.sample_range
+                features_save_filename = "{}_F{}_decoded".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
+                features_save_filename = features_save_filename.replace("/", "_")
+                save_feature_maps(decoded_fea_sum, features_save_path, features_save_filename)
+
+                # #attention features
+                # att_fea_sum = att_fea_sum/args.sample_range
+                # features_save_filename = "{}_F{}_att_feat".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
                 # features_save_filename = features_save_filename.replace("/", "_")
-                # save_feature_maps(deeplabv3_fea_sum, features_save_path, features_save_filename)
+                # save_feature_maps(att_fea_sum, features_save_path, features_save_filename)
 
-                #attention features
-                att_fea_sum = att_fea_sum/args.sample_range
-                features_save_filename = "{}_F{}_att_feat".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
-                features_save_filename = features_save_filename.replace("/", "_")
-                save_feature_maps(att_fea_sum, features_save_path, features_save_filename)
-
-                #encoder features
-                encoder_fea_sum = encoder_fea_sum/args.sample_range
-                features_save_filename = "{}_F{}_encoder_feat".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
-                features_save_filename = features_save_filename.replace("/", "_")
-                save_feature_maps(encoder_fea_sum, features_save_path, features_save_filename)
+                # #encoder features
+                # encoder_fea_sum = encoder_fea_sum/args.sample_range
+                # features_save_filename = "{}_F{}_encoder_feat".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize])
+                # features_save_filename = features_save_filename.replace("/", "_")
+                # save_feature_maps(encoder_fea_sum, features_save_path, features_save_filename)
 
             # resize
             output2 = []
