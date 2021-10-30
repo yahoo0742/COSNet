@@ -258,12 +258,12 @@ class RGBDSegmentation_RAA(nn.Module):
         Z_b  = self.prelu(Z_b )
 
         # Segmentation
-        x1d = self.segmentation_classifier_A(Z_a)
+        x1 = self.segmentation_classifier_A(Z_a)
         x2 = self.segmentation_classifier_B(Z_b)
-        x1 = F.upsample(x1d, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
+        x1d = F.upsample(x1, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
         x2 = F.upsample(x2, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
         #print("after upsample, tensor size:", x.size())
-        x1 = self.softmax(x1)
+        x1 = self.softmax(x1d)
         x2 = self.softmax(x2)
 
         return x1, x2, labels, x1d, Att_a, Z_a  #shape: [N, 1, H, W]
