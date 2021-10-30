@@ -275,6 +275,7 @@ def main():
     ct = 0
     max_epoch = 1
     image_index_in_batch_to_visualize = 0
+    visualize_features = True
     while ct < max_epoch:
         ct = ct + 1
         for index, batch in enumerate(testloader):
@@ -297,6 +298,7 @@ def main():
                     elif args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
                         pred1, pred2, label1, deeplabv3_fea, att_fea, encoder_fea = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
                     else:
+                        visualize_features = False
                         pred1, pred2, label1 = model(Variable(target).cuda(),Variable(search_img).cuda())
 
                     #print(output[0]) # output有两个
@@ -306,7 +308,7 @@ def main():
                     #output2 = output[1].data[0, 0].cpu().numpy() #interp'
 
                     # visualize feature maps
-                    if index == 0 and deeplabv3_fea:
+                    if index == 0 and visualize_features:
                         # the channel number is large, to not pollute the disk, only save the features of a target image from the first batch to image files
                         deeplabv3_fea_sum = deeplabv3_fea_sum + deeplabv3_fea.data.cpu().numpy()[image_index_in_batch_to_visualize] # only for the first image in the batch
 
