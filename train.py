@@ -619,7 +619,7 @@ def main():
             del current_gt
             del counterpart_rgb
             del batch
-            del pred1, obj_label
+            del pred1
 
             if not ignore_counterpart_loss:
                 del counterpart_gt, pred2
