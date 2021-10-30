@@ -595,9 +595,9 @@ def main():
                 pred1, pred2, obj_label = model(current_rgb, counterpart_rgb)
             else:
                 if not ignore_counterpart_loss:
-                    pred1, pred2, obj_label, deeplabv3_fea, att_fea, encoder_fea = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
+                    pred1, pred2 = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
                 else:
-                    pred1, obj_label, deeplabv3_fea, att_fea, encoder_fea = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
+                    pred1 = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
 
             loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt)
             if not ignore_counterpart_loss:
@@ -621,9 +621,6 @@ def main():
             del batch
             del pred1, obj_label
 
-
-            if deeplabv3_fea:
-                del deeplabv3_fea, att_fea, encoder_fea
             if not ignore_counterpart_loss:
                 del counterpart_gt, pred2
 

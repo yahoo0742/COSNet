@@ -139,131 +139,133 @@ class RGBDSegmentation_RAA(nn.Module):
     def forward(self, rgbs_a, rgbs_b, depths_a, depths_b):
         input_size = rgbs_a.size()[2:] # H, W
 
-        # RGB
-        V_a, labels = self.encoder(rgbs_a)
-        if self.no_grad_for_counterpart:
-            with torch.no_grad():
-                V_b, labels = self.encoder(rgbs_b) # N, C, H, W
-        else:
-            V_b, labels = self.encoder(rgbs_b) # N, C, H, W
-
-        rgb_feat_channels = V_a.size()[1] 
-        rgb_feat_hw = V_a.size()[2:]
-
-        all_dim = rgb_feat_hw[0]*rgb_feat_hw[1] #H*W
-        V_a_flat = V_a.view(-1, rgb_feat_channels, all_dim) #N, C, H*W
-        V_b_flat = V_b.view(-1, rgb_feat_channels, all_dim) #N, C, H*W
-
-        # S = B W A_transform
-        V_a_flat_t = torch.transpose(V_a_flat,1,2).contiguous()  #N, H*W, C
-        V_a_flat_t = self.rgb_similarity_weights(V_a_flat_t) # V_a_flat_t = V_a_flat_t * W, [N, H*W, C]
-        S = torch.bmm(V_a_flat_t, V_b_flat) # S = V_a_flat_t prod V_b_flat, [N, H*W, H*W]
-
-        del V_a_flat_t
-
-        S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
-        S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
-
-        del S
-
-        Z_b = torch.bmm(V_a_flat, S_row).contiguous() #Z_b = V_a_flat prod S_row [N, C, H*W]
-        Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column [N, C, H*W]
-
-        del V_a_flat, V_b_flat
-        del S_row, S_column
-        
-        Att_a = Z_a.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
-        Att_b = Z_b.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
-
-        input_mask_a = self.gate(Att_a) #[N, 1, H, W]
-        with torch.no_grad():
-            input_mask_b = self.gate(Att_b) #[N, 1, H, W]
-        input_mask_a = self.gate_s(input_mask_a) #[N, 1, H, W]
-        with torch.no_grad():
-            input_mask_b = self.gate_s(input_mask_b) #[N, 1, H, W]
-        Z_a = Att_a * input_mask_a # [N, C, H, W]
-        Z_b = Att_b * input_mask_b # [N, C, H, W]
-
-        Z_a = torch.cat([Z_a, V_a],1) # [N, 2C, H, W]
-        Z_b = torch.cat([Z_b, V_b],1) # [N, 2C, H, W]
-        Z_a  = self.reduce_channels_A(Z_a ) # [N, C, H, W]
-        Z_b  = self.reduce_channels_B(Z_b ) # [N, C, H, W]
-        Z_a  = self.bn_A(Z_a ) # [N, C, H, W]
-        Z_b  = self.bn_B(Z_b ) # [N, C, H, W]
-        # Z_a  = self.prelu(Z_a )
-        # Z_b  = self.prelu(Z_b )
-
-        del V_b
-
-        # # Depth
-        # D_a = self.depth_encoder(depths_a) # N, C, H, W
+        # # RGB
+        # V_a, labels = self.encoder(rgbs_a)
         # if self.no_grad_for_counterpart:
         #     with torch.no_grad():
-        #         D_b = self.depth_encoder(depths_b) # N, C, H, W
+        #         V_b, labels = self.encoder(rgbs_b) # N, C, H, W
         # else:
-        #     D_b = self.depth_encoder(depths_b) # N, C, H, W
-        # depth_feat_channels = D_a.shape[1]
-        # depth_feat_hw = D_a.size()[2:]
-        # all_dim = depth_feat_hw[0] * depth_feat_hw[1] #H*W
-        # D_a_flat = D_a.view(-1, depth_feat_channels, all_dim) #N, C, H*W
-        # D_b_flat = D_b.view(-1, depth_feat_channels, all_dim) #N, C, H*W
+        #     V_b, labels = self.encoder(rgbs_b) # N, C, H, W
+
+        # rgb_feat_channels = V_a.size()[1] 
+        # rgb_feat_hw = V_a.size()[2:]
+
+        # all_dim = rgb_feat_hw[0]*rgb_feat_hw[1] #H*W
+        # V_a_flat = V_a.view(-1, rgb_feat_channels, all_dim) #N, C, H*W
+        # V_b_flat = V_b.view(-1, rgb_feat_channels, all_dim) #N, C, H*W
 
         # # S = B W A_transform
-        # D_a_flat_t = torch.transpose(D_a_flat,1,2).contiguous()  #N, H*W, C
-        # D_a_flat_t = self.depth_similarity_weights(D_a_flat_t) # D_a_flat_t = D_a_flat_t * W, [N, H*W, C]
-        # S = torch.bmm(D_a_flat_t, D_b_flat) # S = D_a_flat_t prod D_b_flat, [N, H*W, H*W]
+        # V_a_flat_t = torch.transpose(V_a_flat,1,2).contiguous()  #N, H*W, C
+        # V_a_flat_t = self.rgb_similarity_weights(V_a_flat_t) # V_a_flat_t = V_a_flat_t * W, [N, H*W, C]
+        # S = torch.bmm(V_a_flat_t, V_b_flat) # S = V_a_flat_t prod V_b_flat, [N, H*W, H*W]
+
+        # del V_a_flat_t
 
         # S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
         # S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
 
         # del S
 
-        # D_Z_b = torch.bmm(D_a_flat, S_row).contiguous() #DZ_b = D_a_flat prod S_row
-        # D_Z_a = torch.bmm(D_b_flat, S_column).contiguous() # DZ_a = D_b_flat prod S_column
+        # Z_b = torch.bmm(V_a_flat, S_row).contiguous() #Z_b = V_a_flat prod S_row [N, C, H*W]
+        # Z_a = torch.bmm(V_b_flat, S_column).contiguous() # Z_a = V_b_flat prod S_column [N, C, H*W]
 
+        # del V_a_flat, V_b_flat
         # del S_row, S_column
-        # del D_a_flat, D_a_flat_t, D_b_flat, 
+        
+        # Att_a = Z_a.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
+        # Att_b = Z_b.view(-1, rgb_feat_channels, rgb_feat_hw[0], rgb_feat_hw[1]) # [N, C, H, W]
 
-        # D_Z_a = D_Z_a.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
-        # D_Z_b = D_Z_b.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
-        # D_input_mask_a = self.depth_gate(D_Z_a)
+        # input_mask_a = self.gate(Att_a) #[N, 1, H, W]
         # with torch.no_grad():
-        #     D_input_mask_b = self.depth_gate(D_Z_b)
-        # D_input_mask_a = self.depth_gate_s(D_input_mask_a)
+        #     input_mask_b = self.gate(Att_b) #[N, 1, H, W]
+        # input_mask_a = self.gate_s(input_mask_a) #[N, 1, H, W]
         # with torch.no_grad():
-        #     D_input_mask_b = self.depth_gate_s(D_input_mask_b)
-        # D_Z_a = D_Z_a * D_input_mask_a
-        # D_Z_b = D_Z_b * D_input_mask_b
+        #     input_mask_b = self.gate_s(input_mask_b) #[N, 1, H, W]
+        # Z_a = Att_a * input_mask_a # [N, C, H, W]
+        # Z_b = Att_b * input_mask_b # [N, C, H, W]
 
-        # D_Z_a = torch.cat([D_Z_a, D_a],1) 
-        # D_Z_b = torch.cat([D_Z_b, D_b],1)
-        # D_Z_a  = self.depth_reduce_channels(D_Z_a )
-        # with torch.no_grad():
-        #     D_Z_b  = self.depth_reduce_channels(D_Z_b ) 
-        # D_Z_a  = self.depth_bn(D_Z_a )
-        # with torch.no_grad():
-        #     D_Z_b  = self.depth_bn(D_Z_b )
+        # Z_a = torch.cat([Z_a, V_a],1) # [N, 2C, H, W]
+        # Z_b = torch.cat([Z_b, V_b],1) # [N, 2C, H, W]
+        # Z_a  = self.reduce_channels_A(Z_a ) # [N, C, H, W]
+        # Z_b  = self.reduce_channels_B(Z_b ) # [N, C, H, W]
+        # Z_a  = self.bn_A(Z_a ) # [N, C, H, W]
+        # Z_b  = self.bn_B(Z_b ) # [N, C, H, W]
+        # # Z_a  = self.prelu(Z_a )
+        # # Z_b  = self.prelu(Z_b )
+
+        # del V_b
+
+        # Depth
+        D_a = self.depth_encoder(depths_a) # N, C, H, W
+        if self.no_grad_for_counterpart:
+            with torch.no_grad():
+                D_b = self.depth_encoder(depths_b) # N, C, H, W
+        else:
+            D_b = self.depth_encoder(depths_b) # N, C, H, W
+        depth_feat_channels = D_a.shape[1]
+        depth_feat_hw = D_a.size()[2:]
+        all_dim = depth_feat_hw[0] * depth_feat_hw[1] #H*W
+        D_a_flat = D_a.view(-1, depth_feat_channels, all_dim) #N, C, H*W
+        D_b_flat = D_b.view(-1, depth_feat_channels, all_dim) #N, C, H*W
+
+        # S = B W A_transform
+        D_a_flat_t = torch.transpose(D_a_flat,1,2).contiguous()  #N, H*W, C
+        D_a_flat_t = self.depth_similarity_weights(D_a_flat_t) # D_a_flat_t = D_a_flat_t * W, [N, H*W, C]
+        S = torch.bmm(D_a_flat_t, D_b_flat) # S = D_a_flat_t prod D_b_flat, [N, H*W, H*W]
+
+        S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
+        S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
+
+        del S
+
+        D_Z_b = torch.bmm(D_a_flat, S_row).contiguous() #DZ_b = D_a_flat prod S_row
+        D_Z_a = torch.bmm(D_b_flat, S_column).contiguous() # DZ_a = D_b_flat prod S_column
+
+        del S_row, S_column
+        del D_a_flat, D_a_flat_t, D_b_flat, 
+
+        D_Z_a = D_Z_a.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
+        D_Z_b = D_Z_b.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
+        D_input_mask_a = self.depth_gate(D_Z_a)
+        with torch.no_grad():
+            D_input_mask_b = self.depth_gate(D_Z_b)
+        D_input_mask_a = self.depth_gate_s(D_input_mask_a)
+        with torch.no_grad():
+            D_input_mask_b = self.depth_gate_s(D_input_mask_b)
+        D_Z_a = D_Z_a * D_input_mask_a
+        D_Z_b = D_Z_b * D_input_mask_b
+
+        D_Z_a = torch.cat([D_Z_a, D_a],1) 
+        D_Z_b = torch.cat([D_Z_b, D_b],1)
+        D_Z_a  = self.depth_reduce_channels(D_Z_a )
+        with torch.no_grad():
+            D_Z_b  = self.depth_reduce_channels(D_Z_b ) 
+        D_Z_a  = self.depth_bn(D_Z_a )
+        with torch.no_grad():
+            D_Z_b  = self.depth_bn(D_Z_b )
+
         # D_Z_a  = self.depth_weights(D_Z_a)
         # with torch.no_grad():
         #     D_Z_b  = self.depth_weights(D_Z_b)
-        # # D_Z_a  = self.prelu(D_Z_a )
-        # # D_Z_b  = self.prelu(D_Z_b )
+
+        D_Z_a  = self.prelu(D_Z_a )
+        D_Z_b  = self.prelu(D_Z_b )
 
         # Z_a = torch.add(Z_a, D_Z_a)
         # Z_b = torch.add(Z_b, D_Z_b)
 
         # del D_Z_a, D_Z_b
 
-        Z_a  = self.prelu(Z_a )
-        Z_b  = self.prelu(Z_b )
+        # Z_a  = self.prelu(Z_a )
+        # Z_b  = self.prelu(Z_b )
 
         # Segmentation
-        x1 = self.segmentation_classifier_A(Z_a)
-        x2 = self.segmentation_classifier_B(Z_b)
+        x1 = self.segmentation_classifier_A(D_Z_a)
+        x2 = self.segmentation_classifier_B(D_Z_b)
         x1d = F.upsample(x1, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
         x2 = F.upsample(x2, input_size, mode='bilinear')  #upsample to the size of input image, scale=8
         #print("after upsample, tensor size:", x.size())
         x1 = self.softmax(x1d)
         x2 = self.softmax(x2)
 
-        return x1, x2, labels, x1d, Att_a, Z_a  #shape: [N, 1, H, W]
+        return x1, x2  #shape: [N, 1, H, W]
