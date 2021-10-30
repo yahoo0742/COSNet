@@ -370,8 +370,8 @@ def save_feature_maps(feature_maps_of_an_img, save_path, filename):
         if img:
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
-            filename = os.path.join(save_path, '{}_C{}.png'.format(filename, chanl))
-            img.save(filename)
+            crt_fn = os.path.join(save_path, '{}_C{}.png'.format(filename, chanl))
+            img.save(crt_fn)
 
 
 if __name__ == '__main__':
