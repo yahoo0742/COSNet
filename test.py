@@ -274,6 +274,7 @@ def main():
 
     ct = 0
     max_epoch = 1
+    image_index_in_batch_to_visualize = 0
     while ct < max_epoch:
         ct = ct + 1
         for index, batch in enumerate(testloader):
@@ -284,27 +285,39 @@ def main():
             frame_index = batch['frame_index']
             seqs_name = batch['seq_name']
 
-            output_sum = 0 
+            output_sum = 0
+            deeplabv3_fea_sum = 0
             for i in range(0,args.sample_range):  
                 search_img = batch['search'+'_'+str(i)]
                 search_depth = batch['search_'+str(i)+'_depth']
                 #print(search_img.size())
                 with torch.no_grad():
                     if args.full_model_name == "resnet_aspp_add":
-                        output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
+                        pred1, pred2, label1, deeplabv3_fea, att_fea, encoder_fea = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
                     elif args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
-                        output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
+                        pred1, pred2, label1, deeplabv3_fea, att_fea, encoder_fea = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
                     else:
-                        output = model(Variable(target).cuda(),Variable(search_img).cuda())
+                        pred1, pred2, label1 = model(Variable(target).cuda(),Variable(search_img).cuda())
 
                     #print(output[0]) # output有两个
                     # output_sum = output_sum + output[0].data[0,0].cpu().numpy() #分割那个分支的结果
-                    output_sum = output_sum + output[0].data.cpu().numpy() #分割那个分支的结果^M
+                    output_sum = output_sum + pred1.data.cpu().numpy() #分割那个分支的结果^M
                     #np.save('infer'+str(i)+'.npy',output1)
                     #output2 = output[1].data[0, 0].cpu().numpy() #interp'
-            
+
+                    # visualize feature maps
+                    if index == 0 and deeplabv3_fea:
+                        # the channel number is large, to not pollute the disk, only save the features of a target image from the first batch to image files
+                        deeplabv3_fea_sum = deeplabv3_fea_sum + deeplabv3_fea.data.cpu().numpy()[image_index_in_batch_to_visualize] # only for the first image in the batch
+
+
             output1 = output_sum/args.sample_range
             outputarray = np.array(output1)
+
+            if deeplabv3_fea_sum:
+                features_save_path = os.path.join(args.snapshot_dir,"debug", "features")
+                deeplabv3_fea_sum = deeplabv3_fea_sum/args.sample_range
+                save_feature_maps(deeplabv3_fea_sum, features_save_path, "deeplabv3_S{}_F{}".format(seqs_name[image_index_in_batch_to_visualize], frame_index[image_index_in_batch_to_visualize]))
 
             # resize
             output2 = []
@@ -343,6 +356,18 @@ def main():
     iou_result = iou_result/iou_counter
     logger.write(log_section_start+" final IOU: "+ str(iou_result) +log_section_end+"\n")
     logger.flush()
+
+
+def save_feature_maps(feature_maps_of_an_img, save_path, filename):
+    feas = feature_maps_of_an_img #feature_maps_of_an_img.data.cpu().numpy()
+    for chanl in range(len(feas)):
+        fea = feas[chanl]
+        img = Image.fromarray(fea, mode='L')
+        if img:
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            filename = os.path.join(save_path, '{}_C{}.png'.format(filename, chanl))
+            img.save(filename)
 
 
 if __name__ == '__main__':
