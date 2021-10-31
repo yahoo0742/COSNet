@@ -627,10 +627,10 @@ def main():
             torch.cuda.empty_cache()
             logMem(logger, " After GC")
 
-                
-        print("=====> saving model")
-        state={"epoch": epoch+1, "model": model.state_dict()}
-        torch.save(state, osp.join(args.snapshot_dir, 'snapshot_'+str(args.dataset)+"_"+str(epoch)+'.pth'))
+        if epoch >= int(args.maxEpoches) -1:
+            print("=====> saving model")
+            state={"epoch": epoch+1, "model": model.state_dict()}
+            torch.save(state, osp.join(args.snapshot_dir, 'snapshot_'+str(args.dataset)+"_"+str(epoch)+'.pth'))
 
 
     end = timeit.default_timer()
