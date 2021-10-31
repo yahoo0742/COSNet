@@ -43,6 +43,10 @@ class RGBDSegmentation_RAA(nn.Module):
         self.depth_weights = nn.Conv2d(all_channel, all_channel, kernel_size=1, bias = True)
         # self.prelu = nn.ReLU(inplace=True)
 
+        # Fusion
+        self.fusion_conv1 = nn.Conv2d(all_channel*2, all_channel, kernel_size=3, padding=1, bias = False)
+        self.fusion_conv2 = nn.Conv2d(all_channel, all_channel, kernel_size=3, padding=1, bias = False)
+
         # Decoder
         self.segmentation_classifier_A = nn.Conv2d(all_channel, num_classes, kernel_size=1, bias = True)
         self.segmentation_classifier_B = nn.Conv2d(all_channel, num_classes, kernel_size=1, bias = True)
@@ -92,6 +96,8 @@ class RGBDSegmentation_RAA(nn.Module):
             modules_with_params.append(self.depth_reduce_channels)
             modules_with_params.append(self.depth_bn)
             modules_with_params.append(self.depth_weights)
+            modules_with_params.append(self.fusion_conv1)
+            modules_with_params.append(self.fusion_conv2)
 
         if subset == "decoder" or subset == "all":
             modules_with_params.append(self.segmentation_classifier_A)
@@ -189,72 +195,24 @@ class RGBDSegmentation_RAA(nn.Module):
         Z_b  = self.reduce_channels_B(Z_b ) # [N, C, H, W]
         Z_a  = self.bn_A(Z_a ) # [N, C, H, W]
         Z_b  = self.bn_B(Z_b ) # [N, C, H, W]
-        # Z_a  = self.prelu(Z_a )
-        # Z_b  = self.prelu(Z_b )
 
         del V_a, V_b
 
         # Depth
         D_a = self.depth_encoder(depths_a) # N, C, H, W
-        if self.no_grad_for_counterpart:
-            with torch.no_grad():
-                D_b = self.depth_encoder(depths_b) # N, C, H, W
-        else:
-            D_b = self.depth_encoder(depths_b) # N, C, H, W
-        depth_feat_channels = D_a.shape[1]
-        depth_feat_hw = D_a.size()[2:]
-        all_dim = depth_feat_hw[0] * depth_feat_hw[1] #H*W
-        D_a_flat = D_a.view(-1, depth_feat_channels, all_dim) #N, C, H*W
-        D_b_flat = D_b.view(-1, depth_feat_channels, all_dim) #N, C, H*W
+        D_a = self.depth_bn(D_a)
 
-        # S = B W A_transform
-        D_a_flat_t = torch.transpose(D_a_flat,1,2).contiguous()  #N, H*W, C
-        D_a_flat_t = self.depth_similarity_weights(D_a_flat_t) # D_a_flat_t = D_a_flat_t * W, [N, H*W, C]
-        S = torch.bmm(D_a_flat_t, D_b_flat) # S = D_a_flat_t prod D_b_flat, [N, H*W, H*W]
-
-        S_row = F.softmax(S.clone(), dim = 1) # every slice along dim 1 will sum to 1, S row-wise
-        S_column = F.softmax(torch.transpose(S,1,2),dim=1) # S column-wise
-
-        del S
-
-        D_Z_b = torch.bmm(D_a_flat, S_row).contiguous() #DZ_b = D_a_flat prod S_row
-        D_Z_a = torch.bmm(D_b_flat, S_column).contiguous() # DZ_a = D_b_flat prod S_column
-
-        del S_row, S_column
-        del D_a_flat, D_a_flat_t, D_b_flat, 
-
-        D_Z_a = D_Z_a.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
-        D_Z_b = D_Z_b.view(-1, depth_feat_channels, depth_feat_hw[0], depth_feat_hw[1]) # [N, C, H, W]
-        D_input_mask_a = self.depth_gate(D_Z_a)
-        with torch.no_grad():
-            D_input_mask_b = self.depth_gate(D_Z_b)
-        D_input_mask_a = self.depth_gate_s(D_input_mask_a)
-        with torch.no_grad():
-            D_input_mask_b = self.depth_gate_s(D_input_mask_b)
-        D_Z_a = D_Z_a * D_input_mask_a
-        D_Z_b = D_Z_b * D_input_mask_b
-
-        D_Z_a = torch.cat([D_Z_a, D_a],1) 
-        D_Z_b = torch.cat([D_Z_b, D_b],1)
-        D_Z_a  = self.depth_reduce_channels(D_Z_a )
-        with torch.no_grad():
-            D_Z_b  = self.depth_reduce_channels(D_Z_b ) 
-        D_Z_a  = self.depth_bn(D_Z_a )
-        with torch.no_grad():
-            D_Z_b  = self.depth_bn(D_Z_b )
-        D_Z_a  = self.depth_weights(D_Z_a)
-        with torch.no_grad():
-            D_Z_b  = self.depth_weights(D_Z_b)
         # D_Z_a  = self.prelu(D_Z_a )
         # D_Z_b  = self.prelu(D_Z_b )
 
-        Z_a = torch.add(Z_a, D_Z_a)
-        Z_b = torch.add(Z_b, D_Z_b)
+        rgbd_a = torch.cat([Z_a, D_a],1)
+        rgbd_a = self.fusion_conv1(rgbd_a)
+        rgbd_a = self.fusion_conv2(rgbd_a)
 
-        del D_Z_a, D_Z_b
 
-        Z_a  = self.prelu(Z_a )
+        Z_a  = self.prelu(rgbd_a )
         Z_b  = self.prelu(Z_b )
+
 
         # Segmentation
         x1 = self.segmentation_classifier_A(Z_a)
