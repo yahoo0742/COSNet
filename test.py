@@ -252,7 +252,7 @@ def main():
         db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbdt', channels_for_counterpart_frame='rgbd',  subset_percentage=1, subset=user_config["test"]["dataset"]["hzfurgbd"]["subset"], for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'sbmrgbd':
-        db_test = sbmrgbd_db.sbm_rgbd(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbdt', channels_for_counterpart_frame='rgbd',  subset_percentage=1, subset=user_config["test"]["dataset"]["sbmrgbd"]["subset"], for_training=False, batch_size=args.batch_size)
+        db_test = sbmrgbd_db.sbm_rgbd(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbdt', channels_for_counterpart_frame='rgbd',  subset_percentage=0.25, for_training=False, batch_size=args.batch_size, subset=None) #user_config["test"]["dataset"]["sbmrgbd"]["subset"])
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
@@ -275,7 +275,7 @@ def main():
     ct = 0
     max_epoch = 1
     image_index_in_batch_to_visualize = 0
-    visualize_features = True
+    visualize_features = False
     while ct < max_epoch:
         ct = ct + 1
         for index, batch in enumerate(testloader):
@@ -296,9 +296,9 @@ def main():
                 #print(search_img.size())
                 with torch.no_grad():
                     if args.full_model_name == "resnet_aspp_add":
-                        pred1, pred2, label1, decoded_fea, att_fea, encoder_fea = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
+                        pred1, pred2 = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
                     elif args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
-                        pred1, pred2, label1, decoded_fea, att_fea, encoder_fea = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
+                        pred1, pred2 = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
                     else:
                         visualize_features = False
                         pred1, pred2, label1 = model(Variable(target).cuda(),Variable(search_img).cuda())
@@ -308,13 +308,6 @@ def main():
                     output_sum = output_sum + pred1.data.cpu().numpy() #分割那个分支的结果^M
                     #np.save('infer'+str(i)+'.npy',output1)
                     #output2 = output[1].data[0, 0].cpu().numpy() #interp'
-
-                    # visualize feature maps
-                    if index == 0 and visualize_features:
-                        # the channel number is large, to not pollute the disk, only save the features of a target image from the first batch to image files
-                        decoded_fea_sum = decoded_fea_sum + decoded_fea.data.cpu().numpy()[image_index_in_batch_to_visualize] # only for the first image in the batch
-                        att_fea_sum = att_fea_sum + att_fea.data.cpu().numpy()[image_index_in_batch_to_visualize]
-                        encoder_fea_sum = encoder_fea_sum + encoder_fea.data.cpu().numpy()[image_index_in_batch_to_visualize]
 
             output1 = output_sum/args.sample_range
             outputarray = np.array(output1)
@@ -353,7 +346,8 @@ def main():
             masks = []
             for idx in range(len(masks_data_uint8)):
                 x = masks_data_uint8[idx]
-                iou = compute_iou(x, np.array(batch['target_gt'][idx]))
+                gt_img = cv2.resize(np.array(batch['target_gt'][idx]), args.output_WH)
+                iou = compute_iou(x, gt_img)
                 logger.write(log_section_start+" seq: "+ seqs_name[idx]+" frame: "+frame_index[idx]+" IOU: "+str(iou)+log_section_end+"\n")
                 iou_result = iou + iou_result
                 iou_counter = iou_counter + 1
