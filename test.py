@@ -79,7 +79,7 @@ def get_arguments():
     parser.add_argument("--epoches", default=0)
     parser.add_argument("--batch_size", default=0)
     parser.add_argument("--model", default="add", help="ori, retrain, ref, add, padd, conv_add, or coc")
-
+    parser.add_argument("--channels", default="rgbd", help="'rgb',or 'd'")
     return parser.parse_args()
 
 
@@ -227,6 +227,7 @@ def main():
     model.eval()
     model.cuda()
 
+    channels_for_target_frame = args.channels+'t'
     if args.dataset == 'davis':  #for davis 2016
         db_test = db.PairwiseImg(train=False, output_HW=(854,480), db_root_dir=args.data_path,  transform=None, seq_name = None, sample_range = args.sample_range) #db_root_dir() --> '/path/to/DAVIS-2016' train path
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=False, num_workers=0)
@@ -238,10 +239,10 @@ def main():
         db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbt', channels_for_counterpart_frame='rgb', subset_percentage=1, subset=user_config["test"]["dataset"]["hzfurgb"]["subset"], for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'hzfurgbd':
-        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbdt', channels_for_counterpart_frame='rgbd',  subset_percentage=1, subset=user_config["test"]["dataset"]["hzfurgbd"]["subset"], for_training=False, batch_size=args.batch_size)
+        db_test = hzfurgbd_db.HzFuRGBDVideos(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame=channels_for_target_frame, channels_for_counterpart_frame=args.channels,  subset_percentage=1, subset=user_config["test"]["dataset"]["hzfurgbd"]["subset"], for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'sbmrgbd':
-        db_test = sbmrgbd_db.sbm_rgbd(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame='rgbdt', channels_for_counterpart_frame='rgbd',  subset_percentage=1, subset=user_config["test"]["dataset"]["sbmrgbd"]["subset"], for_training=False, batch_size=args.batch_size)
+        db_test = sbmrgbd_db.sbm_rgbd(dataset_root=args.data_path, output_HW=args.image_HW_4_model, sample_range=args.sample_range, channels_for_target_frame=channels_for_target_frame, channels_for_counterpart_frame=args.channels,  subset_percentage=1, subset=None, for_training=False, batch_size=args.batch_size)
         testloader = data.DataLoader(db_test, batch_size= args.batch_size, shuffle=True, num_workers=0)
     else:
         print("dataset error")
