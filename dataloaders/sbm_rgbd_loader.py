@@ -537,6 +537,32 @@ class sbm_rgbd(Dataset):
         return None
 
     def __getitem__(self, frame_index):
+        '''
+        :return: the rgb, depth of the target frame and the rgb, depth of the matching/search frame
+        '''
+
+        def _load_frame(frame_info, channels_to_load):
+
+            def _use_depth_as_rgb(depth_data):
+                '''
+                :return: a tensor in the shape of (3, rows, columns), every channel of the tensor is a copy of the depth_data subracting the mean value
+                '''
+                r = np.array(depth_data).copy()
+                g = r.copy()
+                b = g.copy()
+                rgb = np.stack((r,g,b), axis=2) # (rows, columns, 3 channels)
+                rgb = np.subtract(rgb, np.array(self.meanval, dtype=np.float32))
+                rgb = rgb.transpose((2,0,1)) # from (rows, columns, channels) to (channels, rows, columns)
+                return rgb
+
+            rgb, depth, gt = self._load_images(frame_info, channels_to_load)
+            if 'rgb' not in channels_to_load:
+                if 'd' in channels_to_load:
+                    rgb = _use_depth_as_rgb(depth[0])
+                else:
+                    raise Exception("Invalid 'channels' parameter, which should be 'd' or 'rgb' or 'rgbd'.")
+            return rgb, depth, gt
+
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
         if frame_info:
@@ -547,7 +573,7 @@ class sbm_rgbd(Dataset):
             }
 
             # 1. target frame
-            current_rgb, current_depth, current_gt = self._load_images(frame_info, self.channels_for_target_frame)
+            current_rgb, current_depth, current_gt = self._load_frame(frame_info, self.channels_for_target_frame)
             self._Log("   target frame: "+ str(frame_index) + " seq: "+ frame_info.seq_name+ " shape: "+ str(current_rgb.shape))
             sample['target'] = current_rgb
             sample['target_depth'] = current_depth
@@ -567,7 +593,7 @@ class sbm_rgbd(Dataset):
                 key = 'search_'+str(i)
                 frame_idx = frame_indices_for_counterpart[i]
                 frame_info_of_cp = self._get_framename_by_index(set_name, frame_idx)
-                cp_rgb, cp_depth, cp_gt = self._load_images(frame_info_of_cp, self.channels_for_counterpart_frame)
+                cp_rgb, cp_depth, cp_gt = self._load_frame(frame_info_of_cp, self.channels_for_counterpart_frame)
                 self._Log("  counterpart frame: "+ str(frame_indices_candidates[i]) + " seq: "+ frame_info.seq_name+ " shape: "+ str(cp_rgb.shape))
 
                 sample[key] = cp_rgb
