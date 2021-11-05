@@ -573,11 +573,38 @@ class sbm_rgbd(Dataset):
             }
 
             # 1. target frame
-            current_rgb, current_depth, current_gt = self._load_frame(frame_info, self.channels_for_target_frame)
+            current_rgb, current_depth, current_gt = _load_frame(frame_info, self.channels_for_target_frame)
             self._Log("   target frame: "+ str(frame_index) + " seq: "+ frame_info.seq_name+ " shape: "+ str(current_rgb.shape))
             sample['target'] = current_rgb
             sample['target_depth'] = current_depth
             sample['target_gt'] = current_gt
+
+            # visualize the images for debugging
+            if self.output_dir_for_debug != None:
+                save_dir = os.path.join(self.output_dir_for_debug, frame_info.seq_name)
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)
+
+                # rgb
+                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_rgb_frame))
+                if type(current_rgb) != np.ndarray:
+                    rgb_npary = current_rgb.numpy()
+                else:
+                    rgb_npary = current_rgb
+                img = Image.fromarray(np.uint8(np.add(rgb_npary.transpose((1, 2, 0)), self.meanval)), 'RGB') #(rows, columns, channels)
+                img.save(filename)
+
+                # depth
+                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_depth_frame))
+                img = Image.fromarray(np.uint8(current_depth[0]), 'L')
+                img.save(filename)
+
+                # gt
+                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_groundtruth_frame))
+                img = Image.fromarray(np.uint8(current_gt*255), 'L')
+                img.save(filename)
+                del img
+
 
             # 2. (a) counterpart frame(s) for comparison with the target frame
             frame_range_of_seq = self.sets[set_name]['frame_range_of_sequences'][frame_info.seq_name]
@@ -593,7 +620,7 @@ class sbm_rgbd(Dataset):
                 key = 'search_'+str(i)
                 frame_idx = frame_indices_for_counterpart[i]
                 frame_info_of_cp = self._get_framename_by_index(set_name, frame_idx)
-                cp_rgb, cp_depth, cp_gt = self._load_frame(frame_info_of_cp, self.channels_for_counterpart_frame)
+                cp_rgb, cp_depth, cp_gt = _load_frame(frame_info_of_cp, self.channels_for_counterpart_frame)
                 self._Log("  counterpart frame: "+ str(frame_indices_candidates[i]) + " seq: "+ frame_info.seq_name+ " shape: "+ str(cp_rgb.shape))
 
                 sample[key] = cp_rgb
@@ -693,33 +720,6 @@ class sbm_rgbd(Dataset):
         rgb_img = torch.from_numpy(rgb_img.copy())
         depth_img = torch.from_numpy(depth_img.copy())
         gt_img = torch.from_numpy(gt_img.copy())
-
-            
-        if self.output_dir_for_debug != None:
-            save_dir = os.path.join(self.output_dir_for_debug, frame_info.seq_name)
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-
-            if load_rgb:
-                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_rgb_frame))
-                if type(rgb_img) != np.ndarray:
-                    rgb_npary = rgb_img.numpy()
-                else:
-                    rgb_npary = rgb_img
-                img = Image.fromarray(np.uint8(np.add(rgb_npary.transpose((1, 2, 0)), self.meanval)), 'RGB') #(rows, columns, channels)
-                img.save(filename)
-
-            if load_depth:
-                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_depth_frame))
-                img = Image.fromarray(np.uint8(depth_img[0]), 'L')
-                img.save(filename)
-
-            if load_groundtruth:
-                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_groundtruth_frame))
-                img = Image.fromarray(np.uint8(gt_img*255), 'L')
-                img.save(filename)
-            del img
-            
 
         return rgb_img, depth_img, gt_img
 
