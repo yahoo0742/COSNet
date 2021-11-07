@@ -81,7 +81,6 @@
             "output_HW": '240,320' #'384,512' #'480,640'
             "num_classes": 2      #Number of classes to predict (including background)
             "img_mean": [104.00698793, 116.66876762, 122.67891434] ## saving model file and log record during the process of training
-            "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
             "snapshot_output_path": "./snapshots/sbmrgbd/"          #Where to save snapshots of the model
             "checkpoint_file": "./snapshots/sbmrgbd/co_attention_sbmrgbd.pth" #checkpoint log file helping recovering training
             "subset":
