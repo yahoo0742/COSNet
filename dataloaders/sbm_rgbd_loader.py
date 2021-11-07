@@ -12,6 +12,8 @@ import numpy as np
 from torch.utils.data import Dataset
 #from torchvision.datasets.utils import download_url
 from dataloaders import utils
+from PIL import Image
+
 import math
 
 import yaml
@@ -222,7 +224,9 @@ class sbm_rgbd(Dataset):
         batch_size = 1,
         subset_percentage = 0.8,
         subset = None,
-        meanval=(104.00699, 116.66877, 122.67892)
+        meanval=(104.00699, 116.66877, 122.67892),
+        logFunc=None,
+        output_dir_for_debug=None
     ):
         """
         Will return tuples based on what data source has been enabled (rgb, seg etc).
@@ -236,8 +240,11 @@ class sbm_rgbd(Dataset):
         self.meanval = meanval
         self.channels_for_target_frame = channels_for_target_frame
         self.channels_for_counterpart_frame = channels_for_counterpart_frame
+        self.logFunc = logFunc
 
         self.flip_prob_of_seqs_for_augmentation = {} # seq_name: flip_probability. During training, images can be flipped horizontally for augmentation. Frames of a sequence should be all flipped or all not flipped.
+        self._scale_ratio = 0.9
+        self._crop_ratio = 0.9
 
         self.sets = {
             'entire': {
@@ -266,15 +273,19 @@ class sbm_rgbd(Dataset):
             # seq_name: ([x_min, x_max], [y_min, y_max])
         }
 
+        self.depth_min_max = {}
+        self.output_dir_for_debug = output_dir_for_debug
+
         self.batch_size = 1
         self.stage = 'initing'
 
         self._collect_file_list()
-        self._validate_frames()
+        # self._validate_frames()
 
         self.batch_size = batch_size
         self.stage = 'train' if for_training else 'test'
         self._split_dataset(subset)
+
 
 
     """
@@ -326,6 +337,11 @@ class sbm_rgbd(Dataset):
                 is_invalid["depth"][2] = _range
         return is_invalid
 
+    def _Log(self, message):
+        if self.logFunc:
+            self.logFunc(message)
+        else:
+            print(message)
 
     def _validate_frames(self):
         num_frames = len(self.sets["entire"]['names_of_frames'])
@@ -459,7 +475,7 @@ class sbm_rgbd(Dataset):
 
                 start_idx = len(self.sets[to_be_in_subset]['names_of_frames'])
                 # get ids of the frames of the sequence
-                ids_of_frames = [frame[:2] for frame in predefined_subset_dict[seq]] # We know there are duplicate frames (XX is present more than once)
+                ids_of_frames = predefined_subset_dict[seq] # We know there are duplicate frames (XX is present more than once)
                 # collect information of the frames
                 frames_of_seq = []
                 for id in ids_of_frames:
@@ -497,6 +513,9 @@ class sbm_rgbd(Dataset):
                 end_idx = num_frames + start_idx
                 self.sets[to_be_in_subset]['frame_range_of_sequences'][seq] = {'start': start_idx, 'end': end_idx}
                 self.sets[to_be_in_subset]['names_of_frames'].extend(frames_selected)
+        self._Log("****dataset:\n "+ to_be_in_subset+ '\n'.join(map(str, self.sets[to_be_in_subset]['names_of_frames'])))
+        another_set = list(set(self.sets["entire"]['names_of_frames']) - set(self.sets[to_be_in_subset]['names_of_frames']))
+        self._Log("****Another set:" + '\n'.join(map(str, self.sets[to_be_in_subset]['names_of_frames'])))
 
 
     def _get_frames_of_seq(self, set_name, seq_name):
@@ -510,6 +529,12 @@ class sbm_rgbd(Dataset):
             return None
         return self.sets[set_name]['names_of_frames'][frame_index]
 
+    def _get_framename_of_seq_by_id(self, seq, id):
+        for fn in self.sets['entire']['names_of_frames']:
+            if fn.id == id and fn.seq_name == seq:
+                return fn
+        return None
+
     def __getitem__(self, frame_index):
         set_name = self.stage
         frame_info = self._get_framename_by_index(set_name, frame_index)
@@ -522,6 +547,7 @@ class sbm_rgbd(Dataset):
 
             # 1. target frame
             current_rgb, current_depth, current_gt = self._load_images(frame_info, self.channels_for_target_frame)
+            self._Log("   target frame: "+ str(frame_index) + " seq: "+ frame_info.seq_name+ " shape: "+ str(current_rgb.shape))
             sample['target'] = current_rgb
             sample['target_depth'] = current_depth
             sample['target_gt'] = current_gt
@@ -530,7 +556,7 @@ class sbm_rgbd(Dataset):
             frame_range_of_seq = self.sets[set_name]['frame_range_of_sequences'][frame_info.seq_name]
             frame_indices_for_counterpart = []
             if self.sample_range >= 1:
-                frame_indices_candidates= list(range(frame_range_of_seq['start'], frame_range_of_seq['end']))
+                frame_indices_candidates = list(range(frame_range_of_seq['start'], frame_range_of_seq['end']))
                 frame_indices_for_counterpart = random.sample(frame_indices_candidates, self.sample_range)#min(len(self.img_list)-1, target_id+np.random.randint(1,self.range+1))
             else:
                 # use the same frame to the target frame as the matching/search frame
@@ -541,6 +567,8 @@ class sbm_rgbd(Dataset):
                 frame_idx = frame_indices_for_counterpart[i]
                 frame_info_of_cp = self._get_framename_by_index(set_name, frame_idx)
                 cp_rgb, cp_depth, cp_gt = self._load_images(frame_info_of_cp, self.channels_for_counterpart_frame)
+                self._Log("  counterpart frame: "+ str(frame_indices_candidates[i]) + " seq: "+ frame_info.seq_name+ " shape: "+ str(cp_rgb.shape))
+
                 sample[key] = cp_rgb
                 sample[key+'_depth'] = cp_depth
                 sample[key+'_gt'] = cp_gt
@@ -555,8 +583,8 @@ class sbm_rgbd(Dataset):
         result = len(self.sets[set_name]['names_of_frames'])
         if result % self.batch_size != 0:
             result = result - result % self.batch_size
-        print("dataset: ", '  '.join(map(str, self.sets[set_name]['names_of_frames'])))
-        print("SBM length: " , result, " for " + set_name)
+        # print("dataset: ", '  '.join(map(str, self.sets[set_name]['names_of_frames'])))
+        self._Log("SBM length: " + str(result) + " for " + set_name)
         return result
 
     def _load_images(self, frame_info, channels='rgbdt'):
@@ -611,7 +639,7 @@ class sbm_rgbd(Dataset):
                 if self.stage == 'train':
                     depth_img, crop_offset = self._augmente_image(depth_img, frame_info.seq_name, crop_offset, True)
             else:
-                raise Exception("Cannot find the depth image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
+                raise Exception("Cannot find the depth image for ", frame_info.seq_name, frame_info.name_of_depth_frame)
         else:
             depth_img = np.zeros((1,1), dtype=np.float32)
 
@@ -630,7 +658,7 @@ class sbm_rgbd(Dataset):
                 if self.stage == 'train':
                     gt_img, crop_offset = self._augmente_image(gt_img, frame_info.seq_name, crop_offset, False)
             else:
-                raise Exception("Cannot find the groud truth image for ", frame_info.seq_name, frame_info.name_of_rgb_frame)
+                raise Exception("Cannot find the groud truth image for ", frame_info.seq_name, frame_info.name_of_groundtruth_frame)
         else:
             gt_img = np.zeros((1,1), dtype=np.uint8)
 
@@ -638,6 +666,33 @@ class sbm_rgbd(Dataset):
         rgb_img = torch.from_numpy(rgb_img.copy())
         depth_img = torch.from_numpy(depth_img.copy())
         gt_img = torch.from_numpy(gt_img.copy())
+
+            
+        if self.output_dir_for_debug != None:
+            save_dir = os.path.join(self.output_dir_for_debug, frame_info.seq_name)
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+
+            if load_rgb:
+                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_rgb_frame))
+                if type(rgb_img) != np.ndarray:
+                    rgb_npary = rgb_img.numpy()
+                else:
+                    rgb_npary = rgb_img
+                img = Image.fromarray(np.uint8(np.add(rgb_npary.transpose((1, 2, 0)), self.meanval)), 'RGB') #(rows, columns, channels)
+                img.save(filename)
+
+            if load_depth:
+                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_depth_frame))
+                img = Image.fromarray(np.uint8(depth_img[0]), 'L')
+                img.save(filename)
+
+            if load_groundtruth:
+                filename = os.path.join(save_dir, '{}.png'.format(frame_info.name_of_groundtruth_frame))
+                img = Image.fromarray(np.uint8(gt_img*255), 'L')
+                img.save(filename)
+            del img
+            
 
         return rgb_img, depth_img, gt_img
 

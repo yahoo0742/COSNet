@@ -1,49 +1,40 @@
 'pretrained_params':
     "deep_labv3_davis":
-        "from_param": ""
+        "initial_params": ""
         "by_model": "deep_labv3"
-        "file": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
+        "file_of_output_params": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
     "original_coattention_rgb":
-        "from_param": "deep_labv3_davis"
+        "initial_params": "deep_labv3_davis"
         "by_model": "original_coattention_rgb"
-        "file": "./pretrained/co_attention.pth"
+        "file_of_output_params": "./pretrained/co_attention.pth" #"./pretrained/davis_480x854_Aug16.pth"
     "original_coattention_rgb_retrained":
-        "from_param": "deep_labv3_davis"
+        "initial_params": "deep_labv3_davis"
         "by_model": "original_coattention_rgb"
         "dataset": ["davis", "DUTS-TR", "MSRA10K_Imgs_GT"]
-        "file": ""
+        "file_of_output_params": ""
     "co_attention_refactored":
-        "from_param": "deep_labv3_davis"
+        "initial_params": "deep_labv3_davis"
         "by_model": "refactored_coattention_rgb"
         "dataset": ["davis", "DUTS-TR", "MSRA10K_Imgs_GT"]
-        "file": ""
-    "added_depth_rgbd":
-        "from_param": ""
-        "by_model": "added_depth_rgbd"
-        "dataset": "hzfurgbd"
-        "file": ""
-    "concatenated_depth_rgbd":
-        "from_param": ""
-        "by_model": "concatenated_depth_rgbd"
-        "file": ""
-    "concatenated_depth_rgbd2":
-        "from_param": ""
-        "by_model": "concatenated_depth_rgbd2"
-        "file": ""
-
+        "file_of_output_params": ""
+    "resnet_aspp_add_hzfurgbd":
+        "initial_params": "deep_labv3_davis"
+        "by_model": "resnet_aspp_add"
+        "dataset": ["hzfurgbd"]
+        "file_of_output_params": ""
+    "resnet101_cityscapes":
+        "model": "resnet101"
+        "dataset": "cityscapes"
+        "path": ""
 
 "train":
-    "pretrained_models":
-        "deep_labv3_davis":
-            "model": "deep_labv3"
-            "dataset": "davis"
-            "file": "./pretrained/deep_labv3/deeplab_davis_12_0.pth" #"./pretrained/davis_480x854_Aug16.pth"
-        
-        "resnet101_cityscapes":
-            "model": "resnet101"
-            "dataset": "cityscapes"
-            "path": ""
-
+    "model":
+        "original_coattention_rgb_retrained":
+            "initial_params": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
+        "co_attention_refactored":
+            "initial_params": "./pretrained/deep_labv3/deeplab_davis_12_0.pth"
+        "resnet_aspp_add":
+            "initial_params": "./pretrained/davis_480x854_Aug16.pth" #"./pretrained/co_attention.pth" #"./pretrained/davis_480x854_Aug16.pth"
     "dataset":
         "davis":
             "img_path": "/vol/graphics-solar/fengwenb/vos/dataset/DAVIS/JPEGImages/480p/"
@@ -66,7 +57,7 @@
         "hzfurgbd":
             "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/RGBD_video_seg_dataset/"
             "batch_size": 4 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
-            "max_epoches": 30 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
+            "max_epoches": 200 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
             "input_size": '640,480' #'640,480'  #Comma-separated string with height and width of images
             "output_HW": '480,640'
@@ -84,16 +75,41 @@
         "sbmrgbd":
             "data_path": "/vol/graphics-solar/fengwenb/vos/dataset/sbm-rgbd/AllSequences/"
             "batch_size": 4 # 1 card: 5 2 cards: 10 Number of images sent to the network in one step 16 on paper
-            "max_epoches": 50 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
+            "max_epoches": 200 # 1 card: 15 2 cards: 15 epoches equal to 30k iterations max iterations= maxEpoches*len(train_aug)/batch_size_per_gpu')
             "ignore_label": 255 #The index of the label to ignore during the training
             "input_size": '640,480' #'640,480'  #Comma-separated string with height and width of images
-            "output_HW": '480,640'
+            "output_HW": '240,320' #'384,512' #'480,640'
             "num_classes": 2      #Number of classes to predict (including background)
             "img_mean": [104.00698793, 116.66876762, 122.67891434] ## saving model file and log record during the process of training
-            "pretrained_model": "deep_labv3_davis" #Where restore model pretrained on other dataset such as COCO
             "snapshot_output_path": "./snapshots/sbmrgbd/"          #Where to save snapshots of the model
-            "checkpoint_file": "./snapshots/sbmrgbd/co_attention_sbmrgbd.pth" #checkpoint log file helping recovering training
-            "subset": None
+            "checkpoint_file": False #checkpoint log file helping recovering training
+            "subset":
+                'IlluminationChanges/genSeq1': ['000357', '000119', '000133', '000115', '000117', '000125', '000121', '000123', '000349', '000373', '000129', '000127', '000382', '000360', '000380', '000137', '000131', '000388', '000345', '000371']
+                'IlluminationChanges/Ls_ds': ['000300', '000400']
+                'IlluminationChanges/ChairBox': ['000490', '000294', '000278', '000344', '000260', '000288', '000338', '000460', '000430', '000510', '000480', '000450', '000300', '000306', '000318', '000324', '000410', '000340', '000400', '000326', '000380', '000330', '000350', '000280', '000272', '000264', '000298', '000276', '000520', '000274', '000312', '000336', '000316', '000304', '000310', '000270', '000302', '000286', '000390', '000342', '000355', '000420', '000334', '000268', '000440', '000332', '000262', '000282', '000266']
+                'IlluminationChanges/TimeOfDay_ds': ['000600', '001200']
+                'ColorCamouflage/Cespatx_ds': ['000256', '000429', '000136', '000216', '000326', '000236', '000176', '000276']
+                'ColorCamouflage/Hallway': ['000050', '000375', '000100', '000477', '000363', '000308', '000200', '000435', '000500', '000258', '000325', '000150', '000550', '000524']
+                'Bootstrapping/fall20cam0': ['000050', '000090', '000001', '000110']
+                'Bootstrapping/bear_front': ['000170', '000010', '000150', '000110', '000210', '000090', '000230', '000190', '000270', '000290', '000130', '000070']
+                'Bootstrapping/BootStrapping_ds': ['000208', '000172', '000298', '000226', '000244', '000154', '000262', '000118']
+                'Bootstrapping/fall01cam0': ['000100', '000160', '000120', '000020', '000080', '000001', '000060']
+                'Bootstrapping/adl24cam0': ['000030', '000050', '000070']
+                'Shadows/shadows2': ['000240', '000185', '000155', '000150', '000120', '000190', '000230', '000243', '000135', '000175', '000165', '000195', '000145', '000200', '000140', '000215', '000170', '000235', '000225', '000125']
+                'Shadows/fall01cam1': ['000071', '000090', '000150', '000130', '000100']
+                'Shadows/genSeq2': ['000152', '000196', '000229', '000136', '000181', '000156', '000223', '000145', '000211', '000165', '000132', '000202', '000169', '000175', '000162', '000149', '000235', '000187', '000159', '000124']
+                'Shadows/shadows1': ['000088', '000228', '000180', '000175', '000168', '000075', '000140', '000155', '000235', '000080', '000208', '000250', '000220', '000148', '000135', '000108', '000095', '000100', '000200', '000215', '000160', '000188']
+                'Shadows/Shadows_ds': ['000186', '000222', '000276', '000240', '000158', '000168', '000206']
+                'IntermittentMotion/abandoned2': ['000097', '000250', '000199', '000193', '000133', '000215', '000247', '000171', '000239', '000175', '000145', '000241', '000219', '000093', '000069', '000163', '000065', '000223', '000085', '000237', '000187', '000217', '000229', '000183', '000073', '000117', '000081', '000173', '000243', '000135', '000161', '000207', '000179', '000143', '000211', '000165', '000147', '000137', '000157', '000169', '000201', '000197', '000141', '000057', '000233', '000153', '000191', '000235', '000177', '000089', '000181', '000061', '000189', '000203', '000139', '000213', '000227']
+                'IntermittentMotion/Shelves': ['000317', '000464', '000238', '000321', '000466', '000468', '000500', '000462', '000470', '000282', '000430', '000305', '000496', '000236', '000432', '000246', '000315', '000268', '000270', '000180', '000492', '000504', '000472', '000286', '000494', '000331', '000534', '000252', '000514', '000506', '000550', '000438', '000476', '000542', '000292', '000272', '000442', '000182', '000544', '000538', '000309', '000248', '000502', '000482', '000512', '000313', '000299', '000276', '000490', '000256', '000329', '000486', '000327', '000528', '000552', '000440', '000264', '000341', '000526', '000546', '000288', '000343', '000339', '000484', '000508', '000242', '000498', '000450', '000474', '000319', '000434', '000554', '000454', '000458', '000303', '000200', '000478', '000360', '000335', '000311', '000234', '000536', '000524', '000456', '000190', '000540', '000510', '000390', '000516', '000349', '000337', '000364', '000290', '000480', '000278', '000522', '000258', '000448', '000518', '000325', '000260', '000345', '000520', '000548', '000244', '000488', '000418']
+                'IntermittentMotion/Sleeping_ds': ['000126', '000226', '000186', '000266', '000246', '000106', '000206']
+                'IntermittentMotion/movedBackground2': ['000193', '000227', '000231', '000241', '000233', '000237', '000219', '000177', '000225', '000229', '000247', '000245', '000213', '000235', '000161', '000221', '000189', '000209', '000211', '000239', '000205', '000217', '000185', '000173', '000223', '000215', '000169', '000207', '000165']
+                'OutOfRange/TopViewLab3': ['000234', '000567', '000222', '000270', '000609', '000591', '000228', '000666', '000156', '000252', '000264', '000639', '000186', '000657', '000633', '000573', '000192', '000627', '000603', '000645', '000204', '000651', '000597', '000621', '000258', '000198', '000174', '000150', '000168', '000246', '000615']
+                'OutOfRange/TopViewLab1': ['000254', '000530', '000270', '000210', '000554', '000546', '000154', '000278', '000162', '000538', '000582', '000598', '000218', '000186', '000246', '000630', '000202', '000226', '000570', '000262', '000562', '000622', '000590', '000638', '000142', '000234']
+                'OutOfRange/MultiPeople2': ['000590', '000788', '001074', '000436', '000524', '000458', '000810', '000117', '001294', '000876', '000656', '000480', '000139', '000183', '000546', '001316', '000502', '001052', '000678', '000161', '000722', '000414', '001008', '000942', '001228', '001272', '000766', '000568', '000634', '000700', '001118', '000964', '000326', '001162', '000348', '001206', '000986', '000854', '001140', '000744', '001250', '001338']
+                'OutOfRange/MultiPeople1': ['001118', '000162', '000210', '001166', '000397', '000174', '000890', '000878', '001142', '000186', '000271', '000325', '000866', '000313', '000150', '001082', '000842', '001046', '000247', '000385', '001106', '000198', '001058', '001070', '000854', '000349', '001094', '000361', '000301', '000259', '000421']
+                'OutOfRange/TopViewLab2': ['000227', '000623', '000511', '000503', '000591', '000543', '000535', '000131', '000615', '000243', '000235', '000219', '000187', '000607', '000251', '000599', '000163', '000139', '000583', '000203', '000179', '000567', '000211', '000527', '000519', '000559']
+
 
     "saliency_dataset":
         "root_path": "/vol/graphics-solar/fengwenb/vos/saliency_dataset/"
@@ -115,6 +131,8 @@
             "pretrained_params": "./snapshots/davis/origin/H480W854/20210823_110140/co_attention_davis_29.pth" # "./pretrained/davis_480x854_Aug16.pth"
         "refactored_coattention_rgb":
             "pretrained_params": "./snapshots/davis_480x854s/co_attention_davis_29.pth"
+        "resnet_aspp_add":
+            "pretrained_params": "./snapshots/sbmrgbd/resnet_aspp_add/H384W512/20211016_144756/snapshot_sbmrgbd_199.pth" #"./snapshots/hzfurgbd/resnet_aspp_add/H480W640/20211002_172955/snapshot_hzfurgbd_199.pth" # "./snapshots/hzfurgbd/resnet_aspp_add/H480W640/20211002_130748/snapshot_hzfurgbd_99.pth"
         "added_depth_rgbd":
             "pretrained_params": "./snapshots/sbmrgbd/add/H480W640/20210917_145359/snapshot_sbmrgbd_29.pth" # "./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth" #'./snapshots/hzfurgbd_iteration/H480W640/20210816_2309/snapshot_hzfurgbd_29.pth' #'./snapshots/hzfurgbd_iteration/H120W160/20210814_2145/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/hzfurgbd_iteration/co_attention_rgbd_hzfurgbd_29.pth' # './snapshots/co_attention_rgbd_hzfurgbd_29.pth' #'./your_path.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' 
         "convs_depth_addition":
@@ -175,5 +193,30 @@
             "output_WH": "640,480"
             "image_HW_4_model": "480, 640"
             "sample_range": 1
-            "subset": None
+            "subset":
+                'IntermittentMotion/abandoned2': ['000221', '000225', '000167', '000149', '000151', '000159', '000077', '000195', '000185', '000155', '000131', '000205', '000231', '000209', '000245']
+                'Bootstrapping/BootStrapping_ds': ['000136', '000190', '000280']
+                'Bootstrapping/fall20cam0': ['000020', '000070']
+                'Shadows/shadows2': ['000180', '000220', '000130', '000160', '000205', '000210']
+                'OutOfRange/TopViewLab1': ['000170', '000286', '000134', '000614', '000178', '000194', '000606']
+                'IlluminationChanges/ChairBox': ['000290', '000296', '000370', '000529', '000320', '000470', '000292', '000284', '000314', '000500', '000322', '000328', '000308']
+                'OutOfRange/MultiPeople1': ['000283', '000373', '000337', '001130', '000138', '001154', '001178', '000409']
+                'OutOfRange/MultiPeople2': ['000832', '000205', '000612', '001360', '001030', '001184', '000392', '000920', '001096', '000370', '000898']
+                'IntermittentMotion/Shelves': ['000280', '000444', '000232', '000347', '000460', '000266', '000530', '000250', '000323', '000254', '000212', '000262', '000446', '000532', '000333', '000301', '000436', '000294', '000452', '000230', '000240', '000296', '000274', '000370', '000184', '000284', '000307']
+                'Shadows/shadows1': ['000115', '000128', '000120', '000195', '000240', '000248']
+                'IlluminationChanges/genSeq1': ['000340', '000352', '000364', '000367', '000376']
+                'Bootstrapping/fall01cam0': ['000140', '000040']
+                'OutOfRange/TopViewLab3': ['000162', '000180', '000216', '000579', '000561', '000240', '000585', '000210']
+                'Shadows/genSeq2': ['000129', '000184', '000205', '000190', '000217', '000238']
+                'OutOfRange/TopViewLab2': ['000575', '000551', '000259', '000155', '000147', '000195', '000171']
+                'IntermittentMotion/movedBackground2': ['000181', '000243', '000201', '000155', '000203', '000157', '000250', '000199']
+                'ColorCamouflage/Cespatx_ds': ['000196', '000156', '000316']
+                'ColorCamouflage/Hallway': ['000425', '000275', '000618', '000565']
+                'Bootstrapping/bear_front': ['000250', '000030', '000050']
+                'Shadows/fall01cam1': ['000160', '000110']
+                'Bootstrapping/adl24cam0': ['000010', '000050']
+                'Shadows/Shadows_ds': ['000258', '000222', '000329']
+                'IntermittentMotion/Sleeping_ds': ['000146', '000166']
+
+
 

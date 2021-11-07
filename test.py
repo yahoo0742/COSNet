@@ -8,7 +8,6 @@ import yaml
 with open("config.yaml") as config_file:
     user_config = yaml.load(config_file)
 
-#sys.path.append('/vol/graphics-solar/fengwenb/vos/cosnet/COSNet')
 #print(sys.path)
 import argparse
 import torch
@@ -39,12 +38,13 @@ import torch.nn as nn
 #import pydensecrf.densecrf as dcrf
 #from pydensecrf.utils import unary_from_softmax, create_pairwise_bilateral, create_pairwise_gaussian
 from deeplab.residual_net import Bottleneck
+from rgbd_segmentation_RAA import RGBDSegmentation_RAA
 from rgbd_segmentation_model import RGBDSegmentationModel
 from deeplab.siamese_model_conf import CoattentionNet #original coattention model 
 from deeplab.siamese_model import CoattentionSiameseNet #refactored coattention model
 
 
-
+from torchsummary import summary
 from torchvision.utils import save_image
 
 from evaluation import compute_iou
@@ -78,7 +78,7 @@ def get_arguments():
     parser.add_argument("--sample_range", default =5)
     parser.add_argument("--epoches", default=0)
     parser.add_argument("--batch_size", default=0)
-    parser.add_argument("--model", default="add", help="ori, retrain, ref, add, padd, conv_add, or coc")
+    parser.add_argument("--model", default="raa", help="ori, retrain, ref, add, padd, conv_add, or coc")
 
     return parser.parse_args()
 
@@ -186,6 +186,9 @@ def main():
     elif args.model == "ref" or args.model == "refactored_coattention_rgb":
         model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], 1)
         args.full_model_name = "refactored_coattention_rgb"
+    elif args.model == "raa" or args.model == "resnet_aspp_add":
+        model = RGBDSegmentation_RAA(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
+        args.full_model_name = "resnet_aspp_add"
     elif args.model == "add" or args.model == "added_depth_rgbd":
         model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3],  [3, 4, 6, 3], 1, approach_for_depth="add")
         args.full_model_name = "added_depth_rgbd"
@@ -225,6 +228,13 @@ def main():
     model.load_state_dict( convert_state_dict(saved_state_dict["model"]) ) #convert_state_dict(saved_state_dict["model"])
 
     model.eval()
+    if args.full_model_name == "resnet_aspp_add":
+        summary(model, [(3,480,640),(3,480,640),(1,480,640), (1,480,640)]) #summary the model
+    elif args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
+        summary(model, [(3,480,640),(3,480,640),(1,480,640)]) #summary the model
+    else:
+        summary(model, [(3,480,640),(3,480,640)])
+
     model.cuda()
 
     if args.dataset == 'davis':  #for davis 2016
@@ -279,7 +289,9 @@ def main():
                 search_depth = batch['search_'+str(i)+'_depth']
                 #print(search_img.size())
                 with torch.no_grad():
-                    if args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
+                    if args.full_model_name == "resnet_aspp_add":
+                        output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda(), Variable(search_depth).cuda())
+                    elif args.full_model_name == "added_depth_rgbd" or args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd" or args.full_model_name == "concatenated_depth_rgbd2" or args.full_model_name == "convs_depth_addition":
                         output = model(Variable(target).cuda(),Variable(search_img).cuda(), Variable(target_depth).cuda())
                     else:
                         output = model(Variable(target).cuda(),Variable(search_img).cuda())

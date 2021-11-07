@@ -24,18 +24,18 @@ import os
 import os.path as osp
 #from psp.model import PSPNet
 #from dataloaders import davis_2016 as db
-from dataloaders import PairwiseImg_video as davis_db
 from dataloaders import hzfu_rgbd_loader as rgbddb
 from dataloaders import sbm_rgbd_loader as sbmdb
 import matplotlib.pyplot as plt
 import random
 import timeit
 #from psp.model1 import CoattentionNet  #based on pspnet
-from deeplab.siamese_model_conf import CoattentionNet #siame_model 
+# from deeplab.siamese_model_conf import CoattentionNet #siame_model 
 #from deeplab.utils import get_1x_lr_params, get_10x_lr_params#, adjust_learning_rate #, loss_calc
 from deeplab.residual_net import Bottleneck
-from deeplab.siamese_model import CoattentionSiameseNet
-from rgbd_segmentation_model import RGBDSegmentationModel
+# from deeplab.siamese_model import CoattentionSiameseNet
+# from rgbd_segmentation_model import RGBDSegmentationModel
+from rgbd_segmentation_RAA import RGBDSegmentation_RAA
 import datetime
 import gc
 
@@ -52,7 +52,7 @@ def logMem(logger, prefix):
     total = torch.cuda.get_device_properties(None).total_memory
     mem_alloc = torch.cuda.memory_allocated()
     mem_cache = torch.cuda.memory_cached()
-    msg = prefix + " GPU: " + str(torch.cuda.current_device())+ " mem_alloc: "+str(mem_alloc)+"  mem_cache: "+str(mem_cache)+"  total: "+str(total)+ "\n"
+    msg = prefix + " GPU: " + str(torch.cuda.current_device())+ " mem_alloc: "+str(mem_alloc/1048576.0)+"MB.  mem_cache: "+str(mem_cache/1048576.0)+"MB.  total: "+str(total)+ "\n"
     print(msg)
     if logger:
         logger.write(msg)
@@ -106,11 +106,37 @@ def get_arguments():
     # GPU configuration
     parser.add_argument("--cuda", default=True, help="Run on CPU or GPU")
     parser.add_argument("--gpus", type=str, default="3", help="choose gpu device.") 
-    parser.add_argument("--model", default="conc1", help="ori, ref, add, conc1, conc2, conv_add, conv_conc2") 
+    parser.add_argument("--model", default="ori", help="ori, raa, ref, add, conc1, conc2, conv_add, conv_conc2") 
 
     return parser.parse_args()
 
 args = get_arguments()
+
+
+def get_fullname_of_model(model_abbr):
+    if model_abbr == "ori" or model_abbr == "original_coattention_rgb":
+        return  "original_coattention_rgb"
+    elif model_abbr == "retrain" or model_abbr == "original_coattention_rgb_retrained":
+        return "original_coattention_rgb_retrained"
+    elif model_abbr == 'raa' or model_abbr == "resnet_aspp_add":
+        return  "resnet_aspp_add"
+    elif model_abbr == "ref" or model_abbr == "refactored_coattention_rgb":
+        return  "refactored_coattention_rgb"
+    # elif model_abbr == "add" or model_abbr == "added_depth_rgbd":
+    #     return  "added_depth_rgbd"
+    # elif model_abbr == "conc1" or model_abbr == "concatenated_depth_rgbd":
+    #     return  "concatenated_depth_rgbd"
+    # elif model_abbr == "conc2" or model_abbr == "concatenated_depth_rgbd2":
+    #     return  "concatenated_depth_rgbd2"
+    # elif model_abbr == "padd" or model_abbr == "post_added_depth_rgbd":
+    #     return  "post_added_depth_rgbd"
+    # elif model_abbr == "conv_add" or model_abbr == "convs_depth_addition":
+    #     return  "convs_depth_addition"
+    # elif model_abbr == "conv_conc2" or model_abbr == "convs_depth_concatenation2":
+    #     return  "convs_depth_concatenation2"
+    else:
+        raise Exception(model_abbr, "Invalid model name!")
+        return
 
 
 def configure_dataset_init_model(args):
@@ -119,20 +145,16 @@ def configure_dataset_init_model(args):
     args.data_dir = user_config["train"]["dataset"][args.dataset]["data_path"]   # 37572 image pairs
     args.num_classes = user_config["train"]["dataset"][args.dataset]["num_classes"]      #Number of classes to predict (including background)
     args.img_mean = np.array(user_config["train"]["dataset"][args.dataset]["img_mean"], dtype=np.float32)
-    pretrained_model_name = user_config["train"]["dataset"][args.dataset]["pretrained_model"]
-    args.restore_from = user_config["train"]["pretrained_models"][pretrained_model_name]["file"]
+    args.full_model_name = get_fullname_of_model(args.model)
+    args.restore_from = user_config["train"]["model"][args.full_model_name]["initial_params"]
     #args.restore_from = './pretrained/deep_labv3/deeplab_davis_12_0.pth' #resnet50-19c8e357.pth''/home/xiankai/PSPNet_PyTorch/snapshots/davis/psp_davis_0.pth' #
-
-    args.snapshot_dir = user_config["train"]["dataset"][args.dataset]["snapshot_output_path"] #'./snapshots/davis_iteration_conf/'          #Where to save snapshots of the model
     # args.ignore_label = user_config["train"]["dataset"]["hzfurgbd"]["ignore_label"]     #The index of the label to ignore during the training
     args.resume = user_config["train"]["dataset"][args.dataset]["checkpoint_file"] #'./snapshots/davis/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
     # args.resume = user_config["train"]["dataset"]["hzfurgbd"]["checkpoint_file"] #'./snapshots/hzfurgbd/co_attention_davis_124.pth' #checkpoint log file, helping recovering training
-
-    if args.dataset == 'davis': 
-        args.img_dir = user_config["train"]["saliency_dataset"] #'/vol/graphics-solar/fengwenb/vos/saliency_dataset'
-
+    args.saliency_dataset_path = user_config["train"]["saliency_dataset"] #'/vol/graphics-solar/fengwenb/vos/saliency_dataset'
     h, w = map(int, user_config["train"]["dataset"][args.dataset]["output_HW"].split(','))
     args.output_HW = (h, w)
+    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, args.full_model_name, 'H'+str(h)+'W'+str(w), ymd_hms)
 
 
 
@@ -141,7 +163,8 @@ def adjust_learning_rate(optimizer, i_iter, epoch, max_iter):
     
     lr = lr_poly(args.learning_rate, i_iter, max_iter, args.power, epoch)
     optimizer.param_groups[0]['lr'] = lr
-    if i_iter%3 ==0:
+    if False and i_iter%3 ==0:
+        # for salient object
         optimizer.param_groups[0]['lr'] = lr
         optimizer.param_groups[1]['lr'] = 0
     else:
@@ -206,7 +229,7 @@ def get_1x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = mod.module
 
-    if args.full_model_name == "original_coattention_rgb":
+    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "original_coattention_rgb_retrained" or args.full_model_name == "refactored_coattention_rgb":
         b.append(mod.encoder.conv1)
         b.append(mod.encoder.bn1)
         b.append(mod.encoder.layer1)
@@ -215,6 +238,10 @@ def get_1x_lr_params(model):
         b.append(mod.encoder.layer4)
         b.append(mod.encoder.layer5)
         b.append(mod.encoder.main_classifier)
+    elif args.full_model_name == "resnet_aspp_add":
+        mods_with_params = mod.get_params("encoder")
+        b.extend(mods_with_params)
+
     else:
         # b.append(mod.encoder.backbone.conv1)
         # b.append(mod.encoder.backbone.bn1)
@@ -254,7 +281,7 @@ def get_10x_lr_params(model):
     if torch.cuda.device_count() > 1:
         mod = model.module
 
-    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
+    if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "original_coattention_rgb_retrained" or args.full_model_name == "refactored_coattention_rgb":
         b.append(mod.linear_e.parameters())
         b.append(mod.conv1.parameters())
         b.append(mod.conv2.parameters())
@@ -263,6 +290,18 @@ def get_10x_lr_params(model):
         b.append(mod.bn2.parameters())   
         b.append(mod.main_classifier1.parameters())
         b.append(mod.main_classifier2.parameters())
+    elif args.full_model_name == "resnet_aspp_add":
+        mods_with_params = mod.get_params("rgb_attention")
+        b.extend(mods_with_params)
+        mods_with_params = mod.get_params("depth")
+        b.extend(mods_with_params)
+        mods_with_params = mod.get_params("decoder")
+        b.extend(mods_with_params)
+        for j in range(len(b)):
+            for i in b[j].parameters():
+                yield i
+        return
+
     elif args.full_model_name == "post_added_depth_rgbd" or args.full_model_name == "convs_depth_addition" or args.full_model_name == "convs_depth_concatenation2":
         b.append(mod.depth_encoder.conv1.parameters())
         b.append(mod.depth_encoder.conv2.parameters())
@@ -335,11 +374,46 @@ def netParams(model):
     return total_paramters
 
 
+def create_model(model_name):
+    if model_name == "resnet_aspp_add":
+        model = RGBDSegmentation_RAA(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
+    # elif model_name == "refactored_coattention_rgb":
+    #     model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
+    # elif model_name == "added_depth_rgbd":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="add")
+    # elif model_name == "concatenated_depth_rgbd":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc1")
+    # elif model_name == "concatenated_depth_rgbd2":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc2")
+    # elif model_name == "post_added_depth_rgbd":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="padd")
+    # elif model_name == "convs_depth_addition":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_add")
+    # elif model_name == "convs_depth_concatenation2":
+    #     model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_conc2")
+    else:
+        raise Exception(model_name, "Invalid model name!")
+    return model
+
+
 def main():
     
     print("=====> Configure dataset and pretrained model:",args)
     configure_dataset_init_model(args)
     print(args)
+
+    if not os.path.exists(args.snapshot_dir):
+        os.makedirs(args.snapshot_dir)
+
+    logFileLoc = osp.join(args.snapshot_dir, args.dataset+"__"+args.full_model_name+"_"+ymd_hms+"_train_log.txt")
+    if os.path.isfile(logFileLoc):
+        logger = open(logFileLoc, 'a')
+    else:
+        logger = open(logFileLoc, 'w')
+    
+    logger.write(log_section_start+str(args)+log_section_end+"\n")
+    logger.flush()
+
 
     print("    current dataset:  ", args.dataset)
     print("    init model: ", args.restore_from)
@@ -357,48 +431,7 @@ def main():
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed) 
 
-    args.full_model_name = ""
-    if args.model == "ori" or args.model == "original_coattention_rgb":
-        model = CoattentionNet(num_classes=args.num_classes)
-        args.full_model_name = "original_coattention_rgb"
-    elif args.model == "ref" or args.model == "refactored_coattention_rgb":
-        model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
-        args.full_model_name = "refactored_coattention_rgb"
-    elif args.model == "add" or args.model == "added_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="add")
-        args.full_model_name = "added_depth_rgbd"
-    elif args.model == "conc1" or args.model == "concatenated_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc1")
-        args.full_model_name = "concatenated_depth_rgbd"
-    elif args.model == "conc2" or args.model == "concatenated_depth_rgbd2":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1, approach_for_depth="conc2")
-        args.full_model_name = "concatenated_depth_rgbd2"
-    elif args.model == "padd" or args.model == "post_added_depth_rgbd":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="padd")
-        args.full_model_name = "post_added_depth_rgbd"
-    elif args.model == "conv_add" or args.model == "convs_depth_addition":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_add")
-        args.full_model_name = "convs_depth_addition"
-    elif args.model == "conv_conc2" or args.model == "convs_depth_concatenation2":
-        model = RGBDSegmentationModel(Bottleneck, [3, 4, 23, 3], None, num_classes=1, approach_for_depth="conv_conc2")
-        args.full_model_name = "convs_depth_concatenation2"
-    else:
-        print("Invalid model name!")
-        return
-
-    args.snapshot_dir = osp.join(".", "snapshots", args.dataset, args.model, 'H'+str(args.output_HW[0])+'W'+str(args.output_HW[1]), ymd_hms)
-
-    if not os.path.exists(args.snapshot_dir):
-        os.makedirs(args.snapshot_dir)
-
-    logFileLoc = osp.join(args.snapshot_dir, args.dataset+"__"+args.full_model_name+"_"+ymd_hms+"_train_log.txt")
-    if os.path.isfile(logFileLoc):
-        logger = open(logFileLoc, 'a')
-    else:
-        logger = open(logFileLoc, 'w')
-    
-    logger.write(log_section_start+str(args)+log_section_end+"\n")
-    logger.flush()
+    model = create_model(args.full_model_name)
 
     cudnn.enabled = True
 
@@ -416,8 +449,12 @@ def main():
         new_params = model.state_dict().copy()
         if args.cuda:
             #model.to(device)
+            model.convert_keys(saved_state_dict["model"])
             for i in saved_state_dict["model"]:
-                if args.full_model_name == "original_coattention_rgb":
+                if args.full_model_name == "resnet_aspp_add":
+                    print("state key: ",i)
+
+                elif args.full_model_name == "original_coattention_rgb":
                     newKey = i.replace("module.", "encoder.")
                 elif True:
                     if i.startswith("module.layer5."):
@@ -440,11 +477,12 @@ def main():
         return new_params
         
     
-    new_params = convert_parameters_for_model(model, saved_state_dict)
+    # new_params = convert_parameters_for_model(model, saved_state_dict)
 
-    print("=====> Loading init weights,  pretrained COCO for VOC2012, and pretrained Coarse cityscapes for cityscapes")
+    print("=====> Loading init weights")
  
-    model.load_state_dict(new_params) #only resnet first 5 conv layers params
+    # model.load_state_dict(new_params) #only resnet first 5 conv layers params
+    model.load_state(saved_state_dict["model"])
     #print(model.keys())
     logMem(logger, "After loading state")
 
@@ -460,7 +498,6 @@ def main():
     logMem(logger, "After sending model to GPU")
     start_epoch=0
     
-    print("=====> Whether resuming from a checkpoint, for continuing training")
     if args.resume:
         if os.path.isfile(args.resume):
             print("=> loading checkpoint '{}'".format(args.resume))
@@ -474,7 +511,7 @@ def main():
     model.train()
     cudnn.benchmark = True
 
-    print("#######model:\n", model)
+    print("Model:\n", model)
 
     
     print('=====> Computing network parameters')
@@ -485,18 +522,16 @@ def main():
     logger.write("\n%s\t\t%s" % ('iter', 'Loss(train)\n'))
     logger.flush()
 
+    lambda_log = lambda msg: logger.write(msg+"\n")
+
     print("=====> Preparing training data")
     db_train = None
     if args.dataset == 'hzfurgbd':
         db_train = rgbddb.HzFuRGBDVideos(user_config["train"]["dataset"]["hzfurgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["hzfurgbd"]["subset"],transform=None, for_training=True, batch_size=args.batch_size)
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
     elif args.dataset == 'sbmrgbd':
-        db_train = sbmdb.sbm_rgbd(user_config["train"]["dataset"]["sbmrgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["sbmrgbd"]["subset"],for_training=True, batch_size=args.batch_size)
+        db_train = sbmdb.sbm_rgbd(user_config["train"]["dataset"]["sbmrgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["sbmrgbd"]["subset"],for_training=True, batch_size=args.batch_size, logFunc=lambda_log, output_dir_for_debug=os.path.join(args.snapshot_dir,"debug"))
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
-    elif args.dataset == 'davis':
-        db_train = davis_db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.img_dir,  transform=None, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
-        trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
-        db_train.next_batch = None
     else:
         print("dataset error")
 
@@ -505,10 +540,7 @@ def main():
                 lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
     optimizer.zero_grad()
 
-
     logMem(logger, "After creating dataloader")
-
-
 
     print("=====> Begin to train")
     train_len=len(trainloader)
@@ -517,20 +549,21 @@ def main():
     print("  max iteration: ", args.maxEpoches*train_len)
     
     loss_history = []
+
+    ignore_counterpart_loss = False
     for epoch in range(start_epoch, int(args.maxEpoches)):
         print("......epoch=", epoch)
+        np.random.seed(args.random_seed + epoch)
         if db_train.next_batch:
             db_train.next_batch()
-        np.random.seed(args.random_seed + epoch)
         for i_iter, batch in enumerate(trainloader,0): #i_iter from 0 to len-1
             logMem(logger, " Start batch")
 
             if db_train.next_batch:
                 db_train.next_batch()
             print("  i_iter=", i_iter)
-            current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_gt'],
+            current_rgb, current_depth, current_gt, counterpart_rgb, counterpart_depth, counterpart_gt = batch['target'], batch['target_depth'], batch['target_gt'], batch['search_0'], batch['search_0_depth'], batch['search_0_gt'],
 
-            
             # current_rgb.requires_grad_()
             current_rgb = Variable(current_rgb).cuda()
             # current_depth.requires_grad_()
@@ -540,23 +573,28 @@ def main():
             # counterpart_rgb.requires_grad_()
             counterpart_rgb = Variable(counterpart_rgb).cuda()
             # counterpart_depth.requires_grad_()
-            # counterpart_depth = Variable(counterpart_depth).cuda()
-            counterpart_gt = Variable(counterpart_gt.float().unsqueeze(1)).cuda()
+            counterpart_depth = Variable(counterpart_depth).cuda()
+            if not ignore_counterpart_loss:
+                counterpart_gt = Variable(counterpart_gt.float().unsqueeze(1)).cuda()
 
             optimizer.zero_grad()
-            
+
             lr = adjust_learning_rate(optimizer, i_iter+epoch*train_len, epoch,
                     max_iter = args.maxEpoches * train_len)
             #print(images.size())
             logMem(logger, " After feeding data to GPU")
 
-
-            if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "refactored_coattention_rgb":
+            if args.full_model_name == "original_coattention_rgb" or args.full_model_name == "original_coattention_rgb_retrained" or args.full_model_name == "refactored_coattention_rgb":
                 pred1, pred2, obj_label = model(current_rgb, counterpart_rgb)
             else:
-                pred1, pred2, obj_label = model(current_rgb, counterpart_rgb, current_depth)
+                if not ignore_counterpart_loss:
+                    pred1, pred2, obj_label = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
+                else:
+                    pred1, obj_label = model(current_rgb, counterpart_rgb, current_depth, counterpart_depth)
 
-            loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt) + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
+            loss = calc_loss_BCE(pred1, current_gt) + 0.8* calc_loss_L1(pred1, current_gt)
+            if not ignore_counterpart_loss:
+                loss = loss + calc_loss_BCE(pred2, counterpart_gt) + 0.8* calc_loss_L1(pred2, counterpart_gt)#class_balanced_cross_entropy_loss(pred, labels, size_average=False)
             logMem(logger, " After forward")
             loss.backward()
             logMem(logger, " After backward")
@@ -573,14 +611,16 @@ def main():
             del current_depth
             del current_gt
             del counterpart_rgb
-            del counterpart_gt
             del batch
-            del pred1, pred2, obj_label
+            del pred1, obj_label
+            if not ignore_counterpart_loss:
+                del counterpart_gt, pred2
+
             gc.collect()
             torch.cuda.empty_cache()
             logMem(logger, " After GC")
 
-                
+
         print("=====> saving model")
         state={"epoch": epoch+1, "model": model.state_dict()}
         torch.save(state, osp.join(args.snapshot_dir, 'snapshot_'+str(args.dataset)+"_"+str(epoch)+'.pth'))

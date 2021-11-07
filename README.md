@@ -1,87 +1,53 @@
-# COSNet
-Code for CVPR 2019 paper: 
+An implementation for COMP589: Unsupervised RGBD Video Object Segmentation With Co-attention Siamese Networks.
 
-[See More, Know More: Unsupervised Video Object Segmentation with
-Co-Attention Siamese Networks](http://openaccess.thecvf.com/content_CVPR_2019/papers/Lu_See_More_Know_More_Unsupervised_Video_Object_Segmentation_With_Co-Attention_CVPR_2019_paper.pdf)
+#### Network Architecture 
 
-[Xiankai Lu](https://sites.google.com/site/xiankailu111/), [Wenguan Wang](https://sites.google.com/view/wenguanwang), Chao Ma, Jianbing Shen, Ling Shao, Fatih Porikli
+![](../master/RGBD Co-attention UVOS.jpg)
 
-##
+#### Requirements
 
-![](../master/framework.png)
+python          3.7
+pytorch         1.9.0
+opencv          3.4.2
+numpy           1.20
+pyyaml          5.4.1
+scipy           1.7.1
+mattplotlib     3.4.2
+h5py            2.8.0
+torchsummary    1.4.5
 
-- - -
-:new:
+#### Dataset
+1. Download the SBM-RGBD dataset
+    wget https://rgbd2017.na.icar.cnr.it/SBM-RGBDdataset/IlluminationChanges/IlluminationChanges.zip
+    wget https://rgbd2017.na.icar.cnr.it/SBM-RGBDdataset/ColorCamouflage/ColorCamouflage.zip
+    wget https://rgbd2017.na.icar.cnr.it/SBM-RGBDdataset/DepthCamouflage/DepthCamouflage.zip
+    wget https://rgbd2017.na.icar.cnr.it/SBM-RGBDdataset/IntermittentMotion/IntermittentMotion.zip
+    wget https://rgbd2017.na.icar.cnr.it/SBM-RGBDdataset/OutOfRange/OutOfRange.zip
+    wget https://rgbd2017.na.icar.cnr.it/SBM-RGBDdataset/Shadows/Shadows.zip
+    wget https://rgbd2017.na.icar.cnr.it/SBM-RGBDdataset/Bootstrapping/Bootstrapping.zip
 
-Our group co-attention achieves a further performance gain (81.1 mean J on DAVIS-16 dataset), related codes have also been released.
+2. Unzip the downloaded dataset zips to a folder by following the structure described in dataset_info/sbm-rgbd-file-list.txt. And unzip dataset_info/ROIs.zip to the corresponding folders in the dataset.
 
-The pre-trained model, testing and training code:
-
-### Quick Start
+3. Search all "data_path" under "sbmrgbd" in config.yaml and replace the their values with the path to the dataset folder from step 1.
 
 #### Testing
 
-1. Install pytorch (version:1.0.1).
+1. Install libraries/frameworks from the list of the requirements.
 
-2. Download the pretrained model. Run 'test_coattention_conf.py' and change the davis dataset path, pretrainde model path and result path.
+2. Prepare the dataset by following descriptions in "Dataset" section.
 
-3. Run command: python test_coattention_conf.py --dataset davis --gpus 0
+3. Download the pretrained model file from https://drive.google.com/file/d/1d7hpX_w9bQCpn-w1hBH89DsNw1pE5N0x. And change the value of "test/model/resnet_aspp_add/pretrained_params" in config.yaml to the path to this file.
 
-4. Post CRF processing code comes from: https://github.com/lucasb-eyer/pydensecrf. 
+4. Run 'test.py --dataset sbmrgbd --model raa --gpus X[,Y]'. X, Y are the GPU number of your graphics card. For example, 'python test.py --dataset sbmrgbd --model raa --gpus 0,1'.
 
-The pretrained weight can be download from [GoogleDrive](https://drive.google.com/open?id=14ya3ZkneeHsegCgDrvkuFtGoAfVRgErz) or [BaiduPan](https://pan.baidu.com/s/16oFzRmn4Meuq83fCYr4boQ), pass code: xwup.
-
-The segmentation results on DAVIS, FBMS and Youtube-objects can be download from DAVIS_benchmark(https://davischallenge.org/davis2016/soa_compare.html) or
-[GoogleDrive](https://drive.google.com/open?id=1JRPc2kZmzx0b7WLjxTPD-kdgFdXh5gBq) or [BaiduPan](https://pan.baidu.com/s/11n7zAt3Lo2P3-42M2lsw6Q), pass code: q37f.
-
-The youtube-objects dataset can be downloaded from [here](http://calvin-vision.net/datasets/youtube-objects-dataset/) and annotation can be found [here](http://vision.cs.utexas.edu/projects/videoseg/data_download_register.html).
-
-The FBMS dataset can be downloaded from [here](https://lmb.informatik.uni-freiburg.de/resources/datasets/moseg.en.html).
 #### Training
 
-Requirements:
-python 2.7
-pytorch 1.0.1
-opencv 2.4
-scipy
-mattplotlib
-pyyaml
-h5py
+1. Install libraries/frameworks from the list of the requirements.
 
-1. Download all the training datasets, including MARA10K and DUT saliency datasets. Create a folder called images and put these two datasets into the folder. 
+2. Prepare the dataset by following descriptions in "Dataset" section.
 
-2. Download the deeplabv3 model from [GoogleDrive](https://drive.google.com/open?id=1hy0-BAEestT9H4a3Sv78xrHrzmZga9mj). Put it into the folder pretrained/deep_labv3.
+3. Download the pretrained model file from . And change the value of "train/model/resnet_aspp_add/initial_params" in config.yaml to the path to this file.
 
-3. Change the video path, saliency dataset path and deeplabv3 path in config.yaml.
-The folder of DAVIS dataset is like
-![image](https://user-images.githubusercontent.com/11287531/116809350-af9f6a80-ab91-11eb-9ae0-88a3cfb1243b.png)
-The folder of saliency dataset is like
-![image](https://user-images.githubusercontent.com/11287531/116809415-073dd600-ab92-11eb-93a9-3eff05bd193f.png)
+4. Run command: 'python train.py --dataset sbmrgbd --gpus X[,Y]' X, Y are the GPU number of your graphics card. For example, 'python train.py --dataset sbmrgbd --model raa --gpus 0,1'.
 
-
-4. Run command: python train_iteration_conf.py --dataset davis --gpus 0,1
-
-### Citation
-
-If you find the code and dataset useful in your research, please consider citing:
-```
-@InProceedings{Lu_2019_CVPR,  
-author = {Lu, Xiankai and Wang, Wenguan and Ma, Chao and Shen, Jianbing and Shao, Ling and Porikli, Fatih},  
-title = {See More, Know More: Unsupervised Video Object Segmentation With Co-Attention Siamese Networks},  
-booktitle = {The IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},  
-year = {2019}  
-}
-@article{lu2020_pami,
-  title={Zero-Shot Video Object Segmentation with Co-Attention Siamese Networks},
-  author={Lu, Xiankai and Wang, Wenguan and Shen, Jianbing and Crandall, David and Luo, Jiebo},
-  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  year={2020},
-  publisher={IEEE}
-}
-```
-### Other related projects/papers:
-[Saliency-Aware Geodesic Video Object Segmentation (CVPR15)](https://github.com/wenguanwang/saliencysegment)
-
-[Learning Unsupervised Video Primary Object Segmentation through Visual Attention (CVPR19)](https://github.com/wenguanwang/AGS)
-
-Any comments, please email: carrierlxk@gmail.com
+Note: Change the value of "sbmrgbd/subset" to train or test from different subsets.
