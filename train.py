@@ -164,7 +164,8 @@ def adjust_learning_rate(optimizer, i_iter, epoch, max_iter):
     
     lr = lr_poly(args.learning_rate, i_iter, max_iter, args.power, epoch)
     optimizer.param_groups[0]['lr'] = lr
-    if i_iter%3 ==0:
+    if False and i_iter%3 ==0:
+        # for salient object
         optimizer.param_groups[0]['lr'] = lr
         optimizer.param_groups[1]['lr'] = 0
     else:

@@ -60,4 +60,4 @@ if args and len(args) > 1:
     if input_filename and output_filename:
         loss = readlog(input_filename) #("./snapshots/davis_240x427s/log.txt")
         x = np.arange(len(loss))
-        plot2d(x, loss, "iter", "loss", output_filename) # "loss_hzfurgbd_120x160s.png")
+        plot2d(x, loss, "#iterations", "loss", output_filename) # "loss_hzfurgbd_120x160s.png")

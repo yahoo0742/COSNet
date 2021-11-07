@@ -8,7 +8,6 @@ import yaml
 with open("config.yaml") as config_file:
     user_config = yaml.load(config_file)
 
-#sys.path.append('/vol/graphics-solar/fengwenb/vos/cosnet/COSNet')
 #print(sys.path)
 import argparse
 import torch
