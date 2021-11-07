@@ -24,7 +24,6 @@ import os
 import os.path as osp
 #from psp.model import PSPNet
 #from dataloaders import davis_2016 as db
-from dataloaders import PairwiseImg_video as davis_db
 from dataloaders import hzfu_rgbd_loader as rgbddb
 from dataloaders import sbm_rgbd_loader as sbmdb
 import matplotlib.pyplot as plt
@@ -536,10 +535,6 @@ def main():
     elif args.dataset == 'sbmrgbd':
         db_train = sbmdb.sbm_rgbd(user_config["train"]["dataset"]["sbmrgbd"]["data_path"], sample_range=1, output_HW=args.output_HW, subset=user_config["train"]["dataset"]["sbmrgbd"]["subset"],for_training=True, batch_size=args.batch_size, logFunc=lambda_log, output_dir_for_debug=os.path.join(args.snapshot_dir,"debug"))
         trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
-    elif args.dataset == 'davis':
-        db_train = davis_db.PairwiseImg(user_config["train"]["dataset"]["davis"], user_config["train"]["saliency_dataset"], train=True, desired_HW=args.output_HW, db_root_dir=args.data_dir, img_root_dir=args.saliency_dataset_path,  transform=None, batch_size=args.batch_size) #db_root_dir() --> '/path/to/DAVIS-2016' train path
-        trainloader = data.DataLoader(db_train, batch_size= args.batch_size, shuffle=True, num_workers=0)
-        db_train.next_batch = None
     else:
         print("dataset error")
 
