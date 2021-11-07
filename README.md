@@ -2,7 +2,7 @@ An implementation for COMP589: Unsupervised RGBD Video Object Segmentation With 
 
 #### Network Architecture 
 
-![](../master/RGBD Co-attention UVOS.jpg)
+![](./RGBD Co-attention UVOS.jpg)
 
 #### Requirements
 
