@@ -479,7 +479,7 @@ def main():
     
     # new_params = convert_parameters_for_model(model, saved_state_dict)
 
-    print("=====> Loading init weights,  pretrained COCO for VOC2012, and pretrained Coarse cityscapes for cityscapes")
+    print("=====> Loading init weights")
  
     # model.load_state_dict(new_params) #only resnet first 5 conv layers params
     model.load_state(saved_state_dict["model"])
@@ -498,7 +498,6 @@ def main():
     logMem(logger, "After sending model to GPU")
     start_epoch=0
     
-    print("=====> Whether resuming from a checkpoint, for continuing training")
     if args.resume:
         if os.path.isfile(args.resume):
             print("=> loading checkpoint '{}'".format(args.resume))
@@ -512,7 +511,7 @@ def main():
     model.train()
     cudnn.benchmark = True
 
-    print("#######model:\n", model)
+    print("Model:\n", model)
 
     
     print('=====> Computing network parameters')
@@ -621,7 +620,7 @@ def main():
             torch.cuda.empty_cache()
             logMem(logger, " After GC")
 
-                
+
         print("=====> saving model")
         state={"epoch": epoch+1, "model": model.state_dict()}
         torch.save(state, osp.join(args.snapshot_dir, 'snapshot_'+str(args.dataset)+"_"+str(epoch)+'.pth'))
