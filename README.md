@@ -41,7 +41,7 @@ An implementation for COMP589: Unsupervised RGBD Video Object Segmentation With 
 
 3. Download the pretrained model file from [Google Drive](https://drive.google.com/file/d/1d7hpX_w9bQCpn-w1hBH89DsNw1pE5N0x). And change the value of `test`/`model`/`resnet_aspp_add`/`pretrained_params` in [config.yaml]() to the path to the model file.
 
-4. Run `test.py --dataset sbmrgbd --model raa --gpus X[,Y]`. `X`, `Y` are the GPU number of your graphics card. For example, `python test.py --dataset sbmrgbd --model raa --gpus 0,1`.
+4. Run `python test.py --dataset sbmrgbd --model raa --gpus X[,Y]`. `X`, `Y` are the GPU number of your graphics card. For example, `python test.py --dataset sbmrgbd --model raa --gpus 0,1`.
 
 #### Training
 
@@ -51,6 +51,6 @@ An implementation for COMP589: Unsupervised RGBD Video Object Segmentation With 
 
 3. Download the pretrained model file from . And change the value of `train`/`model`/`resnet_aspp_add`/`initial_params` in [config.yaml]() to the path to this model file.
 
-4. Run command: `python train.py --dataset sbmrgbd --gpus X[,Y]` `X`, `Y` are the GPU number of your graphics card. For example, `python train.py --dataset sbmrgbd --model raa --gpus 0,1`.
+4. Run command: `python train.py --dataset sbmrgbd --model raa --gpus X[,Y]` `X`, `Y` are the GPU number of your graphics card. For example, `python train.py --dataset sbmrgbd --model raa --gpus 0,1`.
 
 Note: Change the value of `sbmrgbd`/`subset` for training or testing from different subsets.
