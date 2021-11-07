@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import random
 import timeit
 #from psp.model1 import CoattentionNet  #based on pspnet
-from deeplab.siamese_model_conf import CoattentionNet #siame_model 
+# from deeplab.siamese_model_conf import CoattentionNet #siame_model 
 #from deeplab.utils import get_1x_lr_params, get_10x_lr_params#, adjust_learning_rate #, loss_calc
 from deeplab.residual_net import Bottleneck
 from deeplab.siamese_model import CoattentionSiameseNet
@@ -375,9 +375,7 @@ def netParams(model):
 
 
 def create_model(model_name):
-    if model_name == "original_coattention_rgb" or model_name == "original_coattention_rgb_retrained":
-        model = CoattentionNet(num_classes=args.num_classes)
-    elif model_name == "resnet_aspp_add":
+    if model_name == "resnet_aspp_add":
         model = RGBDSegmentation_RAA(Bottleneck, [3, 4, 23, 3], [3, 4, 6, 3], num_classes=1)
     elif model_name == "refactored_coattention_rgb":
         model = CoattentionSiameseNet(Bottleneck, 3, [3, 4, 23, 3], num_classes=args.num_classes-1)
