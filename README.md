@@ -49,7 +49,7 @@ An implementation for COMP589: Unsupervised RGBD Video Object Segmentation With 
 
 2. Prepare the dataset by following descriptions in `Dataset` section.
 
-3. Download the pretrained model file from . And change the value of `train`/`model`/`resnet_aspp_add`/`initial_params` in [config.yaml]() to the path to this model file.
+3. Download the pretrained model file from [Google Drive](https://drive.google.com/file/d/1qr22otbopnF9A8jAwqSQVa2EaOSNMTk3). And change the value of `train`/`model`/`resnet_aspp_add`/`initial_params` in [config.yaml]() to the path to this model file.
 
 4. Run command: `python train.py --dataset sbmrgbd --model raa --gpus X[,Y]` `X`, `Y` are the GPU number of your graphics card. For example, `python train.py --dataset sbmrgbd --model raa --gpus 0,1`.
 
