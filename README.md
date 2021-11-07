@@ -53,4 +53,4 @@ An implementation for COMP589: Unsupervised RGBD Video Object Segmentation With 
 
 4. Run command: `python train.py --dataset sbmrgbd --model raa --gpus X[,Y]` `X`, `Y` are the GPU number of your graphics card. For example, `python train.py --dataset sbmrgbd --model raa --gpus 0,1`.
 
-Note: Change the value of `sbmrgbd`/`subset` for training or testing from different subsets.
+Note: Change the value of `sbmrgbd`/`subset` in [config.yaml]() for training or testing from different subsets.
